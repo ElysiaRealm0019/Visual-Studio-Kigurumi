@@ -2,6 +2,7 @@ from typing import Any
 
 from app.generation.backends.prompting import (
     ProductReferenceKind,
+    _detail_lock_heading,
     _format_detail_lock_for_prompt,
     _format_prompt_list,
     _format_reference_descriptions,
@@ -42,6 +43,11 @@ ROLE_DESCRIPTIONS = {
         "{label} is the user-approved 2D character design of the same character. Use it to clarify details that the "
         "first image does not show, such as the sides and back of the hair; never let it change the locked design."
     ),
+    "style_photo_base": (
+        "{label} is the style photo: a real studio photograph of a finished kigurumi head shell of a different "
+        "character. It is the image to edit. Keep its photographic realism, lighting and materials; replace its "
+        "character entirely with the design."
+    ),
     "product_style": (
         "{label} is a finished-product style reference only. Use it for the physical kigurumi product look "
         "(white studio background, smooth shell material, wig fiber realism, lighting, framing). "
@@ -75,7 +81,9 @@ def build_image_prompt(
 ) -> str:
     stage_lines = [
         line
-        for line in _stage_prompt_for_mode(generation_mode, product_reference)
+        for line in _stage_prompt_for_mode(
+            generation_mode, product_reference, edit_style_photo="style_photo_base" in roles
+        )
         if not line.startswith(_AGENT_ONLY_PREFIXES)
     ]
     sections = [
@@ -85,7 +93,7 @@ def build_image_prompt(
         ),
         "\n".join(stage_lines).strip(),
         "Non-negotiable constraints:\n" + _format_prompt_list(prompt_payload.get("system_constraints") or []),
-        "Confirmed character details:\n" + _format_detail_lock_for_prompt(prompt_payload.get("detail_lock")),
+        _detail_lock_heading(generation_mode) + "\n" + _format_detail_lock_for_prompt(prompt_payload.get("detail_lock")),
         "Supplemental reference descriptions:\n"
         + _format_reference_descriptions(prompt_payload.get("reference_descriptions") or []),
         "User requirements:\n" + _format_prompt_list(prompt_payload.get("user_requirements") or []),

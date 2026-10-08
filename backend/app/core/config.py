@@ -41,6 +41,8 @@ class Settings(BaseSettings):
     codex_usage_check_enabled: bool = True
     codex_usage_check_timeout_seconds: int = 12
     codex_product_reference_path: str = "ref/product-reference.png"
+    # Make the head-shell front by editing the product photo into the character instead of rendering from the design.
+    head_shell_edit_style_photo: bool = False
     claude_code_path: str = "claude"
     claude_code_model: str = ""
     claude_code_workspace_dir: str = "runtime/claude-code"

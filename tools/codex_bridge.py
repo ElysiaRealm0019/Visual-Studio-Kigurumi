@@ -339,7 +339,8 @@ def _resolve_image_paths(reference_keys: list[str], config: BridgeConfig) -> lis
             detail=f"Fixed product reference is missing: {product_reference}",
         )
 
-    return [product_reference, *user_references]
+    # User images first, the style photo last: the backend's prompt names the images by position.
+    return [*user_references, product_reference]
 
 
 def _resolve_uploaded_reference_path(reference_key: Any, reference_root: Path) -> Path | None:

@@ -76,7 +76,7 @@ async def test_codex_bridge_provider_posts_sanitized_job_to_bridge(monkeypatch):
     assert "fixed system guardrail" in payload["prompt_text"]
     assert "soft youthful expression" in payload["prompt_text"]
     assert "keep green hair tips" in payload["prompt_text"]
-    assert "front-view design preview" in payload["prompt_text"]
+    assert "front-view studio photograph of a finished, physical kigurumi head shell" in payload["prompt_text"]
     assert "Produce exactly one image for candidate 1" in payload["prompt_text"]
     assert "stand" not in payload["prompt_text"].lower()
 
@@ -133,7 +133,7 @@ def test_codex_prompt_requires_single_front_design_image():
         }
     )
 
-    assert "front-view design preview" in prompt_text
+    assert "front-view studio photograph of a finished, physical kigurumi head shell" in prompt_text
     assert "Produce exactly one image" in prompt_text
     assert "outputs/candidate-1.webp" in prompt_text
     assert "candidate-2.webp" not in prompt_text
@@ -155,14 +155,14 @@ def test_codex_prompt_supports_single_front_design_stage():
         }
     )
 
-    assert "front-view design preview" in prompt_text
+    assert "front-view studio photograph of a finished, physical kigurumi head shell" in prompt_text
     assert "finished-product reference image" in prompt_text
-    assert "only for physical kigurumi head shell product-photo qualities" in prompt_text
-    assert "Do not copy the fixed reference character design" in prompt_text
+    assert "the last attached image is a photo of a finished kigurumi head shell" in prompt_text
+    assert "Never copy its character, face, colours, hairstyle" in prompt_text
     assert "Produce exactly one image" in prompt_text
     assert "outputs/candidate-1.webp" in prompt_text
     assert "candidate-2.webp" not in prompt_text
-    assert "Output only one front-view design image" in prompt_text
+    assert "Output only one front-view head shell photograph" in prompt_text
     assert "800x1100" in prompt_text
     assert "stand" not in prompt_text.lower()
     assert "long loose hair must remain continuous" in prompt_text

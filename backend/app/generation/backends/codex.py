@@ -32,12 +32,14 @@ from app.generation.backends.common import (
 )
 from app.generation.backends.prompting import (
     ProductReferenceKind,
+    _detail_lock_heading,
     _format_detail_lock_for_prompt,
     _format_prompt_list,
     _format_reference_descriptions,
     _reference_instruction_for_mode,
     _stage_prompt_for_mode,
     _title_for_mode,
+    edits_style_photo,
 )
 from app.generation.backends.types import (
     FRONT_OUTPUT_HEIGHT,
@@ -224,6 +226,7 @@ class CodexImageProvider(ImageGenerationProvider):
         prompt_text = _build_codex_prompt(
             prompt_payload,
             product_reference_kind(generation_mode, _product_reference_paths_for_mode(generation_mode, settings)),
+            edit_style_photo=True,
         )
         (workspace / "prompt_payload.json").write_text(
             json.dumps(prompt_payload, ensure_ascii=False, indent=2),
@@ -453,44 +456,20 @@ def _bridge_product_reference_kind(prompt_payload: dict[str, Any]) -> ProductRef
 
 
 def _build_codex_prompt(
-    prompt_payload: dict[str, Any], product_reference: ProductReferenceKind = "matching"
+    prompt_payload: dict[str, Any],
+    product_reference: ProductReferenceKind = "matching",
+    edit_style_photo: bool = False,
 ) -> str:
     if _is_local_revision_payload(prompt_payload):
         return _build_codex_local_revision_prompt(prompt_payload, output_index=1)
-
-    system_constraints = prompt_payload.get("system_constraints") or []
-    user_requirements = prompt_payload.get("user_requirements") or []
-    user_notes = prompt_payload.get("user_notes") or ""
-    reference_descriptions = prompt_payload.get("reference_descriptions") or []
-    detail_lock = prompt_payload.get("detail_lock")
     generation_mode = normalize_generation_mode(str(prompt_payload.get("generation_mode") or "front_design"))
-    stage_prompt = _stage_prompt_for_mode(generation_mode, product_reference)
-    title = _title_for_mode(generation_mode)
-
     return "\n".join(
         [
-            title,
+            _title_for_mode(generation_mode),
             IMAGE_GENERATION_TOOL_REQUIREMENT,
             TOOL_OUTPUT_COLLECTION_NOTE,
             "",
-            "Non-negotiable constraints:",
-            _format_prompt_list(system_constraints),
-            "",
-            "Confirmed character details:",
-            _format_detail_lock_for_prompt(detail_lock),
-            "",
-            _reference_instruction_for_mode(generation_mode, product_reference),
-            "",
-            "Supplemental reference descriptions:",
-            _format_reference_descriptions(reference_descriptions),
-            "",
-            "Composed user requirements:",
-            _format_prompt_list(user_requirements),
-            "",
-            "Composed user notes:",
-            str(user_notes),
-            "",
-            *stage_prompt,
+            *_codex_prompt_body(prompt_payload, generation_mode, product_reference, edit_style_photo),
             "",
             "Produce exactly one image. Save it as:",
             "- outputs/candidate-1.webp",
@@ -508,39 +487,13 @@ def _build_codex_candidate_prompt(
 ) -> str:
     if _is_local_revision_payload(prompt_payload):
         return _build_codex_local_revision_prompt(prompt_payload, output_index=output_index)
-
-    system_constraints = prompt_payload.get("system_constraints") or []
-    user_requirements = prompt_payload.get("user_requirements") or []
-    user_notes = prompt_payload.get("user_notes") or ""
-    reference_descriptions = prompt_payload.get("reference_descriptions") or []
-    detail_lock = prompt_payload.get("detail_lock")
     generation_mode = normalize_generation_mode(str(prompt_payload.get("generation_mode") or "front_design"))
-    stage_prompt = _stage_prompt_for_mode(generation_mode, product_reference)
-    title = _title_for_mode(generation_mode)
-
     return "\n".join(
         [
-            title,
+            _title_for_mode(generation_mode),
             IMAGE_GENERATION_TOOL_REQUIREMENT,
             "",
-            "Non-negotiable constraints:",
-            _format_prompt_list(system_constraints),
-            "",
-            "Confirmed character details:",
-            _format_detail_lock_for_prompt(detail_lock),
-            "",
-            _reference_instruction_for_mode(generation_mode, product_reference),
-            "",
-            "Supplemental reference descriptions:",
-            _format_reference_descriptions(reference_descriptions),
-            "",
-            "Composed user requirements:",
-            _format_prompt_list(user_requirements),
-            "",
-            "Composed user notes:",
-            str(user_notes),
-            "",
-            *stage_prompt,
+            *_codex_prompt_body(prompt_payload, generation_mode, product_reference, False),
             "",
             f"Produce exactly one image for candidate {output_index}. Save it as:",
             f"- outputs/candidate-{output_index}.webp",
@@ -549,6 +502,36 @@ def _build_codex_candidate_prompt(
             _manifest_json_example([output_index], generation_mode),
         ]
     )
+
+
+def _codex_prompt_body(
+    prompt_payload: dict[str, Any],
+    generation_mode: str,
+    product_reference: ProductReferenceKind,
+    edit_style_photo: bool,
+) -> list[str]:
+    # Task first, then which attached image is which, then the user's data (as in the upstream V2 stage briefs):
+    # a long detail list ahead of the task made the model redraw the 2D design instead of rendering the shell.
+    return [
+        _reference_instruction_for_mode(generation_mode, product_reference, edit_style_photo),
+        "",
+        *_stage_prompt_for_mode(generation_mode, product_reference, edit_style_photo),
+        "",
+        "Non-negotiable constraints:",
+        _format_prompt_list(prompt_payload.get("system_constraints") or []),
+        "",
+        _detail_lock_heading(generation_mode),
+        _format_detail_lock_for_prompt(prompt_payload.get("detail_lock")),
+        "",
+        "Supplemental reference descriptions:",
+        _format_reference_descriptions(prompt_payload.get("reference_descriptions") or []),
+        "",
+        "Composed user requirements:",
+        _format_prompt_list(prompt_payload.get("user_requirements") or []),
+        "",
+        "Composed user notes:",
+        str(prompt_payload.get("user_notes") or ""),
+    ]
 
 
 def _build_codex_local_revision_prompt(prompt_payload: dict[str, Any], output_index: int) -> str:
@@ -889,10 +872,7 @@ def _parse_codex_bridge_output(
 
 
 def _existing_codex_image_paths(prompt_payload: dict[str, Any], settings: Any) -> list[Path]:
-    image_paths: list[Path] = []
     generation_mode = normalize_generation_mode(str(prompt_payload.get("generation_mode") or "front_design"))
-    image_paths.extend(_product_reference_paths_for_mode(generation_mode, settings))
-
     user_reference_paths: list[Path] = []
     for reference_key in prompt_payload.get("reference_keys") or []:
         reference_path = _resolve_uploaded_reference_path(
@@ -904,8 +884,12 @@ def _existing_codex_image_paths(prompt_payload: dict[str, Any], settings: Any) -
 
     if not user_reference_paths:
         raise RuntimeError("Codex generation requires at least one uploaded user reference")
-    image_paths.extend(user_reference_paths)
-    return image_paths
+    # Codex passes images without file names, so the prompt names them by position. The user's images come first and
+    # the application's product-style photos last, except for the head-shell front, which edits the style photo.
+    product_paths = _product_reference_paths_for_mode(generation_mode, settings)
+    if edits_style_photo(generation_mode, product_reference_kind(generation_mode, product_paths)):
+        return [*product_paths, *user_reference_paths]
+    return [*user_reference_paths, *product_paths]
 
 
 def _codex_image_paths_for_payload(

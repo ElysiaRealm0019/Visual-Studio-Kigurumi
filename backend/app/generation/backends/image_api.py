@@ -30,6 +30,7 @@ from app.generation.backends.common import (
     product_reference_kind,
 )
 from app.generation.backends.image_api_prompt import build_image_prompt, build_local_revision_prompt
+from app.generation.backends.prompting import edits_style_photo
 from app.generation.backends.types import (
     FRONT_OUTPUT_HEIGHT,
     FRONT_OUTPUT_WIDTH,
@@ -301,7 +302,12 @@ def prepare_generation(
         roles = ["approved_front"]
     product_paths = _product_reference_paths_for_mode(generation_mode, settings)
     product_reference = product_reference_kind(generation_mode, product_paths)
-    if product_paths and len(images) < max_images:
+    if edits_style_photo(generation_mode, product_reference) and max_images >= 2:
+        # The finished-product photo becomes the image being edited (Image 1); the design follows as Image 2.
+        style = load_rgb(product_paths[0])
+        images.insert(0, pad_to_ratio(style, target_ratio, edge_color(style)))
+        roles.insert(0, "style_photo_base")
+    elif product_paths and len(images) < max_images:
         images.append(load_rgb(product_paths[0]))
         if not is_turnaround:
             roles.append("product_style")

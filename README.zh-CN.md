@@ -105,6 +105,8 @@ ARK_API_KEY=你的-agent-plan-key
 | `ref/product-reference.png` | 头壳正视图 |
 | `ref/turnaround-reference.png` | 头壳四视图 |
 
+这张成品照只用来参考头壳成品的质感（哑光壳面、镜片眼、假发、布光），角色本身完全按设计稿来。最好是头壳加假发的正面特写，背景干净，不带支架、文字和水印；路径可以用 `CODEX_PRODUCT_REFERENCE_PATH` 改。如果设置 `HEAD_SHELL_EDIT_STYLE_PHOTO=true`，会改成以这张照片为底图去改成你的角色：更像实拍，但脸会往照片里那个角色偏。
+
 ## Docker
 
 ```powershell

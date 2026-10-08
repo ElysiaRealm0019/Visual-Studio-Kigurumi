@@ -159,7 +159,7 @@ async def test_codex_bridge_runs_runner_and_returns_four_public_outputs(tmp_path
         for index, item in enumerate(command)
         if item == "--image"
     ]
-    assert image_args == [product_file, reference_file]
+    assert image_args == [reference_file, product_file]
     assert (workspace / "prompt.md").read_text(encoding="utf-8") == (
         "compose four finished views"
     )

@@ -105,6 +105,8 @@ The repository does not ship product photos. To constrain the finished head-shel
 | `ref/product-reference.png` | head-shell front view |
 | `ref/turnaround-reference.png` | head-shell four-view sheet |
 
+The photo only sets the finished-product look (matte shell, lens eyes, wig, lighting); the character comes entirely from the design. Use a front close-up of a head shell with its wig on a plain background, without stands, text or watermarks (`CODEX_PRODUCT_REFERENCE_PATH` sets the path). With `HEAD_SHELL_EDIT_STYLE_PHOTO=true` the front is made by editing this photo into your character instead: more photographic, but the face drifts toward the photo's character.
+
 ## Docker
 
 ```powershell

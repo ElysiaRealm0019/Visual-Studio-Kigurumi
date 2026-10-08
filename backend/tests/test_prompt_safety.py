@@ -118,7 +118,7 @@ def test_detail_lock_prompt_format_neutralizes_multiline_crop_keys():
     )
 
 
-def test_codex_prompts_place_detail_lock_before_user_sections():
+def test_codex_prompts_place_task_then_detail_lock_before_user_sections():
     prompt_payload = {
         "system_constraints": ["Keep the submitted character identity"],
         "reference_descriptions": [
@@ -141,12 +141,10 @@ def test_codex_prompts_place_detail_lock_before_user_sections():
     candidate_prompt = _build_codex_candidate_prompt(prompt_payload, 1)
 
     for rendered in (prompt, candidate_prompt):
-        assert rendered.index("Confirmed character details:") < rendered.index(
-            "Supplemental reference descriptions:"
-        )
-        assert rendered.index("Confirmed character details:") < rendered.index(
-            "Composed user requirements:"
-        )
+        lock = rendered.index("Confirmed design facts")
+        assert rendered.index("Look: a photorealistic studio product photograph") < lock
+        assert lock < rendered.index("Supplemental reference descriptions:")
+        assert lock < rendered.index("Composed user requirements:")
 
 
 def test_codex_prompts_require_image_generation_tool_and_forbid_manual_drawing():

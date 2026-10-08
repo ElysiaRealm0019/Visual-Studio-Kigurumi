@@ -534,7 +534,7 @@ def test_manifest_rejects_non_public_image_output_paths(manifest_root, path):
         parse_codex_manifest(manifest_path, "/api/generated/session-a/job-1")
 
 
-def test_uploaded_reference_keys_resolve_only_from_reference_upload_dir(manifest_root):
+def test_uploaded_reference_keys_resolve_only_from_reference_upload_dir(manifest_root, monkeypatch):
     reference_root = manifest_root / "refs"
     reference_file = reference_root / "upload-1" / "front.webp"
     reference_file.parent.mkdir(parents=True)
@@ -563,7 +563,21 @@ def test_uploaded_reference_keys_resolve_only_from_reference_upload_dir(manifest
         settings,
     )
 
-    assert image_paths == [product_file, reference_file]
+    # User images first, the application's style photo last.
+    assert image_paths == [reference_file, product_file]
+
+    # With HEAD_SHELL_EDIT_STYLE_PHOTO the head-shell front edits the style photo, so it goes first.
+    from app.core.config import get_settings
+
+    monkeypatch.setenv("HEAD_SHELL_EDIT_STYLE_PHOTO", "true")
+    get_settings.cache_clear()
+    keys = {"reference_keys": [f"front:references/{reference_file.parent.name}/front.webp"]}
+    assert _existing_codex_image_paths(keys, settings) == [product_file, reference_file]
+    assert _existing_codex_image_paths({**keys, "generation_mode": "front_revision"}, settings) == [
+        reference_file,
+        product_file,
+    ]
+    get_settings.cache_clear()
 
 
 def test_codex_mode_requires_an_uploaded_user_reference(manifest_root):
