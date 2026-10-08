@@ -13,52 +13,52 @@ body,
 :root,
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --ide-accent: #7c7bf7;
-  --ide-accent-hover: #908ffa;
-  --ide-accent-contrast: #ffffff;
-  --ide-accent-soft: rgba(124, 123, 247, 0.16);
-  --ide-bg: #16171b;
-  --ide-panel: #1c1d22;
-  --ide-panel-raised: #23242a;
-  --ide-activity: #121317;
-  --ide-border: #2d2f36;
-  --ide-border-strong: #3b3e47;
-  --ide-text: #e4e5e9;
-  --ide-text-muted: #8b8f9a;
-  --ide-text-faint: #5d616b;
-  --ide-hover: #2a2c33;
-  --ide-input: #121317;
-  --ide-canvas: #101114;
-  --ide-canvas-check: #15161a;
+  --ide-accent: #2e95f8;
+  --ide-accent-hover: #52a8fa;
+  --ide-accent-contrast: #04122a;
+  --ide-accent-soft: rgba(46, 149, 248, 0.16);
+  --ide-bg: #0a1426;
+  --ide-panel: #0e1a30;
+  --ide-panel-raised: #14223b;
+  --ide-activity: #071022;
+  --ide-border: #1e2d48;
+  --ide-border-strong: #2b3d5e;
+  --ide-text: #e3eaf5;
+  --ide-text-muted: #8796b0;
+  --ide-text-faint: #566684;
+  --ide-hover: #172741;
+  --ide-input: #071022;
+  --ide-canvas: #060d1b;
+  --ide-canvas-check: #0a1426;
   --ide-danger: #f26d6d;
-  --ide-success: #4cc38a;
+  --ide-success: #43c38c;
   --ide-warning: #e5b454;
-  --ide-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  --ide-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
 }
 
 :root[data-theme="light"] {
   color-scheme: light;
-  --ide-accent: #5b5bd6;
-  --ide-accent-hover: #4a4ac4;
+  --ide-accent: #116ced;
+  --ide-accent-hover: #0b59c8;
   --ide-accent-contrast: #ffffff;
-  --ide-accent-soft: rgba(91, 91, 214, 0.12);
-  --ide-bg: #f6f7f9;
+  --ide-accent-soft: rgba(17, 108, 237, 0.1);
+  --ide-bg: #f4f7fc;
   --ide-panel: #ffffff;
-  --ide-panel-raised: #f1f2f5;
-  --ide-activity: #ebecf0;
-  --ide-border: #e2e4e9;
-  --ide-border-strong: #cdd0d7;
-  --ide-text: #1f2329;
-  --ide-text-muted: #6b7280;
-  --ide-text-faint: #9ca3af;
-  --ide-hover: #eceef2;
+  --ide-panel-raised: #edf2f9;
+  --ide-activity: #e6edf7;
+  --ide-border: #d9e2ef;
+  --ide-border-strong: #c1cee1;
+  --ide-text: #0f1f3d;
+  --ide-text-muted: #5a6a86;
+  --ide-text-faint: #93a1b8;
+  --ide-hover: #e8eff9;
   --ide-input: #ffffff;
-  --ide-canvas: #e8e9ed;
-  --ide-canvas-check: #e1e2e7;
+  --ide-canvas: #e3eaf4;
+  --ide-canvas-check: #dae2ee;
   --ide-danger: #d64545;
-  --ide-success: #2f9e6a;
+  --ide-success: #25966a;
   --ide-warning: #b7791f;
-  --ide-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+  --ide-shadow: 0 10px 30px rgba(7, 22, 48, 0.12);
 }
 
 /* Legacy tokens used by the editor and audit components, mapped onto the IDE theme. */

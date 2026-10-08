@@ -2,6 +2,13 @@
 
 [中文](README.zh-CN.md) | English
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/logo-dark-mode.png" />
+    <img src="docs/logo.png" alt="Visual Studio Kigurumi" width="160" />
+  </picture>
+</p>
+
 V.S.K is a web tool for designing kigurumi head shells. Upload character references, talk to the design assistant, and get a 2D character design, then a finished head-shell product view and a four-view sheet. Every image can also be adjusted by hand in a built-in editor, and every result is kept in the project's version history.
 
 V.S.K is an independent project based on [KigCraft](https://kigcraft.com) by SeaRabbit / 海兔 (user group QQ 934715528). The conversational workflow, workspace and generation pipeline come from KigCraft; V.S.K adds pluggable model backends, a settings page, editor improvements and prompt tuning.

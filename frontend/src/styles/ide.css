@@ -110,7 +110,7 @@
 .ide-stages li[data-state="active"] .ide-stage-index {
   background: var(--ide-accent);
   border-color: var(--ide-accent);
-  color: #fff;
+  color: var(--ide-accent-contrast);
 }
 
 .ide-stages li[data-state="done"] .ide-stage-index {

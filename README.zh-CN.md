@@ -2,6 +2,13 @@
 
 中文 | [English](README.md)
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/logo-dark-mode.png" />
+    <img src="docs/logo.png" alt="Visual Studio Kigurumi" width="160" />
+  </picture>
+</p>
+
 V.S.K 是一个设计 Kigurumi 头壳的网页工具。上传角色参考图，和设计助手对话，先得到 2D 角色设计稿，再得到头壳成品正视图和四视图。每张图都能在内置编辑器里手动调整，所有结果都保存在项目的版本历史里。
 
 V.S.K 是基于 [KigCraft](https://kigcraft.com)（原作者 SeaRabbit / 海兔，用户交流群 QQ 934715528）开发的独立项目。对话式工作流、工作区和生成管线来自 KigCraft；V.S.K 在此基础上加入了可切换的模型后端、设置页、编辑器改进和提示词调优。
