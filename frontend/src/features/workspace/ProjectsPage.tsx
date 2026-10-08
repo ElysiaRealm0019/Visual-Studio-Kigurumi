@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { normalizeLocale } from "../../i18n/locales";
+import { ConfirmDialog, PromptDialog } from "../../ui/IdeDialog";
 import {
   createConversation,
   deleteConversation,
@@ -22,6 +23,8 @@ export function ProjectsPage() {
   const projects = useQuery({ queryKey: ["projects"], queryFn: listConversations });
   const [creating, setCreating] = useState(false);
   const [menuFor, setMenuFor] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<ConversationSummary | null>(null);
+  const [renaming, setRenaming] = useState<ConversationSummary | null>(null);
 
   async function create(name: string) {
     const project = await createConversation(normalizeLocale(i18n.language), name);
@@ -30,18 +33,20 @@ export function ProjectsPage() {
   }
 
   async function remove(project: ConversationSummary) {
-    setMenuFor(null);
-    if (!window.confirm(t("workspace.confirmDelete"))) return;
     await deleteConversation(project.id);
+    setDeleting(null);
     await queryClient.invalidateQueries({ queryKey: ["projects"] });
   }
 
-  async function rename(project: ConversationSummary) {
-    setMenuFor(null);
-    const name = window.prompt(t("workspace.rename"), project.title || "");
-    if (!name?.trim()) return;
-    await renameConversation(project.id, name.trim());
+  async function rename(project: ConversationSummary, name: string) {
+    await renameConversation(project.id, name);
+    setRenaming(null);
     await queryClient.invalidateQueries({ queryKey: ["projects"] });
+  }
+
+  function actionError(error: unknown) {
+    const code = error instanceof Error ? error.message : String(error);
+    return t(`agent.errors.${code}`, { defaultValue: t("agent.errors.generic", { message: code }) });
   }
 
   return (
@@ -94,7 +99,8 @@ export function ProjectsPage() {
                 </button>
                 <div className="ide-project-menu">
                   <button
-                    aria-label={t("workspace.rename")}
+                    aria-expanded={menuFor === project.id}
+                    aria-label={t("workspace.projectActions")}
                     className="ide-icon-button"
                     onClick={() => setMenuFor(menuFor === project.id ? null : project.id)}
                     type="button"
@@ -103,11 +109,25 @@ export function ProjectsPage() {
                   </button>
                   {menuFor === project.id ? (
                     <div className="absolute right-0 top-8 z-10 flex w-36 flex-col rounded-md border border-[var(--ide-border)] bg-[var(--ide-panel-raised)] p-1 shadow-lg">
-                      <button className="ide-tree-item" onClick={() => void rename(project)} type="button">
+                      <button
+                        className="ide-tree-item"
+                        onClick={() => {
+                          setMenuFor(null);
+                          setRenaming(project);
+                        }}
+                        type="button"
+                      >
                         <IconPencil size={14} />
                         {t("workspace.rename")}
                       </button>
-                      <button className="ide-tree-item text-[var(--ide-danger)]" onClick={() => void remove(project)} type="button">
+                      <button
+                        className="ide-tree-item text-[var(--ide-danger)]"
+                        onClick={() => {
+                          setMenuFor(null);
+                          setDeleting(project);
+                        }}
+                        type="button"
+                      >
                         <IconTrash size={14} />
                         {t("workspace.deleteProject")}
                       </button>
@@ -121,6 +141,29 @@ export function ProjectsPage() {
       </main>
 
       {creating ? <CreateProjectDialog onCancel={() => setCreating(false)} onCreate={create} /> : null}
+      {deleting ? (
+        <ConfirmDialog
+          confirmLabel={t("workspace.deleteProject")}
+          danger
+          errorMessage={actionError}
+          message={t("workspace.confirmDeleteNamed", { name: deleting.title || t("workspace.untitled") })}
+          onCancel={() => setDeleting(null)}
+          onConfirm={() => remove(deleting)}
+          title={t("workspace.deleteProject")}
+        />
+      ) : null}
+      {renaming ? (
+        <PromptDialog
+          confirmLabel={t("common.save")}
+          errorMessage={actionError}
+          initialValue={renaming.title}
+          maxLength={80}
+          onCancel={() => setRenaming(null)}
+          onConfirm={(name) => rename(renaming, name)}
+          placeholder={t("workspace.projectNamePlaceholder")}
+          title={t("workspace.rename")}
+        />
+      ) : null}
     </div>
   );
 }

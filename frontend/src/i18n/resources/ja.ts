@@ -2,6 +2,7 @@ import type { TranslationResource } from "./zh-CN";
 
 const ja: TranslationResource = {
   common: {
+    save: "保存",
     language: "言語",
     refresh: "更新",
     back: "戻る",
@@ -85,7 +86,8 @@ const ja: TranslationResource = {
     versionCount: "{{count}} バージョン",
     rename: "名前を変更",
     deleteProject: "プロジェクトを削除",
-    confirmDelete: "このプロジェクトを削除しますか？元に戻せません。",
+    confirmDeleteNamed: "「{{name}}」を削除しますか？すべてのバージョンが削除され、元に戻せません。",
+    projectActions: "プロジェクトの操作",
     untitled: "無題のプロジェクト",
     home: "すべてのプロジェクト",
     explorer: "エクスプローラー",

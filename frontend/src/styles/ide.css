@@ -525,6 +525,16 @@
   color: var(--ide-accent-contrast);
 }
 
+.ide-button-danger {
+  background: var(--ide-danger);
+  border-color: var(--ide-danger);
+  color: var(--ide-accent-contrast);
+}
+
+.ide-button-danger:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
 .ide-button-primary:hover:not(:disabled) {
   background: var(--ide-accent-hover);
   border-color: var(--ide-accent-hover);

@@ -2,6 +2,7 @@ import type { TranslationResource } from "./zh-CN";
 
 const en: TranslationResource = {
   common: {
+    save: "Save",
     language: "Language",
     refresh: "Refresh",
     back: "Back",
@@ -85,7 +86,8 @@ const en: TranslationResource = {
     versionCount: "{{count}} versions",
     rename: "Rename",
     deleteProject: "Delete project",
-    confirmDelete: "Delete this project? This cannot be undone.",
+    confirmDeleteNamed: "Delete “{{name}}”? All of its versions will be removed. This cannot be undone.",
+    projectActions: "Project actions",
     untitled: "Untitled project",
     home: "All projects",
     explorer: "Explorer",

@@ -1,5 +1,6 @@
 const zhCN = {
   common: {
+    save: "保存",
     language: "语言",
     refresh: "刷新",
     back: "返回",
@@ -83,7 +84,8 @@ const zhCN = {
     versionCount: "{{count}} 个版本",
     rename: "重命名",
     deleteProject: "删除项目",
-    confirmDelete: "确定删除这个项目？此操作不可撤销。",
+    confirmDeleteNamed: "确定删除“{{name}}”？项目里的所有版本都会被删除，无法撤销。",
+    projectActions: "项目操作",
     untitled: "未命名项目",
     home: "所有项目",
     explorer: "资源管理器",
