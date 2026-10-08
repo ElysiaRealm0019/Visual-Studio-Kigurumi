@@ -149,6 +149,9 @@ const en: TranslationResource = {
     stop: "Stop",
     dropHint: "Drop to add reference images",
     thinking: "Thinking…",
+    regenerate: "Regenerate",
+    deleteMessage: "Delete reply",
+    confirmDeleteMessage: "Delete this reply? It is also removed from the assistant's context. Generated images are kept.",
     you: "You",
     assistant: "V.S.K",
     approve: "Use this one",
@@ -191,6 +194,8 @@ const en: TranslationResource = {
     errors: {
       generic: "Something went wrong: {{message}}",
       conversation_running: "The previous step is still running, please wait.",
+      nothing_to_regenerate: "There is no message of yours to answer again.",
+      message_not_found: "That reply no longer exists.",
       too_many_references: "Too many reference images (max 8 per chat).",
       too_many_files: "Up to 6 images per message.",
       load: "Failed to load the chat: {{message}}",

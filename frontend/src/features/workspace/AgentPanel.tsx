@@ -17,6 +17,8 @@ type AgentPanelProps = {
   onStop: () => void;
   onOpenImage: (url: string) => void;
   onOpenVersion: (imageId: string) => void;
+  onDeleteMessage: (seq: number) => void;
+  onRegenerate: () => void;
 };
 
 export function AgentPanel({
@@ -31,6 +33,8 @@ export function AgentPanel({
   onStop,
   onOpenImage,
   onOpenVersion,
+  onDeleteMessage,
+  onRegenerate,
 }: AgentPanelProps) {
   const { t } = useTranslation();
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -58,8 +62,10 @@ export function AgentPanel({
             conversation={conversation}
             events={events}
             onApprove={onApprove}
+            onDeleteMessage={onDeleteMessage}
             onOpenImage={onOpenImage}
             onOpenVersion={onOpenVersion}
+            onRegenerate={onRegenerate}
             running={running}
           />
         )}

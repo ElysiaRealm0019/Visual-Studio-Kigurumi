@@ -16,7 +16,9 @@ import {
   AgentApiError,
   approveActionFor,
   cancelRun,
+  deleteAssistantMessage,
   isTurnaroundRole,
+  regenerateLastTurn,
   prepareUpload,
   renameConversation,
   saveManualVersion,
@@ -41,6 +43,7 @@ import {
 } from "../editor/EditorWorkspace";
 import { LanguageSelector } from "../i18n/LanguageSelector";
 import { SettingsLink } from "../settings/SettingsLink";
+import { ConfirmDialog } from "../../ui/IdeDialog";
 import { ThemeToggle } from "./ThemeToggle";
 import { AgentPanel } from "./AgentPanel";
 import { useEditorDrafts } from "./useEditorDrafts";
@@ -68,6 +71,7 @@ export function WorkspacePage() {
   const [toolbarEl, setToolbarEl] = useState<HTMLDivElement | null>(null);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [sendError, setSendError] = useState<string | null>(null);
+  const [deletingReply, setDeletingReply] = useState<number | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [toast, setToast] = useState<{ text: string; tone?: "error" } | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -172,6 +176,31 @@ export function WorkspacePage() {
       setSendError(t(`agent.errors.${code}`, { defaultValue: t("agent.errors.generic", { message: code }) }));
       return false;
     }
+  }
+
+  function agentErrorText(error: unknown) {
+    const code = error instanceof AgentApiError ? error.message : String(error);
+    return t(`agent.errors.${code}`, { defaultValue: t("agent.errors.generic", { message: code }) });
+  }
+
+  async function regenerate() {
+    if (!projectId) return;
+    setSendError(null);
+    try {
+      setRunning(true);
+      await regenerateLastTurn(projectId);
+      await refresh();
+    } catch (error) {
+      setRunning(false);
+      setSendError(agentErrorText(error));
+    }
+  }
+
+  async function deleteReply(seq: number) {
+    if (!projectId) return;
+    await deleteAssistantMessage(projectId, seq); // errors are shown by the dialog
+    setDeletingReply(null);
+    await refresh();
   }
 
   async function addReferences(files: File[]) {
@@ -472,8 +501,10 @@ export function WorkspacePage() {
               const action = approveActionFor(images.find((image) => image.id === imageId)?.role);
               if (action) void sendChat("", [], { action, imageId });
             }}
+            onDeleteMessage={setDeletingReply}
             onFilesChange={setPendingFiles}
             onOpenImage={setLightboxUrl}
+            onRegenerate={() => void regenerate()}
             onOpenVersion={(id) => openVersion(id)}
             onSend={(text, files) => sendChat(text, files)}
             onStop={() => projectId && void cancelRun(projectId)}
@@ -490,6 +521,17 @@ export function WorkspacePage() {
         <div className="ide-lightbox" onClick={() => setLightboxUrl(null)} role="presentation">
           <img alt="" src={lightboxUrl} />
         </div>
+      ) : null}
+      {deletingReply !== null ? (
+        <ConfirmDialog
+          confirmLabel={t("agent.deleteMessage")}
+          danger
+          errorMessage={agentErrorText}
+          message={t("agent.confirmDeleteMessage")}
+          onCancel={() => setDeletingReply(null)}
+          onConfirm={() => deleteReply(deletingReply)}
+          title={t("agent.deleteMessage")}
+        />
       ) : null}
       {toast ? (
         <div className="ide-toast" data-tone={toast.tone} role="status">

@@ -203,6 +203,14 @@ export function sendMessage(
   return request(`/conversations/${id}/messages`, conversationSchema, { body: form, method: "POST" });
 }
 
+export function deleteAssistantMessage(id: string, seq: number) {
+  return request(`/conversations/${id}/messages/${seq}`, conversationSchema, { method: "DELETE" });
+}
+
+export function regenerateLastTurn(id: string) {
+  return request(`/conversations/${id}/regenerate`, conversationSchema, { method: "POST" });
+}
+
 const SSE_RETRY_MS = 3000;
 
 /**

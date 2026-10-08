@@ -887,6 +887,39 @@
   padding-top: 2px;
 }
 
+.agent-message-actions {
+  display: flex;
+  gap: 2px;
+  margin-top: 2px;
+  opacity: 0.55;
+  transition: opacity 120ms ease;
+}
+
+li:hover > div > .agent-message-actions,
+.agent-message-actions:focus-within {
+  opacity: 1;
+}
+
+.agent-message-action {
+  align-items: center;
+  border-radius: 4px;
+  color: var(--ide-text-muted);
+  display: inline-flex;
+  height: 22px;
+  justify-content: center;
+  width: 22px;
+}
+
+.agent-message-action:hover {
+  background: var(--ide-panel-raised);
+  color: var(--ide-text);
+}
+
+.agent-message-action:focus-visible {
+  outline: 2px solid var(--ide-accent);
+  outline-offset: 1px;
+}
+
 .agent-bubble-user {
   background: var(--ide-panel-raised);
   border: 1px solid var(--ide-border);

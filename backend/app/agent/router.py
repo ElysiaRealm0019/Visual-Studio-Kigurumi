@@ -11,6 +11,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 from PIL import Image
 from pydantic import BaseModel, Field
 
+from app.agent.history import HistoryError, delete_reply, prepare_regenerate
 from app.agent.runner import agent_runner
 from app.agent.store import Conversation, ReferenceImage, conversation_store
 from app.agent.tools import (
@@ -202,6 +203,34 @@ async def post_message(
 
     conversation.llm_messages.append({"role": "user", "content": _llm_user_content(text, attachments, action, image_id)})
     conversation_store.save(conversation)
+    agent_runner.start(conversation)
+    return _out(conversation)
+
+
+@router.delete("/conversations/{conversation_id}/messages/{seq}", response_model=ConversationOut)
+async def delete_message(conversation_id: str, seq: int) -> ConversationOut:
+    """Delete an assistant reply from the timeline and from the model's context."""
+    conversation = _require(conversation_id)
+    if agent_runner.is_running(conversation_id):
+        raise HTTPException(status_code=409, detail="conversation_running")
+    try:
+        await delete_reply(conversation, seq)
+    except HistoryError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    conversation_store.save(conversation)
+    return _out(conversation)
+
+
+@router.post("/conversations/{conversation_id}/regenerate", response_model=ConversationOut)
+async def regenerate(conversation_id: str) -> ConversationOut:
+    """Run the last user turn again: its replies are hidden and the transcript rewinds to that message."""
+    conversation = _require(conversation_id)
+    if agent_runner.is_running(conversation_id):
+        raise HTTPException(status_code=409, detail="conversation_running")
+    try:
+        await prepare_regenerate(conversation)
+    except HistoryError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     agent_runner.start(conversation)
     return _out(conversation)
 

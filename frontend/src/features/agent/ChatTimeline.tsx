@@ -4,7 +4,9 @@ import {
   IconExternalLink,
   IconLoader2,
   IconPhotoPlus,
+  IconRefresh,
   IconSparkles,
+  IconTrash,
   IconX,
 } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
@@ -18,6 +20,10 @@ type TimelineProps = {
   onOpenImage: (url: string) => void;
   /** Open a version in the editor (IDE workspace). Falls back to the lightbox when absent. */
   onOpenVersion?: (imageId: string) => void;
+  /** Delete an assistant reply (timeline and model context). */
+  onDeleteMessage?: (seq: number) => void;
+  /** Run the last user turn again. Offered on the newest reply only. */
+  onRegenerate?: () => void;
 };
 
 const TOOL_KEYS = new Set([
@@ -33,8 +39,18 @@ const TOOL_KEYS = new Set([
   "annotated_revision",
 ]);
 
-export function ChatTimeline({ events, conversation, running, onApprove, onOpenImage, onOpenVersion }: TimelineProps) {
+export function ChatTimeline({
+  events: allEvents,
+  conversation,
+  running,
+  onApprove,
+  onOpenImage,
+  onOpenVersion,
+  onDeleteMessage,
+  onRegenerate,
+}: TimelineProps) {
   const { t } = useTranslation();
+  const events = allEvents.filter((event) => !event.deleted);
   const approvedIds = new Set(
     [conversation?.state.approved_design_id, conversation?.state.approved_front_id].filter(Boolean) as string[],
   );
@@ -45,6 +61,7 @@ export function ChatTimeline({ events, conversation, running, onApprove, onOpenI
     if (action) latestApprovable.set(action, event.image_id as string);
   }
   const lastEvent = events[events.length - 1];
+  const lastReplySeq = events.filter((event) => event.type === "assistant_message").at(-1)?.seq;
   const waitingForModel = running && (lastEvent?.type === "user_message" || lastEvent?.type === "run_state");
 
   return (
@@ -59,7 +76,35 @@ export function ChatTimeline({ events, conversation, running, onApprove, onOpenI
             return (
               <li className="flex gap-2" key={event.seq}>
                 <Avatar />
-                <div className="agent-bubble min-w-0 flex-1 whitespace-pre-wrap break-words">{event.text as string}</div>
+                <div className="min-w-0 flex-1">
+                  <div className="agent-bubble whitespace-pre-wrap break-words">{event.text as string}</div>
+                  {!running && (onDeleteMessage || onRegenerate) ? (
+                    <div className="agent-message-actions">
+                      {onRegenerate && event.seq === lastReplySeq ? (
+                        <button
+                          aria-label={t("agent.regenerate")}
+                          className="agent-message-action"
+                          onClick={onRegenerate}
+                          title={t("agent.regenerate")}
+                          type="button"
+                        >
+                          <IconRefresh size={13} />
+                        </button>
+                      ) : null}
+                      {onDeleteMessage ? (
+                        <button
+                          aria-label={t("agent.deleteMessage")}
+                          className="agent-message-action"
+                          onClick={() => onDeleteMessage(event.seq)}
+                          title={t("agent.deleteMessage")}
+                          type="button"
+                        >
+                          <IconTrash size={13} />
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
               </li>
             );
           case "tool":

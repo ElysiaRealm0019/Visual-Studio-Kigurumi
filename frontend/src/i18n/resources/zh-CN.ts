@@ -147,6 +147,9 @@ const zhCN = {
     stop: "停止",
     dropHint: "松开以添加参考图",
     thinking: "正在思考…",
+    regenerate: "重新生成",
+    deleteMessage: "删除回复",
+    confirmDeleteMessage: "删除这条回复？它也会从助手的上下文里去掉，已生成的图片会保留。",
     you: "你",
     assistant: "V.S.K",
     approve: "就用这张",
@@ -189,6 +192,8 @@ const zhCN = {
     errors: {
       generic: "出错了：{{message}}",
       conversation_running: "上一步还在进行中，请稍等。",
+      nothing_to_regenerate: "没有可以重新回答的消息。",
+      message_not_found: "这条回复已经不存在了。",
       too_many_references: "参考图太多了（每个对话最多 8 张）。",
       too_many_files: "一次最多上传 6 张图。",
       load: "加载对话失败：{{message}}",

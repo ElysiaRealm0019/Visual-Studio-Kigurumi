@@ -149,6 +149,9 @@ const ja: TranslationResource = {
     stop: "停止",
     dropHint: "ドロップして参考画像を追加",
     thinking: "考え中…",
+    regenerate: "再生成",
+    deleteMessage: "返信を削除",
+    confirmDeleteMessage: "この返信を削除しますか？アシスタントの文脈からも消えます。生成済みの画像は残ります。",
     you: "あなた",
     assistant: "V.S.K",
     approve: "これで決定",
@@ -191,6 +194,8 @@ const ja: TranslationResource = {
     errors: {
       generic: "エラーが発生しました：{{message}}",
       conversation_running: "前の処理がまだ実行中です。少々お待ちください。",
+      nothing_to_regenerate: "再生成できるメッセージがありません。",
+      message_not_found: "この返信はもう存在しません。",
       too_many_references: "参考画像が多すぎます（1チャット最大8枚）。",
       too_many_files: "1回のメッセージで最大6枚までです。",
       load: "チャットの読み込みに失敗しました：{{message}}",
