@@ -304,6 +304,8 @@ async def test_codex_local_revision_stages_base_and_mask_as_first_images(tmp_pat
     async def fake_create_subprocess_exec(*args, **kwargs):
         nonlocal captured_args
         captured_args = [str(item) for item in args]
+        # A piped stdin makes `codex exec` wait for EOF before starting; it must never inherit the server's.
+        assert kwargs["stdin"] is provider_module.asyncio.subprocess.DEVNULL
         return FakeProcess(Path(kwargs["cwd"]))
 
     monkeypatch.setattr(provider_module, "get_settings", lambda: settings)

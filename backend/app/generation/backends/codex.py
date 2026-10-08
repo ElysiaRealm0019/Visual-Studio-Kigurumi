@@ -127,6 +127,8 @@ class CodexImageProvider(ImageGenerationProvider):
         )
         safety_process = await asyncio.create_subprocess_exec(
             *safety_command,
+            # codex exec appends a piped stdin to the prompt and waits for EOF; never inherit ours.
+            stdin=asyncio.subprocess.DEVNULL,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             cwd=str(workspace),
@@ -165,6 +167,8 @@ class CodexImageProvider(ImageGenerationProvider):
         command = _build_codex_detail_analysis_command(settings, workspace, image_paths, prompt_text)
         process = await asyncio.create_subprocess_exec(
             *command,
+            # codex exec appends a piped stdin to the prompt and waits for EOF; never inherit ours.
+            stdin=asyncio.subprocess.DEVNULL,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             cwd=str(workspace),
@@ -247,6 +251,8 @@ class CodexImageProvider(ImageGenerationProvider):
             try:
                 process = await asyncio.create_subprocess_exec(
                     *command,
+                    # codex exec appends a piped stdin to the prompt and waits for EOF; never inherit ours.
+                    stdin=asyncio.subprocess.DEVNULL,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                     cwd=str(workspace),

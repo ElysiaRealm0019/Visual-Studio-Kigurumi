@@ -241,6 +241,8 @@ async def run_codex_command(command: list[str], workspace: Path) -> CommandResul
     try:
         process = await asyncio.create_subprocess_exec(
             *command,
+            # codex exec appends a piped stdin to the prompt and waits for EOF; never inherit ours.
+            stdin=asyncio.subprocess.DEVNULL,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             cwd=str(workspace),
