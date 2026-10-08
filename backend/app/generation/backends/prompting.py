@@ -73,7 +73,9 @@ HEAD_SHELL_LOOK = (
     "drawing. The eyes are glossy clear-domed lens-like eyes set "
     "in sculpted sockets with printed or painted irises, a visible thickness and depth to the dome, sharp softbox "
     "reflections (catchlights) as rectangular window highlights, and a thin eyelid and lash edge casting a small shadow; "
-    "never flat drawn eyes. Brows, lashes, blush and the mouth are matte paint sitting on the surface. The wig is "
+    "never flat drawn eyes. Brows, lashes, blush and the mouth are matte paint sitting on the surface, and the mouth "
+    "in particular is one flat painted stroke flush with the shell: not carved, engraved or sculpted into it, with no "
+    "groove, incised seam or dark inner shadow, at most the soft edge of the paint itself. The wig is "
     "heat-resistant synthetic fibre with a pronounced silky sheen: individual strands are visible, bright specular "
     "highlights run along the strands in soft bands that curve with the hair, the roots are darker and the layers "
     "underneath fall into shadow, there is natural volume and a believable parting where the "
@@ -140,9 +142,10 @@ ANIME_FACE_LINE = (
     "Face: an animegao kigurumi face is the design's anime face made solid, not a human face. Keep the design's face "
     "shape and proportions and the eyes' size, shape and placement exactly as drawn (large anime eyes, not shrunk to "
     "human size). The nose is only a tiny rounded tip or a small painted shadow and the mouth a short painted line or "
-    "small shape as drawn: no lips, philtrum, nostrils, cheekbones, eyelid folds or other realistic human facial "
-    "anatomy. It must read as a painted mask of the drawn character, never as a real person, a cosplayer or a "
-    "realistic 3D render."
+    "small shape as drawn, painted flat on the surface: never a carved, engraved or incised groove, with no depth, "
+    "inner shadow or cast shadow around it. No lips, philtrum, nostrils, cheekbones, eyelid folds or other realistic "
+    "human facial anatomy. It must read as a painted mask of the drawn character, never as a real person, a cosplayer "
+    "or a realistic 3D render."
 )
 
 _SHELL_EARS_LINE = _FRONT_EARS_LINE + ", even when a finished-product style reference shows a shell without ears."
@@ -172,7 +175,8 @@ FINAL_KIGURUMI_FRONT_VIEW_PROMPT = [
     "Kigurumi head requirements:",
     "- smooth hand-painted shell with a matte (non-glossy) paint finish, a fixed expression and only the shallow "
     "relief of an animegao mask, no realistic human skin texture; only the lens eyes are glossy",
-    "- tiny nose and a simple painted mouth as drawn; no lips, nostrils or human facial anatomy",
+    "- tiny nose and a simple painted mouth as drawn; the mouth is painted flush on the surface, never carved into "
+    "the shell; no lips, nostrils or human facial anatomy",
     "- large anime eyes as glossy clear-domed lens eyes in sculpted sockets with printed or painted irises, eyeliner "
     "and lashes; never realistic human eyes and never flat drawn eyes",
     "- wig mounted on the head shell, with realistic fiber texture and a hairstyle derived from the references or user notes",

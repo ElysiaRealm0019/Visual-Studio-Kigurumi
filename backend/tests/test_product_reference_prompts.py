@@ -120,5 +120,8 @@ def test_head_shell_prompts_keep_the_face_clear_of_hair():
         assert "the fringe ends just above the brows" in prompt
         assert "never in front of the face" in prompt
         assert "spilling onto the shell or the face" in prompt
+        # The mouth is paint on the surface, not a groove carved into the shell.
+        assert "never a carved, engraved or incised groove" in prompt
     bridge_prompt = codex._build_codex_candidate_prompt({**PAYLOAD, "generation_mode": "front_design"}, 1, "matching")
     assert "the face stays fully visible" in bridge_prompt
+    assert "never carved into the shell" in bridge_prompt
