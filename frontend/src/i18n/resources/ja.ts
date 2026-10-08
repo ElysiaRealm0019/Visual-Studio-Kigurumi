@@ -187,6 +187,8 @@ const ja: TranslationResource = {
       succeeded: "完了",
       failed: "失敗",
     },
+    elapsed: "経過時間 {{duration}}",
+    toolReasoning: "推論約 {{count}} トークン",
     notices: {
       cancelled: "停止しました。",
       step_limit: "手順が多すぎたため一旦止めました。続きを指示してください。",

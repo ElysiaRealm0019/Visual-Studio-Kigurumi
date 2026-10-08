@@ -185,6 +185,8 @@ const zhCN = {
       succeeded: "完成",
       failed: "失败",
     },
+    elapsed: "已用时 {{duration}}",
+    toolReasoning: "已思考约 {{count}} tokens",
     notices: {
       cancelled: "已停止。",
       step_limit: "这一轮步骤太多，先停下来了，你可以继续说下一步。",

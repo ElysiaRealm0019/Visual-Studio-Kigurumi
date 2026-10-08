@@ -187,6 +187,8 @@ const en: TranslationResource = {
       succeeded: "Done",
       failed: "Failed",
     },
+    elapsed: "Elapsed {{duration}}",
+    toolReasoning: "~{{count}} tokens reasoned",
     notices: {
       cancelled: "Stopped.",
       step_limit: "That took too many steps, so I paused. Tell me how to continue.",

@@ -9,6 +9,7 @@ import {
   IconTrash,
   IconX,
 } from "@tabler/icons-react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { approveActionFor, isDesignRole, isTurnaroundRole, type AgentEvent, type Conversation } from "./agentApi";
 
@@ -144,14 +145,41 @@ export function ChatTimeline({
             return null;
         }
       })}
-      {waitingForModel ? (
-        <li className="flex items-center gap-2 text-xs text-[var(--ide-text-muted)]">
-          <Avatar />
-          <IconLoader2 className="animate-spin" size={14} />
-          {t("agent.thinking")}
-        </li>
-      ) : null}
+      {waitingForModel ? <ThinkingIndicator startedAt={lastEvent?.created_at as string | undefined} /> : null}
     </ol>
+  );
+}
+
+function formatElapsed(totalSeconds: number): string {
+  return `${Math.floor(totalSeconds / 60)}:${String(totalSeconds % 60).padStart(2, "0")}`;
+}
+
+/** Seconds since `startedAt`, ticking once a second while `active`. Measured from the event's timestamp, so it
+ *  survives page reloads and SSE reconnects instead of counting from the component's mount. */
+function useElapsedSeconds(startedAt: string | undefined, active: boolean): number | null {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!active || !startedAt) return;
+    setNow(Date.now());
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [active, startedAt]);
+  if (!active || !startedAt) return null;
+  const started = Date.parse(startedAt);
+  if (Number.isNaN(started)) return null;
+  return Math.max(0, Math.floor((now - started) / 1000));
+}
+
+function ThinkingIndicator({ startedAt }: { startedAt: string | undefined }) {
+  const { t } = useTranslation();
+  const elapsed = useElapsedSeconds(startedAt, true);
+  return (
+    <li className="flex items-center gap-2 text-xs text-[var(--ide-text-muted)]">
+      <Avatar />
+      <IconLoader2 className="animate-spin" size={14} />
+      {t("agent.thinking")}
+      {elapsed !== null ? <span>· {t("agent.elapsed", { duration: formatElapsed(elapsed) })}</span> : null}
+    </li>
   );
 }
 
@@ -235,20 +263,27 @@ function ToolCard({ event }: { event: AgentEvent }) {
   const { t } = useTranslation();
   const tool = event.tool as string;
   const status = (event.status as string) || "running";
+  const running = status === "running";
   const progress = Math.max(0, Math.min(100, Number(event.progress ?? 0)));
+  const reasoningTokens = Number(event.reasoning_tokens ?? 0);
+  const elapsed = useElapsedSeconds(event.created_at as string | undefined, running);
   const label = TOOL_KEYS.has(tool) ? t(`agent.tools.${tool}`) : tool;
   return (
     <li className="agent-tool ml-8 flex flex-col gap-1.5" data-status={status}>
       <div className="flex items-center gap-1.5 text-xs">
-        {status === "running" ? <IconLoader2 className="animate-spin" size={14} /> : null}
+        {running ? <IconLoader2 className="animate-spin" size={14} /> : null}
         {status === "succeeded" ? <IconCheck size={14} /> : null}
         {status === "failed" ? <IconX className="text-[var(--ide-danger)]" size={14} /> : null}
         <span className="font-semibold">{label}</span>
         <span className="truncate text-[var(--ide-text-muted)]">
-          · {status === "running" && event.phase ? (event.phase as string) : t(`agent.toolStatus.${status}`)}
+          · {running && event.phase ? (event.phase as string) : t(`agent.toolStatus.${status}`)}
+          {elapsed !== null ? ` · ${t("agent.elapsed", { duration: formatElapsed(elapsed) })}` : ""}
         </span>
       </div>
-      {status === "running" && progress > 0 ? (
+      {running && reasoningTokens > 0 ? (
+        <p className="text-[11px] text-[var(--ide-text-muted)]">{t("agent.toolReasoning", { count: reasoningTokens })}</p>
+      ) : null}
+      {running && progress > 0 ? (
         <div className="agent-progress" role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}>
           <span style={{ width: `${progress}%` }} />
         </div>

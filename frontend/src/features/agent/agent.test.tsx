@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import i18n from "../../i18n";
 import { applyEvent, type AgentEvent, type Conversation } from "./agentApi";
@@ -88,5 +88,70 @@ describe("ChatTimeline", () => {
     );
     expect(screen.getByText("生成头壳四视图")).toBeTruthy();
     expect(screen.getByText("No approved front view.")).toBeTruthy();
+  });
+
+  it("ticks elapsed seconds on the thinking indicator", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-08T12:00:00Z"));
+    render(
+      <ChatTimeline
+        conversation={conversation()}
+        events={[{ seq: 1, type: "user_message", text: "hi", created_at: "2026-10-08T12:00:00Z" }]}
+        onApprove={vi.fn()}
+        onOpenImage={vi.fn()}
+        running
+      />,
+    );
+    expect(screen.getByText(/已用时 0:00/)).toBeTruthy();
+    await act(async () => {
+      vi.advanceTimersByTime(65_000);
+    });
+    expect(screen.getByText(/已用时 1:05/)).toBeTruthy();
+    vi.useRealTimers();
+  });
+
+  it("ticks elapsed seconds on a running tool from its start timestamp", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-08T12:00:00Z"));
+    render(
+      <ChatTimeline
+        conversation={conversation()}
+        events={[
+          {
+            seq: 1,
+            type: "tool",
+            tool: "analyze_references",
+            status: "running",
+            progress: 10,
+            phase: "analyzing",
+            created_at: "2026-10-08T12:00:10Z",
+          },
+        ]}
+        onApprove={vi.fn()}
+        onOpenImage={vi.fn()}
+        running
+      />,
+    );
+    expect(screen.getByText(/已用时 0:00/)).toBeTruthy();
+    await act(async () => {
+      vi.advanceTimersByTime(70_000);
+    });
+    expect(screen.getByText(/已用时 1:00/)).toBeTruthy();
+    vi.useRealTimers();
+  });
+
+  it("shows the streamed reasoning token estimate on a running tool", () => {
+    render(
+      <ChatTimeline
+        conversation={conversation()}
+        events={[
+          { seq: 1, type: "tool", tool: "analyze_references", status: "running", progress: 10, reasoning_tokens: 1050 },
+        ]}
+        onApprove={vi.fn()}
+        onOpenImage={vi.fn()}
+        running
+      />,
+    );
+    expect(screen.getByText("已思考约 1050 tokens")).toBeTruthy();
   });
 });
