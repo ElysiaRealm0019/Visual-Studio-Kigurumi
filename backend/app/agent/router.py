@@ -16,6 +16,7 @@ from app.agent.runner import agent_runner
 from app.agent.store import Conversation, ReferenceImage, conversation_store
 from app.agent.tools import (
     ToolContext,
+    _generated_file_from_url,
     approve_design,
     reference_path,
     register_version,
@@ -312,6 +313,27 @@ async def get_version_source(conversation_id: str, image_id: str) -> FileRespons
     if not path.is_file():
         raise HTTPException(status_code=404, detail="version_file_missing")
     return FileResponse(path, headers={"Cache-Control": "private, max-age=3600"})
+
+
+@router.get("/conversations/{conversation_id}/versions/{image_id}/download")
+async def download_version(conversation_id: str, image_id: str) -> StreamingResponse:
+    """The version's public watermarked pixels re-encoded as a PNG download: what you see is what you get."""
+    conversation = _require(conversation_id)
+    image = conversation.state.image(image_id)
+    if image is None:
+        raise HTTPException(status_code=404, detail="version_not_found")
+    path = _generated_file_from_url(image.url)
+    if path is None or not path.is_file():
+        raise HTTPException(status_code=404, detail="version_file_missing")
+    buffer = BytesIO()
+    with Image.open(path) as loaded:
+        loaded.convert("RGB").save(buffer, format="PNG")
+    buffer.seek(0)
+    return StreamingResponse(
+        buffer,
+        media_type="image/png",
+        headers={"Content-Disposition": f'attachment; filename="{image_id}.png"'},
+    )
 
 
 @router.post("/conversations/{conversation_id}/versions", response_model=ConversationOut)

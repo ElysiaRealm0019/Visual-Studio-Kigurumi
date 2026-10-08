@@ -140,6 +140,11 @@ export function versionSourceUrl(id: string, imageId: string) {
   return `${API_BASE}/conversations/${id}/versions/${imageId}/source`;
 }
 
+/** The version's public watermarked image re-encoded as a PNG attachment download. */
+export function versionDownloadUrl(id: string, imageId: string) {
+  return `${API_BASE}/conversations/${id}/versions/${imageId}/download`;
+}
+
 export function saveManualVersion(
   id: string,
   { baseImageId, image, note, recipe }: { baseImageId: string; image: Blob; note: string; recipe: unknown },

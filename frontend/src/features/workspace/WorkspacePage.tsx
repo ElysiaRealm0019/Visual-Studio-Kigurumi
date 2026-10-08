@@ -26,6 +26,7 @@ import {
   startAnnotatedRevision,
   startLocalRevision,
   uploadReferences,
+  versionDownloadUrl,
   versionSourceUrl,
   type ApproveAction,
   type Conversation,
@@ -431,7 +432,12 @@ export function WorkspacePage() {
                       {t("workspace.regenerateFromAnnotations")}
                     </button>
                   ) : null}
-                  <a className="ide-icon-button" download href={activeVersion.url} title={t("workspace.download")}>
+                  <a
+                    className="ide-icon-button"
+                    download
+                    href={versionDownloadUrl(projectId, activeVersion.id)}
+                    title={t("workspace.download")}
+                  >
                     <IconDownload size={16} />
                   </a>
                   <button
