@@ -89,7 +89,7 @@ def test_head_shell_front_renders_from_the_design_by_default():
     prompt = codex._build_codex_prompt(payload, "matching", edit_style_photo=True)
     assert "STYLE PHOTO" not in prompt
     assert "the last attached image is a photo of a finished kigurumi head shell" in prompt
-    assert "fully matte paint finish" in prompt
+    assert "eggshell-matte paint" in prompt
     assert "never as a real person" in prompt
 
 
@@ -113,15 +113,21 @@ def test_head_shell_front_edits_the_style_photo_only_on_the_direct_codex_path(mo
     assert "STYLE PHOTO" not in revision
 
 
-def test_head_shell_prompts_keep_the_face_clear_of_hair():
+def test_head_shell_prompts_match_the_control_references():
     for mode in ["front_design", "front_revision", "turnaround"]:
         prompt = codex._build_codex_prompt({**PAYLOAD, "generation_mode": mode})
-        # Hair must never spill onto the face (strands used to drape over the eyes and cheeks).
-        assert "the fringe ends just above the brows" in prompt
+        # Hair must never spill onto the face (strands used to drape over the eyes and cheeks);
+        # flat strands between the eyes are fine, and only the design may cover an eye.
+        assert "lie flat against the shell and stay off the face" in prompt
         assert "never in front of the face" in prompt
         assert "spilling onto the shell or the face" in prompt
+        assert "Only the character design itself may put hair over an eye" in prompt
         # The mouth is paint on the surface, not a groove carved into the shell.
         assert "never a carved, engraved or incised groove" in prompt
+        # Bright even studio light, eggshell-matte skin and airbrushed blush like the control photos.
+        assert "neither side of the face may fall into heavy shadow" in prompt
+        assert "eggshell-matte paint" in prompt
+        assert "airbrushed blush" in prompt
     bridge_prompt = codex._build_codex_candidate_prompt({**PAYLOAD, "generation_mode": "front_design"}, 1, "matching")
     assert "the face stays fully visible" in bridge_prompt
     assert "never carved into the shell" in bridge_prompt

@@ -62,20 +62,24 @@ HEAD_SHELL_LOOK = (
     "It must not read as anime art, an illustration, a 3D render, a figure or a digital painting: no outlines or ink "
     "lines, no cel shading, no flat colour fills, no airbrushed gradients, no painted-on highlights, no glow or bloom. "
     "Anime proportions and the character's design stay, but everything is built from real materials with real depth. "
-    "Studio set-up: a seamless light grey-white paper backdrop, a large soft box key light from the front left at about "
-    "45 degrees, a softer fill from the right, a strip light or hair light from behind and above that rims the wig and "
-    "separates it from the backdrop, and a faint kicker on the cheek. Light falls off naturally: the side of the face "
-    "away from the key is a few stops darker, with soft form shadows under the fringe, the wig and the chin. "
-    "Materials: the shell is a smooth hand-painted resin or fibreglass surface with a fully matte paint finish, like "
-    "a real kigurumi shell: no shine, wet look or specular highlights on the face, light falling off softly across it, "
-    "faint brush and sanding texture, and only the shallow relief of an animegao mask (a smooth rounded face, a tiny nose tip, no "
+    "Studio set-up: a seamless light grey-white paper backdrop, bright soft light from the front and slightly above - "
+    "a large soft-box key with gentle fill from the sides - so the face is evenly lit and easy to read, with only soft "
+    "form shadows under the fringe, the wig and the chin, and at most a faint rim light separating the wig from the "
+    "backdrop. Avoid dramatic side lighting: neither side of the face may fall into heavy shadow. "
+    "Materials: the shell is a smooth hand-painted resin or fibreglass surface with a fine eggshell-matte paint "
+    "finish - soft and even, at most a faint satin sheen where the key light grazes it, never glossy, wet or specular - "
+    "with faint brush and sanding texture, a soft airbrushed blush across the cheeks following the design, and only "
+    "the shallow relief of an animegao mask (a smooth rounded face, a tiny nose tip, no "
     "modelled lips or cheekbones), so the face is a real three-dimensional object lit from the side, not a flat "
     "drawing. The eyes are glossy clear-domed lens-like eyes set "
-    "in sculpted sockets with printed or painted irises, a visible thickness and depth to the dome, sharp softbox "
-    "reflections (catchlights) as rectangular window highlights, and a thin eyelid and lash edge casting a small shadow; "
+    "in sculpted sockets with printed or painted irises (layered gradients and ring highlights), a visible thickness "
+    "and depth to the dome, sharp softbox reflections (catchlights) as rectangular window highlights, a dark painted "
+    "lash print along the upper dome edge, and a thin eyelid edge casting a small shadow; "
     "never flat drawn eyes. Brows, lashes, blush and the mouth are matte paint sitting on the surface, and the mouth "
     "in particular is one flat painted stroke flush with the shell: not carved, engraved or sculpted into it, with no "
-    "groove, incised seam or dark inner shadow, at most the soft edge of the paint itself. The wig is "
+    "groove, incised seam or dark inner shadow, at most the soft edge of the paint itself, small in the face as drawn - "
+    "a thin darker stroke with tiny corner ticks, or when the design shows an open mouth a flat painted shape with a "
+    "red interior. The wig is "
     "heat-resistant synthetic fibre with a pronounced silky sheen: individual strands are visible, bright specular "
     "highlights run along the strands in soft bands that curve with the hair, the roots are darker and the layers "
     "underneath fall into shadow, there is natural volume and a believable parting where the "
@@ -94,9 +98,11 @@ HEAD_SHELL_PRESENTATION = (
     "hollow head: below the face it simply ends at its natural jaw and opening edge, with no neck stub and no base. "
     "The wig hangs freely under gravity: loose hair, braids, twin tails and ponytails fall straight down with "
     "natural weight, pass beyond the bottom of the shell through open air, and never rest on, bend against or pile up on "
-    "any surface; long braids end in the air with their tips pointing down. The fringe and the side locks stay off the "
-    "face: the fringe ends just above the brows, the side locks frame the head at the sides without crossing the "
-    "cheeks or the eyes, and long hair falls beside or behind the shell, never in front of the face."
+    "any surface; long braids end in the air with their tips pointing down. The fringe and the side locks lie flat "
+    "against the shell and stay off the face: the fringe ends at or just above the brows, with any strands between "
+    "the eyes hugging the surface, the side locks frame the face at the sides and end around jaw level without "
+    "sweeping across the cheeks or the mouth, and long hair falls beside or behind the shell, never in front of the "
+    "face. Only the character design itself may put hair over an eye."
 )
 
 WATERMARK_LINE = (
@@ -180,8 +186,8 @@ FINAL_KIGURUMI_FRONT_VIEW_PROMPT = [
     "- large anime eyes as glossy clear-domed lens eyes in sculpted sockets with printed or painted irises, eyeliner "
     "and lashes; never realistic human eyes and never flat drawn eyes",
     "- wig mounted on the head shell, with realistic fiber texture and a hairstyle derived from the references or user notes",
-    "- the face stays fully visible: the fringe ends just above the brows, the side locks frame the head at the "
-    "sides, and no strand hangs over or crosses the forehead, the eyes or the cheeks",
+    "- the face stays fully visible: the fringe lies flat and ends at or just above the brows, the side locks frame "
+    "the face at the sides, and loose strands never drape over the eyes, cheeks or mouth; only the design may cover an eye",
     "- long loose hair must remain continuous and natural; do not create holes, missing chunks, or cutouts in the hair silhouette",
     "- the characteristic ears or horn-like appendages stay present, matched, and symmetric",
     "",
