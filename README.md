@@ -1,6 +1,6 @@
 # Visual Studio Kigurumi (V.S.K)
 
-[中文](README.zh-CN.md) | English
+中文 | [English](README.en.md)
 
 <p align="center">
   <picture>
@@ -9,153 +9,153 @@
   </picture>
 </p>
 
-V.S.K is a web tool for designing kigurumi head shells. Upload character references, talk to the design assistant, and get a 2D character design, then a finished head-shell product view and a four-view sheet. Every image can also be adjusted by hand in a built-in editor, and every result is kept in the project's version history.
+V.S.K 是一个设计 Kigurumi 头壳的网页工具。上传角色参考图，和设计助手对话，先得到 2D 角色设计稿，再得到头壳成品正视图和四视图。每张图都能在内置编辑器里手动调整，所有结果都保存在项目的版本历史里。
 
-V.S.K is an independent project based on [KigCraft](https://kigcraft.com) by SeaRabbit / 海兔 (user group QQ 934715528). The conversational workflow, workspace and generation pipeline come from KigCraft; V.S.K adds pluggable model backends, a settings page, editor improvements and prompt tuning.
+V.S.K 是基于 [KigCraft](https://kigcraft.com)（原作者 SeaRabbit / 海兔，用户交流群 QQ 934715528）开发的独立项目。对话式工作流、工作区和生成管线来自 KigCraft；V.S.K 在此基础上加入了可切换的模型后端、设置页、编辑器改进和提示词调优。
 
-## How it works
+## 工作流程
 
-Each character is a project. The assistant on the right drives a two-stage flow and stops for your approval before each paid step:
+每个角色是一个项目。右侧的设计助手分两个阶段推进，每一步花钱的生成之前都会停下来等你确认：
 
-1. **Character design**: it analyses the references and generates a 2D design (front view, optionally four views). If something essential is missing or contradictory, such as which character is meant or hidden ears, it asks one short question first.
-2. **Head shell**: once you approve a design, it generates the head-shell front view (product photo style). After you approve that, it generates the head-shell four-view sheet.
+1. **角色设计**：分析参考图，生成 2D 设计稿（默认正视图，也可以要四视图）。如果缺少关键信息或参考图互相矛盾，比如不确定是哪个角色、耳朵被帽子挡住，会先问你一个简短的问题。
+2. **头壳**：你认可设计稿后，生成头壳正视图（成品照片风格）；再认可后，生成头壳四视图。
 
-You can ask for changes in chat at any step, or edit the image yourself and save it as a new version. The assistant sees those versions too.
+任何一步都可以在对话里提修改，也可以自己在编辑器里改完保存为新版本，助手也看得到这些版本。
 
-## Features
+## 功能
 
-- **IDE-style workspace**: an explorer with references and the version tree, a tabbed canvas, the assistant panel and a status bar. Dark and light themes.
-- **Manual editor** with live mesh deformation in the browser (no AI call):
-  - proportion, face shape, eyes (size, lids, iris, tail), brows and mouth sliders, with draggable landmarks;
-  - liquify and annotation;
-  - local regeneration of a masked area.
-  - Saving creates a new version (Ctrl+S).
-- **Local drafts**: unsaved edits are kept per version in the browser (IndexedDB) and restored when you switch back or reload.
-- **Settings page** (`/settings`):
-  - choose the chat assistant LLM, the reference-analysis LLM and the image backend;
-  - fill in API keys, endpoints and model names without editing `.env`.
-- **Cost guards**: approval checkpoints between stages, plus a per-message generation cap (`AGENT_MAX_GENERATIONS_PER_TURN`).
-- **Languages**: Chinese, English and Japanese UI.
+- **IDE 风格工作区**：资源管理器（参考图、版本树）、带标签页的画布、助手面板和状态栏，支持深色和浅色主题。
+- **手动编辑器**：在浏览器里实时做网格变形，不调用 AI。
+  - 比例、脸型、眼睛（大小、眼睑、虹膜、眼尾）、眉毛、嘴巴滑块，关键点可以拖动；
+  - 液化、标注；
+  - 对涂抹区域做局部重绘。
+  - 保存即生成新版本（Ctrl+S）。
+- **本地草稿**：没保存的编辑按版本存在浏览器里（IndexedDB），切回来或刷新页面后自动恢复。
+- **设置页**（`/settings`）：
+  - 切换对话助手 LLM、参考图分析 LLM 和生图后端；
+  - 直接填写 API Key、接口地址和模型名，不用改 `.env`。
+- **防止浪费额度**：阶段之间必须确认，每条消息另有生成次数上限（`AGENT_MAX_GENERATIONS_PER_TURN`）。
+- **多语言**：中文、英文、日文界面。
 
-## Quick start (Windows, no Docker)
+## 快速开始（Windows，不用 Docker）
 
-Local development needs no Docker. Jobs run inside the API process, state lives in SQLite and outputs go to `runtime/`.
+本地开发不需要 Docker：任务在 API 进程里运行，状态存在 SQLite，输出写到 `runtime/`。
 
 ```powershell
 Copy-Item .env.example .env
 .\scripts\start-local.ps1
 ```
 
-The script:
+这个脚本会：
 
-- creates `backend\.venv` and installs frontend dependencies on first run;
-- starts the API on `127.0.0.1:18000` and the app on <http://localhost:5173>;
-- `-Lan` makes the app reachable from other devices on your network;
-- Ctrl+C stops both.
+- 第一次运行时创建 `backend\.venv` 并安装前端依赖；
+- 启动 API（`127.0.0.1:18000`）和前端（<http://localhost:5173>）；
+- 加 `-Lan` 参数后，局域网里的其他设备也能访问；
+- 按 Ctrl+C 同时停止两者。
 
-Then open **Settings** (gear icon, top right), pick your backends and enter their API keys.
+启动后点右上角齿轮进入**设置**，选好后端并填写 API Key。
 
-## Backends
+## 后端
 
-There are three roles, each configured separately on the settings page or in `.env`:
+一共三个角色，可以在设置页或 `.env` 里分别配置：
 
-| Role | Setting | Options |
+| 角色 | 配置项 | 可选 |
 | --- | --- | --- |
-| Chat assistant (calls the tools) | `AGENT_LLM_PROVIDER` | `openai_compatible` (any OpenAI-compatible API with tool calling; default Volcengine Ark `doubao-seed-2-0-pro`), `claude_code` |
-| Reference analysis (safety check + details) | `LLM_PROVIDER` | `openai_compatible` (needs a vision model), `codex`, `claude_code` |
-| Image generation | `IMAGE_PROVIDER` | `ark` (Seedream), `siliconflow` (Qwen-Image-Edit), `codex`, `codex_bridge` |
+| 对话助手（决定调用哪些工具） | `AGENT_LLM_PROVIDER` | `openai_compatible`（任意支持工具调用的 OpenAI 兼容 API，默认火山方舟 `doubao-seed-2-0-pro`）、`claude_code` |
+| 参考图分析（安全检查 + 细节分析） | `LLM_PROVIDER` | `openai_compatible`（需要支持图片输入的模型）、`codex`、`claude_code` |
+| 生图 | `IMAGE_PROVIDER` | `ark`（Seedream）、`siliconflow`（Qwen-Image-Edit）、`codex`、`codex_bridge` |
 
-A setup with only one Volcengine Ark Agent Plan key:
+只用一个火山方舟 Agent Plan Key 的配置：
 
 ```dotenv
 AGENT_LLM_PROVIDER=openai_compatible
 LLM_PROVIDER=openai_compatible
 IMAGE_PROVIDER=ark
-ARK_API_KEY=your-agent-plan-key
+ARK_API_KEY=你的-agent-plan-key
 ```
 
-Empty analysis and assistant keys fall back to the Ark key when they use the Ark endpoint.
+对话助手和参考图分析的 Key 留空时，如果接口地址是火山方舟的，会自动沿用方舟 Key。
 
-### Where settings are stored
+### 设置保存在哪里
 
-- Values saved on the settings page go to `runtime/settings-overrides.json` and take precedence over `.env`. "Reset all to .env" removes them.
-- API keys are write-only: the page only shows whether a key is set and its last four characters.
-- Keys are stored in plain text on this machine. `runtime/` is gitignored.
-- With `APP_ENV=production` the settings page is read-only.
+- 设置页保存的值写在 `runtime/settings-overrides.json`，优先于 `.env`。点"全部恢复为 .env"会清掉它们。
+- API Key 只写不读：页面上只显示是否已配置和末 4 位。
+- Key 以明文保存在本机，`runtime/` 已加入 gitignore。
+- `APP_ENV=production` 时设置页只读。
 
-### Backend notes
+### 各后端说明
 
-- **Volcengine Ark**: needs the Agent Plan dedicated key; other Ark keys do not work.
-  - Up to `ARK_MAX_REFERENCE_IMAGES` references are sent per request (default 4); the rest are merged into one contact sheet.
-  - Four-view sheets request `1920x1280` by default.
-- **SiliconFlow**: sends at most three images per request.
-  - Local revision only edits the masked crop and composites it back.
-  - Try the API with `tools\siliconflow_probe.py`.
-- **Codex / Claude Code**: use the logged-in CLI on the host, so no API key is needed but each step is slower.
-  - `codex_bridge` runs Codex outside the backend container; start it with `tools\start_codex_bridge.ps1` and set `CODEX_BRIDGE_TOKEN`.
-  - Claude cannot generate images, so it only serves the LLM roles.
-- All generated images carry V.S.K's own "AI generated" watermark. Platform watermarks are turned off.
+- **火山方舟**：需要 Agent Plan 专属 Key，其他方舟 Key 不能用。
+  - 每次最多发送 `ARK_MAX_REFERENCE_IMAGES` 张参考图（默认 4 张），多出来的会拼成一张联系表。
+  - 四视图默认请求 `1920x1280`。
+- **SiliconFlow**：每次最多发送 3 张图。
+  - 局部重绘只编辑蒙版区域的裁切图，再按蒙版合成回去。
+  - 可以用 `tools\siliconflow_probe.py` 先测试接口。
+- **Codex / Claude Code**：调用本机已登录的命令行工具，不需要 API Key，但每一步都更慢。
+  - `codex_bridge` 在后端容器外运行 Codex：用 `tools\start_codex_bridge.ps1` 启动，并设置 `CODEX_BRIDGE_TOKEN`。
+  - Claude 不能生图，只能用于两个 LLM 角色。
+- 所有生成图都会加上 V.S.K 自己的"AI 生成"水印，平台水印已关闭。
 
-### Product reference images (optional)
+### 成品参考图（可选）
 
-The repository does not ship product photos. To constrain the finished head-shell style (background, shell material, wig texture, lighting), put your own PNGs in `ref/` (gitignored):
+仓库不附带成品照片。如果想约束头壳成品的风格（背景、头壳材质、假发质感、光线），把你自己的 PNG 放到 `ref/` 目录（已加入 gitignore）：
 
-| File | Used for |
+| 文件 | 用途 |
 | --- | --- |
-| `ref/product-reference.png` | head-shell front view |
-| `ref/turnaround-reference.png` | head-shell four-view sheet |
+| `ref/product-reference.png` | 头壳正视图 |
+| `ref/turnaround-reference.png` | 头壳四视图 |
 
-The photo only sets the finished-product look (matte shell, lens eyes, wig, lighting); the character comes entirely from the design. Use a front close-up of a head shell with its wig on a plain background, without stands, text or watermarks (`CODEX_PRODUCT_REFERENCE_PATH` sets the path). With `HEAD_SHELL_EDIT_STYLE_PHOTO=true` the front is made by editing this photo into your character instead: more photographic, but the face drifts toward the photo's character.
+这张成品照只用来参考头壳成品的质感（哑光壳面、镜片眼、假发、布光），角色本身完全按设计稿来。最好是头壳加假发的正面特写，背景干净，不带支架、文字和水印；路径可以用 `CODEX_PRODUCT_REFERENCE_PATH` 改。如果设置 `HEAD_SHELL_EDIT_STYLE_PHOTO=true`，会改成以这张照片为底图去改成你的角色：更像实拍，但脸会往照片里那个角色偏。
 
 ## Docker
 
 ```powershell
-Copy-Item .env.example .env   # replace every change-me-* value first
+Copy-Item .env.example .env   # 先把所有 change-me-* 换成你自己的值
 docker compose up --build
 ```
 
-The app runs at <http://localhost:15173> and the API at <http://localhost:18000/health>.
+前端在 <http://localhost:15173>，API 在 <http://localhost:18000/health>。
 
-To use the CLI backends, mount logged-in config directories:
+如果要用命令行后端，需要挂载已登录的配置目录：
 
-- Codex: copy `%USERPROFILE%\.codex` to `runtime\codex-home`, or set `CODEX_CONFIG_DIR` on Linux.
-- Claude Code: copy `%USERPROFILE%\.claude` to `runtime\claude-home`. On macOS the login lives in the Keychain, so copy the directory from a Linux or Windows host instead.
+- Codex：把 `%USERPROFILE%\.codex` 复制到 `runtime\codex-home`；Linux 上设置 `CODEX_CONFIG_DIR`。
+- Claude Code：把 `%USERPROFILE%\.claude` 复制到 `runtime\claude-home`。macOS 的登录信息存在钥匙串里，直接复制目录无效，请从 Linux 或 Windows 机器复制。
 
-## Deployment
+## 部署
 
-On the server, create a production `.env` with at least:
+在服务器上准备生产用的 `.env`，至少设置：
 
 - `APP_ENV=production`
 - `ALLOW_FIXTURE_GENERATION=false`
-- strong values for `POSTGRES_PASSWORD`, `MINIO_ROOT_PASSWORD`, `JWT_SECRET` and `ADMIN_AUDIT_PASSWORD`
+- `POSTGRES_PASSWORD`、`MINIO_ROOT_PASSWORD`、`JWT_SECRET`、`ADMIN_AUDIT_PASSWORD` 用强密码
 - `CORS_ALLOWED_ORIGINS`
-- your backends and keys
+- 你用的后端和对应的 Key
 
-Then deploy the current commit:
+然后部署当前提交：
 
 ```powershell
 .\scripts\deploy-ssh.ps1 -KeyPath "$env:USERPROFILE\.ssh\id_ed25519" -SshTarget "deploy@example.com" -RemoteAppDir "/opt/vsk"
 ```
 
-The script uploads a `git archive`, refuses fixture generation in production and rebuilds the containers.
+脚本会上传 `git archive`，检查生产环境没有开启测试样例生成，然后重建容器。
 
-Never commit `.env` or `runtime/settings-overrides.json`; both may contain keys.
+不要提交 `.env` 和 `runtime/settings-overrides.json`，两者都可能含有 Key。
 
-## Development
+## 开发
 
 ```powershell
-# frontend
+# 前端
 cd frontend; npm install; npm run dev; npm test
 
-# backend
+# 后端
 cd backend
 python -m venv .venv
 .\.venv\Scripts\python -m pip install -e .[dev]
 .\.venv\Scripts\python -m pytest
 ```
 
-Design notes are in [docs/plans](docs/plans/). Current status and implementation details are in [docs/handover.md](docs/handover.md).
+设计文档在 [docs/plans](docs/plans/)，当前进度和实现细节在 [docs/handover.md](docs/handover.md)。
 
-## License
+## 许可证
 
-GPL-3.0-or-later, following the upstream KigCraft license. See [LICENSE](LICENSE).
+GPL-3.0-or-later，沿用上游 KigCraft 的许可证，详见 [LICENSE](LICENSE)。
