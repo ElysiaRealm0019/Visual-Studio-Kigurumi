@@ -405,7 +405,7 @@ export function Button({
   const buttonSx = {
     ...propSx,
     bgcolor: explicitBackground ?? (isSoftVariant || isSubtleVariant ? "var(--kb-panel)" : undefined),
-    border: "2px solid var(--kb-line)",
+    border: "1px solid var(--kb-line)",
     borderRadius: 0,
     boxShadow: variant === "filled" || isSoftVariant ? "var(--kb-hard-shadow-sm)" : undefined,
     color: propSx.color ?? (color === "gray" || isSoftVariant || isSubtleVariant ? "text.primary" : undefined),
@@ -415,11 +415,11 @@ export function Button({
     "&:hover": {
       bgcolor: explicitHoverBackground ?? (isSoftVariant || isSubtleVariant ? "var(--kb-panel-hover)" : undefined),
       borderColor: "var(--kb-line)",
-      boxShadow: variant === "filled" || isSoftVariant ? "6px 6px 0 var(--kb-shadow)" : "var(--kb-hard-shadow-sm)",
+      boxShadow: variant === "filled" || isSoftVariant ? "none" : "var(--kb-hard-shadow-sm)",
       transform: "translate(-1px, -1px)",
     },
     "&:active": {
-      boxShadow: "2px 2px 0 var(--kb-shadow)",
+      boxShadow: "none",
       transform: "translate(2px, 2px)",
     },
     "&.Mui-disabled": {
@@ -473,7 +473,7 @@ export function ActionIcon({
         ...sxFromProps(props),
         height: iconSize,
         width: iconSize,
-        border: "2px solid var(--kb-line)",
+        border: "1px solid var(--kb-line)",
         borderRadius: 0,
         boxShadow: "var(--kb-hard-shadow-sm)",
         bgcolor: isFilled ? "primary.main" : isLight ? "var(--kb-panel)" : "var(--kb-panel)",
@@ -487,11 +487,11 @@ export function ActionIcon({
         "&:hover": {
           bgcolor: isFilled ? "primary.dark" : "var(--kb-panel-hover)",
           borderColor: "var(--kb-line)",
-          boxShadow: "6px 6px 0 var(--kb-shadow)",
+          boxShadow: "none",
           transform: "translate(-1px, -1px)",
         },
         "&:active": {
-          boxShadow: "2px 2px 0 var(--kb-shadow)",
+          boxShadow: "none",
           transform: "translate(2px, 2px)",
         },
         "&.Mui-disabled": {
@@ -525,7 +525,7 @@ export function Paper({
       elevation={shadow ? 2 : 0}
       sx={{
         backgroundColor: "background.paper",
-        border: withBorder ? "3px solid var(--kb-line)" : undefined,
+        border: withBorder ? "1px solid var(--kb-line)" : undefined,
         ...sxFromProps(props),
       }}
       {...translateCommonProps(stripCommonProps(props), language)}
@@ -778,7 +778,7 @@ export function SegmentedControl<T extends string = string>({
             variant={selected ? "contained" : "text"}
             sx={{
               bgcolor: selected ? "primary.main" : "var(--kb-panel)",
-              border: "2px solid var(--kb-line)",
+              border: "1px solid var(--kb-line)",
               borderRadius: 0,
               boxShadow: selected ? "var(--kb-hard-shadow-sm)" : undefined,
               color: selected ? "primary.contrastText" : "text.primary",
@@ -816,7 +816,7 @@ export function Alert({
       sx={{
         ...propSx,
         bgcolor: propSx.bgcolor ?? (variant === "light" ? "var(--kb-panel)" : undefined),
-        border: variant === "light" ? "2px solid var(--kb-line)" : undefined,
+        border: variant === "light" ? "1px solid var(--kb-line)" : undefined,
         boxShadow: variant === "light" ? "var(--kb-hard-shadow-sm)" : undefined,
       }}
       {...translateCommonProps(stripCommonProps(props), language)}
@@ -914,7 +914,7 @@ export function ThemeIcon({
     ...sxFromProps(props),
     alignItems: "center",
     bgcolor: variant === "light" ? "var(--kb-panel)" : mapColor(color),
-    border: "2px solid var(--kb-line)",
+    border: "1px solid var(--kb-line)",
     borderRadius: 0,
     boxShadow: "var(--kb-hard-shadow-sm)",
     color: variant === "light" ? mapColor(color) ?? "primary.main" : "primary.contrastText",

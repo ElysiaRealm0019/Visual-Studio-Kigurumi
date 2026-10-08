@@ -58,6 +58,7 @@ services:
       - ./ref:/ref:ro
       - ./ref:/app/ref:ro
       - ${CODEX_CONFIG_DIR:-./runtime/codex-home}:/root/.codex
+      - ${CLAUDE_CODE_CONFIG_DIR:-./runtime/claude-home}:/root/.claude
     depends_on:
       postgres:
         condition: service_healthy
@@ -85,6 +86,7 @@ services:
       - ./ref:/ref:ro
       - ./ref:/app/ref:ro
       - ${CODEX_CONFIG_DIR:-./runtime/codex-home}:/root/.codex
+      - ${CLAUDE_CODE_CONFIG_DIR:-./runtime/claude-home}:/root/.claude
     depends_on:
       api:
         condition: service_started

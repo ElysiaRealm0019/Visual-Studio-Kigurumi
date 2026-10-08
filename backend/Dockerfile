@@ -7,8 +7,9 @@ WORKDIR /app
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl git nodejs npm fonts-noto-cjk \
     && rm -rf /var/lib/apt/lists/* \
-    && npm install -g @openai/codex \
-    && codex --version
+    && npm install -g @openai/codex @anthropic-ai/claude-code \
+    && codex --version \
+    && claude --version
 
 COPY pyproject.toml /app/pyproject.toml
 RUN pip install --no-cache-dir ".[dev]"

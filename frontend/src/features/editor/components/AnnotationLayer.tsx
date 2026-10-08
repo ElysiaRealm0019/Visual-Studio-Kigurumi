@@ -1,6 +1,6 @@
 import type { PointerEvent } from "react";
 import { IconTrash } from "@tabler/icons-react";
-import type { EyeRegion, LandmarkPoint, ManualLandmarkKey, ManualLandmarks } from "../deformation/landmarks";
+import { resolveBrows, type EyeRegion, type LandmarkPoint, type ManualLandmarkKey, type ManualLandmarks } from "../deformation/landmarks";
 import type { AnnotationMark, DetailRegion, LiquifyStroke } from "../deformation/recipe";
 
 export type AnnotationLayerProps = {
@@ -170,7 +170,7 @@ export function AnnotationLayer({
             style={{
               alignItems: "center",
               background: "var(--kb-panel)",
-              border: "2px solid var(--kb-line)",
+              border: "1px solid var(--kb-line)",
               boxShadow: "var(--kb-hard-shadow-sm)",
               color: "var(--kb-muted-red)",
               cursor: "pointer",
@@ -509,6 +509,55 @@ export function AnnotationLayer({
               />
             );
           })
+        : null}
+
+      {showLandmarks && landmarks
+        ? (() => {
+            const brows = resolveBrows(landmarks);
+            const sides = [brows.left, brows.right];
+            return (
+              <>
+                <svg
+                  aria-hidden="true"
+                  data-testid="brow-lines"
+                  preserveAspectRatio="none"
+                  style={{ height: "100%", inset: 0, pointerEvents: "none", position: "absolute", width: "100%" }}
+                  viewBox="0 0 100 100"
+                >
+                  {sides.map((brow, index) => (
+                    <polyline
+                      fill="none"
+                      key={index}
+                      points={[brow.inner, brow.peak, brow.outer].map((point) => `${point.x * 100},${point.y * 100}`).join(" ")}
+                      stroke="rgba(52, 211, 153, 0.85)"
+                      strokeWidth={2}
+                      vectorEffect="non-scaling-stroke"
+                    />
+                  ))}
+                </svg>
+                {sides.flatMap((brow, sideIndex) =>
+                  [brow.inner, brow.peak, brow.outer].map((point, pointIndex) => (
+                    <span
+                      data-testid={`brow-point-${sideIndex}-${pointIndex}`}
+                      key={`brow-${sideIndex}-${pointIndex}`}
+                      style={{
+                        background: "rgb(52, 211, 153)",
+                        border: "1.5px solid rgba(255,255,255,0.85)",
+                        borderRadius: 999,
+                        height: 9,
+                        left: toPercent(point.x),
+                        pointerEvents: "none",
+                        position: "absolute",
+                        top: toPercent(point.y),
+                        transform: "translate(-50%, -50%)",
+                        width: 9,
+                      }}
+                    />
+                  )),
+                )}
+              </>
+            );
+          })()
         : null}
 
       {showLiquifySymmetryAxis ? (

@@ -17,6 +17,8 @@ export type LocalMaskStroke = {
 export type EditorLocalGeneratePayload = {
   baseImageBlob: Blob;
   editNote: string;
+  /** Hard-lock pixels outside the mask instead of blending the edit into its surroundings. */
+  lockOutside?: boolean;
   maskImageBlob: Blob;
   recipe: EditRecipe;
   selectedReferenceKeys: string[];

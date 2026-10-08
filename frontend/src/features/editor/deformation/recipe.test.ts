@@ -140,7 +140,7 @@ describe("editor recipe", () => {
     );
 
     expect(buildAnnotationPrompt(recipe.annotations)).toBe(
-      "鏍囨敞 1锛?5%, 50%锛夛細preserve the left eyelash curve",
+      "标注 1: 25%, 50%, preserve the left eyelash curve",
     );
   });
 
@@ -326,7 +326,7 @@ describe("editor recipe", () => {
     );
 
     expect(recipe.face.vLine).toBe(0.4);
-    expect(recipe.eyes.eyeSize).toBe(0.6);
+    expect(recipe.eyes.eyeSize).toBe(0.36);
     expect(recipe.mouth.mouthSmile).toBe(0.08);
     expect(recipe.liquify).toHaveLength(1);
   });
@@ -360,9 +360,9 @@ describe("editor recipe", () => {
     expect(finalRecipe.face.midFaceLength).toBe(0.4);
     expect(finalRecipe.face.smallFace).toBe(0.4);
     expect(finalRecipe.face.jawAngle).toBe(-0.4);
-    expect(finalRecipe.eyes.eyeSize).toBe(0.6);
-    expect(finalRecipe.eyes.eyeDistance).toBe(-0.1);
-    expect(finalRecipe.eyes.eyeTilt).toBe(1);
+    expect(finalRecipe.eyes.eyeSize).toBe(0.36);
+    expect(finalRecipe.eyes.eyeDistance).toBe(-0.06);
+    expect(finalRecipe.eyes.eyeTilt).toBe(0.6);
   });
 
   it("maps legacy eyeHeight recipes to the renamed eyeSize control", () => {
@@ -377,7 +377,8 @@ describe("editor recipe", () => {
     } as Parameters<typeof normalizeEditRecipe>[0];
     const recipe = normalizeEditRecipe(legacyRecipe);
 
-    expect(recipe.eyes.eyeSize).toBe(7.5);
+    // Legacy values are mapped, then clamped to the real eyeSize range.
+    expect(recipe.eyes.eyeSize).toBe(0.36);
     expect(recipe.eyes.eyeHeight).toBe(0);
   });
 });

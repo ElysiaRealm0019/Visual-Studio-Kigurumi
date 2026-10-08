@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from app.agent.router import router as agent_router
 from app.album.router import router as album_router
 from app.audit.router import router as audit_router
 from app.core.config import get_settings
@@ -77,6 +78,8 @@ def create_app() -> FastAPI:
     app.include_router(audit_router, prefix="/api")
     app.include_router(album_router, prefix="/api")
     app.include_router(references_router, prefix="/api")
+    app.include_router(agent_router)
+    app.include_router(agent_router, prefix="/api")
 
     return app
 

@@ -18,6 +18,7 @@ const animeLandmarkCount = 28;
 const leftEyeContourIndexes = [11, 12, 13, 14, 15, 16] as const;
 const rightEyeContourIndexes = [17, 18, 19, 20, 21, 22] as const;
 const mouthContourIndexes = [24, 25, 26, 27] as const;
+const browIndexes = [5, 6, 7, 8, 9, 10] as const;
 const controlLandmarkSourceIndexes = new Set([
   1,
   2,
@@ -157,6 +158,23 @@ function deriveEyePatchRegion(
   };
 }
 
+/** Split the six brow points into image-left / image-right brows and order them inner -> peak -> outer. */
+export function deriveBrows(points: readonly DetectedPoint[], centerX: number) {
+  const browPoints = browIndexes.map((index) => points[index]).filter(Boolean);
+  if (browPoints.length < 6) return null;
+  const sides = [
+    browPoints.filter((point) => point.x < centerX),
+    browPoints.filter((point) => point.x >= centerX),
+  ];
+  if (sides.some((side) => side.length !== 3)) return null;
+  const [left, right] = sides.map((side) => {
+    const byDistance = [...side].sort((a, b) => Math.abs(a.x - centerX) - Math.abs(b.x - centerX));
+    const [inner, middle, outer] = byDistance;
+    return { inner, peak: middle, outer };
+  });
+  return { left, right };
+}
+
 function normalizePoint(point: { x: number; y: number }, imageWidth: number, imageHeight: number) {
   const safeWidth = Math.max(1, imageWidth);
   const safeHeight = Math.max(1, imageHeight);
@@ -249,6 +267,7 @@ export function mapAnimePointsToManualLandmarks(
 
   if (!chin || !jawLeft || !jawRight) return null;
   const mouth = deriveMouthPoints(points, leftEye, rightEye, chin);
+  const brows = deriveBrows(points, (leftEye.x + rightEye.x) / 2);
 
   return {
     leftEye: normalizePoint(leftEye, imageWidth, imageHeight),
@@ -260,6 +279,20 @@ export function mapAnimePointsToManualLandmarks(
     mouthLeft: normalizePoint(mouth.left, imageWidth, imageHeight),
     mouthRight: normalizePoint(mouth.right, imageWidth, imageHeight),
     eyeRegions,
+    brows: brows
+      ? {
+          left: {
+            inner: normalizePoint(brows.left.inner, imageWidth, imageHeight),
+            peak: normalizePoint(brows.left.peak, imageWidth, imageHeight),
+            outer: normalizePoint(brows.left.outer, imageWidth, imageHeight),
+          },
+          right: {
+            inner: normalizePoint(brows.right.inner, imageWidth, imageHeight),
+            peak: normalizePoint(brows.right.peak, imageWidth, imageHeight),
+            outer: normalizePoint(brows.right.outer, imageWidth, imageHeight),
+          },
+        }
+      : undefined,
   };
 }
 

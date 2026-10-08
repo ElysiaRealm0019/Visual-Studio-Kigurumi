@@ -1,18 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { kigTheme } from "./theme";
+import { createKigTheme, idePalettes } from "./theme";
 
-describe("kigTheme", () => {
-  it("uses the print workbench styling with red-orange accent", () => {
-    expect(kigTheme.palette.mode).toBe("light");
-    expect(kigTheme.palette.primary.main).toBe("#c9552f");
-    expect(kigTheme.palette.background.default).toBe("#f3ead7");
+describe("createKigTheme", () => {
+  it("builds dark and light IDE themes from the shared palette", () => {
+    const dark = createKigTheme("dark");
+    const light = createKigTheme("light");
+    expect(dark.palette.mode).toBe("dark");
+    expect(dark.palette.primary.main).toBe(idePalettes.dark.accent);
+    expect(dark.palette.background.default).toBe(idePalettes.dark.background);
+    expect(light.palette.mode).toBe("light");
+    expect(light.palette.background.paper).toBe(idePalettes.light.panel);
   });
 
-  it("sets hard-edged Material UI defaults", () => {
-    expect(kigTheme.shape.borderRadius).toBe(0);
-    expect(kigTheme.components?.MuiButton?.defaultProps).toMatchObject({
-      disableElevation: true,
-    });
+  it("keeps compact Material UI defaults", () => {
+    expect(createKigTheme("dark").components?.MuiButton?.defaultProps).toMatchObject({ disableElevation: true });
   });
 });
-

@@ -10,6 +10,13 @@ export type EyeRegion = {
   radiusY: number;
 };
 
+/** Eyebrow points: inner end (towards the face centre), arch peak, outer end. Normalised 0-1. */
+export type BrowPoints = {
+  inner: LandmarkPoint;
+  peak: LandmarkPoint;
+  outer: LandmarkPoint;
+};
+
 export type ManualLandmarks = {
   leftEye: LandmarkPoint;
   rightEye: LandmarkPoint;
@@ -22,6 +29,10 @@ export type ManualLandmarks = {
   eyeRegions?: {
     left: EyeRegion;
     right: EyeRegion;
+  };
+  brows?: {
+    left: BrowPoints;
+    right: BrowPoints;
   };
 };
 
@@ -101,7 +112,23 @@ export function completeLandmarks(landmarks: Partial<ManualLandmarks> | ManualLa
     mouthLeft: landmarks.mouthLeft ?? { x: mouthCenter.x - mouthHalfWidth, y: mouthCenter.y },
     mouthRight: landmarks.mouthRight ?? { x: mouthCenter.x + mouthHalfWidth, y: mouthCenter.y },
     eyeRegions: landmarks.eyeRegions,
+    brows: landmarks.brows,
   };
+}
+
+/** Detected brows when available, otherwise an estimate above each eye (for manual or legacy landmarks). */
+export function resolveBrows(landmarks: ManualLandmarks): { left: BrowPoints; right: BrowPoints } {
+  if (landmarks.brows) return landmarks.brows;
+  const eyeDistance = Math.max(0.08, Math.abs(landmarks.rightEye.x - landmarks.leftEye.x));
+  const lift = eyeDistance * 0.42;
+  const halfLength = eyeDistance * 0.3;
+  const estimate = (eye: LandmarkPoint, outward: number): BrowPoints => ({
+    inner: { x: eye.x - outward * halfLength * 0.9, y: eye.y - lift * 0.92 },
+    peak: { x: eye.x + outward * halfLength * 0.25, y: eye.y - lift * 1.08 },
+    outer: { x: eye.x + outward * halfLength, y: eye.y - lift * 0.9 },
+  });
+  const leftOutward = landmarks.leftEye.x <= landmarks.rightEye.x ? -1 : 1;
+  return { left: estimate(landmarks.leftEye, leftOutward), right: estimate(landmarks.rightEye, -leftOutward) };
 }
 
 export function normalizeLandmarks(landmarks: ManualLandmarks, width: number, height: number): ManualLandmarks {
@@ -117,6 +144,20 @@ export function normalizeLandmarks(landmarks: ManualLandmarks, width: number, he
     mouthLeft: normalizePoint(completed.mouthLeft, width, height),
     mouthRight: normalizePoint(completed.mouthRight, width, height),
     eyeRegions: completed.eyeRegions,
+    brows: completed.brows
+      ? {
+          left: normalizeBrow(completed.brows.left, width, height),
+          right: normalizeBrow(completed.brows.right, width, height),
+        }
+      : undefined,
+  };
+}
+
+function normalizeBrow(brow: BrowPoints, width: number, height: number): BrowPoints {
+  return {
+    inner: normalizePoint(brow.inner, width, height),
+    peak: normalizePoint(brow.peak, width, height),
+    outer: normalizePoint(brow.outer, width, height),
   };
 }
 

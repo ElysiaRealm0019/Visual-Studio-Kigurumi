@@ -12,11 +12,11 @@ describe("editor landmarks", () => {
     expect(landmarks.rightEye.x).toBeCloseTo(width * 0.58);
     expect(landmarks.rightEye.y).toBeCloseTo(height * 0.42);
     expect(landmarks.chin.x).toBeCloseTo(width * 0.5);
-    expect(landmarks.chin.y).toBeCloseTo(height * 0.68);
-    expect(landmarks.jawLeft.x).toBeCloseTo(width * 0.34);
-    expect(landmarks.jawLeft.y).toBeCloseTo(height * 0.58);
-    expect(landmarks.jawRight.x).toBeCloseTo(width * 0.66);
-    expect(landmarks.jawRight.y).toBeCloseTo(height * 0.58);
+    expect(landmarks.chin.y).toBeCloseTo(height * 0.7);
+    expect(landmarks.jawLeft.x).toBeCloseTo(width * 0.39);
+    expect(landmarks.jawLeft.y).toBeCloseTo(height * 0.6);
+    expect(landmarks.jawRight.x).toBeCloseTo(width * 0.61);
+    expect(landmarks.jawRight.y).toBeCloseTo(height * 0.6);
   });
 
   it("preserves fractional default face anchors from planned proportions", () => {
@@ -29,11 +29,11 @@ describe("editor landmarks", () => {
     expect(landmarks.rightEye.x).toBeCloseTo(width * 0.58);
     expect(landmarks.rightEye.y).toBeCloseTo(height * 0.42);
     expect(landmarks.chin.x).toBeCloseTo(width * 0.5);
-    expect(landmarks.chin.y).toBeCloseTo(height * 0.68);
-    expect(landmarks.jawLeft.x).toBeCloseTo(width * 0.34);
-    expect(landmarks.jawLeft.y).toBeCloseTo(height * 0.58);
-    expect(landmarks.jawRight.x).toBeCloseTo(width * 0.66);
-    expect(landmarks.jawRight.y).toBeCloseTo(height * 0.58);
+    expect(landmarks.chin.y).toBeCloseTo(height * 0.7);
+    expect(landmarks.jawLeft.x).toBeCloseTo(width * 0.39);
+    expect(landmarks.jawLeft.y).toBeCloseTo(height * 0.6);
+    expect(landmarks.jawRight.x).toBeCloseTo(width * 0.61);
+    expect(landmarks.jawRight.y).toBeCloseTo(height * 0.6);
   });
 
   it("normalizes manual landmarks into image-relative coordinates", () => {
@@ -41,8 +41,8 @@ describe("editor landmarks", () => {
 
     expect(normalized.leftEye).toEqual({ x: 0.42, y: 0.42 });
     expect(normalized.rightEye).toEqual({ x: 0.58, y: 0.42 });
-    expect(normalized.chin).toEqual({ x: 0.5, y: 0.68 });
-    expect(normalized.jawLeft).toEqual({ x: 0.34, y: 0.58 });
-    expect(normalized.jawRight).toEqual({ x: 0.66, y: 0.58 });
+    expect(normalized.chin).toEqual({ x: 0.5, y: 0.7 });
+    expect(normalized.jawLeft).toEqual({ x: 0.39, y: 0.6 });
+    expect(normalized.jawRight).toEqual({ x: 0.61, y: 0.6 });
   });
 });

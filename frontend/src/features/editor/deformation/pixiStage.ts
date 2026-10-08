@@ -1,4 +1,4 @@
-import { createDefaultLandmarks, type ManualLandmarks } from "./landmarks";
+import { createDefaultLandmarks, resolveBrows, type ManualLandmarks } from "./landmarks";
 import { eyeControlRanges, mouthControlRanges, type EditRecipe, type LiquifyMode, type LiquifyStroke } from "./recipe";
 
 type PixiModule = typeof import("pixi.js");
@@ -87,14 +87,17 @@ const canonicalPreviewSize = 720;
 const maxLocalDisplacementScale = 96;
 const meshVerticesX = 65;
 const meshVerticesY = 89;
-const maxMeshDisplacementCssPixels = 84;
-const maxAccumulatedMeshDisplacementCssPixels = 128;
+const maxMeshDisplacementCssPixels = 60;
+const maxAccumulatedMeshDisplacementCssPixels = 80;
+const maxWarpStrokeDelta = 0.15;
+const warpFullStrengthDistance = 0.3;
 const maxEyeDistanceControlValue = eyeControlRanges.eyeDistance.max;
 const maxEyeVerticalControlValue = eyeControlRanges.eyeVertical.max;
 const maxEyeDistanceTranslateCssPixels = 34;
-const maxEyeVerticalTranslateCssPixels = 28;
+const maxEyeVerticalTranslateCssPixels = 36;
 const maxEyeTiltRadians = 0.18;
-const eyeAffineCorePlateau = 0.78;
+const eyeAffineCorePlateau = 0.5;
+const eyeAffineRadiusScale = 1.3;
 const defaultEyePatchRadiusX = 0.12;
 const defaultEyePatchRadiusY = 0.085;
 const defaultEyePatchRadiusTopY = 0.12;
@@ -105,7 +108,7 @@ const maxMouthSmileControlValue = mouthControlRanges.mouthSmile.max;
 const maxMouthTranslateXCssPixels = 26;
 const maxMouthTranslateYCssPixels = 24;
 const maxMouthSmileCssPixels = 18;
-const mouthAffineCorePlateau = 0.62;
+const mouthAffineCorePlateau = 0.38;
 const defaultMouthPatchRadiusX = 0.08;
 const defaultMouthPatchRadiusY = 0.045;
 
@@ -114,7 +117,14 @@ function getEyeRegionScaleMultiplier(value: number) {
 }
 
 function scaleEyeRegionRadius(value: number, multiplier: number) {
-  return round(value * multiplier);
+  return round(value * multiplier * eyeAffineRadiusScale);
+}
+
+// Smoothstep falloff keeps the brush edge slope at zero so mesh deformation
+// blends into the surrounding pixels instead of showing a hard rim.
+function getBrushFalloff(normalizedDistance: number) {
+  const edge = clamp(1 - normalizedDistance, 0, 1);
+  return edge * edge * (3 - 2 * edge);
 }
 
 export function getDisplacementTextureRadius(radius: number) {
@@ -140,7 +150,7 @@ export function calculateDisplacementPixel(
     const distance = Math.hypot(deltaX, deltaY);
     if (distance > radius) continue;
 
-    const falloff = (1 - distance / radius) ** 2 * clamp(stroke.strength, 0, 1);
+    const falloff = getBrushFalloff(distance / radius) * clamp(stroke.strength, 0, 1);
     const vector = getStrokeVector(stroke, deltaX, deltaY, distance, radius);
 
     redOffset += vector.x * falloff * 124;
@@ -182,7 +192,7 @@ function getStrokeAxisWeight(stroke: LiquifyStroke) {
 
   if (stroke.mode === "warp") {
     const vector = getWarpStrokeVector(stroke);
-    const intensity = clamp(Math.hypot(stroke.deltaX ?? 0, stroke.deltaY ?? 0) / 0.12, 0, 1) * weight;
+    const intensity = clamp(Math.hypot(stroke.deltaX ?? 0, stroke.deltaY ?? 0) / warpFullStrengthDistance, 0, 1) * weight;
 
     return {
       x: Math.abs(vector.x) * weight,
@@ -405,7 +415,98 @@ export function createFeatureLiquifyStrokes(recipe: EditRecipe, landmarks: Manua
     pushStroke(strokes, landmarks.jawRight.x, landmarks.jawRight.y, jawAngle > 0 ? "push-right" : "push-left", jawAngle * 0.48, 92);
   }
 
+  const temple = face.temple ?? 0;
+  if (temple !== 0) {
+    // Temples sit level with the brows, just outside the outer eye corners.
+    const brows = resolveBrows(landmarks);
+    const eyeDistance = Math.abs(landmarks.rightEye.x - landmarks.leftEye.x);
+    const [leftSide, rightSide] = imageSides(landmarks);
+    const templeY = round((brows.left.outer.y + brows.right.outer.y) / 2);
+    pushStroke(strokes, leftSide.eye.x - eyeDistance * 0.55, templeY, temple > 0 ? "push-left" : "push-right", temple * 0.5, 96);
+    pushStroke(strokes, rightSide.eye.x + eyeDistance * 0.55, templeY, temple > 0 ? "push-right" : "push-left", temple * 0.5, 96);
+  }
+
+  pushEyeDetailStrokes(strokes, recipe, landmarks);
+  pushBrowStrokes(strokes, recipe, landmarks);
+
   return strokes;
+}
+
+/** Image-left and image-right eyes with the direction pointing away from the face centre. */
+function imageSides(landmarks: ManualLandmarks) {
+  const leftIsImageLeft = landmarks.leftEye.x <= landmarks.rightEye.x;
+  const imageLeft = leftIsImageLeft
+    ? { eye: landmarks.leftEye, region: landmarks.eyeRegions?.left, direction: -1 }
+    : { eye: landmarks.rightEye, region: landmarks.eyeRegions?.right, direction: -1 };
+  const imageRight = leftIsImageLeft
+    ? { eye: landmarks.rightEye, region: landmarks.eyeRegions?.right, direction: 1 }
+    : { eye: landmarks.leftEye, region: landmarks.eyeRegions?.left, direction: 1 };
+  return [imageLeft, imageRight] as const;
+}
+
+/** Normalised eye-patch radius -> stroke radius in display pixels (strokes assume a ~720px wide preview). */
+function toStrokeRadius(normalized: number, factor: number, min = 18, max = 140) {
+  return round(clamp(normalized * canonicalPreviewSize * factor, min, max));
+}
+
+function pushEyeDetailStrokes(strokes: LiquifyStroke[], recipe: EditRecipe, landmarks: ManualLandmarks) {
+  const { eyeLift = 0, pupilSize = 0, lowerLid = 0, eyeTail = 0 } = recipe.eyes;
+  if (!eyeLift && !pupilSize && !lowerLid && !eyeTail) return;
+
+  for (const side of imageSides(landmarks)) {
+    const radiusX = side.region?.radiusX ?? defaultEyePatchRadiusX;
+    const radiusTop = side.region?.radiusTopY ?? side.region?.radiusY ?? defaultEyePatchRadiusTopY;
+    const radiusBottom = side.region?.radiusBottomY ?? side.region?.radiusY ?? defaultEyePatchRadiusBottomY;
+    const { x, y } = side.eye;
+
+    // 提肌: raise (or lower) the upper lid line.
+    pushStroke(strokes, x, y - radiusTop * 0.6, eyeLift > 0 ? "push-up" : "push-down", eyeLift * 2.2, toStrokeRadius(radiusX, 0.8));
+    // 眼瞳大小: radial expand / shrink around the iris.
+    pushStroke(strokes, x, y, pupilSize > 0 ? "expand" : "shrink", pupilSize * 0.85, toStrokeRadius(radiusX, 0.55, 14, 80));
+    // 眼睑下至: move the lower lid down (larger eye) or up.
+    pushStroke(strokes, x, y + radiusBottom * 0.62, lowerLid > 0 ? "push-down" : "push-up", lowerLid * 1.8, toStrokeRadius(radiusX, 0.8));
+    // 眼尾上扬: lift the outer corner.
+    pushStroke(strokes, x + side.direction * radiusX * 0.78, y, eyeTail > 0 ? "push-up" : "push-down", eyeTail * 1.6, toStrokeRadius(radiusX, 0.55, 14, 90));
+  }
+}
+
+function pushBrowStrokes(strokes: LiquifyStroke[], recipe: EditRecipe, landmarks: ManualLandmarks) {
+  const brows = recipe.brows;
+  if (!brows || Object.values(brows).every((value) => !value)) return;
+  const resolved = resolveBrows(landmarks);
+  const leftIsImageLeft = landmarks.leftEye.x <= landmarks.rightEye.x;
+  const sides = [
+    { brow: leftIsImageLeft ? resolved.left : resolved.right, outward: -1 },
+    { brow: leftIsImageLeft ? resolved.right : resolved.left, outward: 1 },
+  ];
+
+  for (const { brow, outward } of sides) {
+    const length = Math.max(0.03, Math.hypot(brow.outer.x - brow.inner.x, brow.outer.y - brow.inner.y));
+    const center = { x: (brow.inner.x + brow.outer.x + brow.peak.x) / 3, y: (brow.inner.y + brow.outer.y + brow.peak.y) / 3 };
+    const wholeRadius = toStrokeRadius(length, 0.75, 24, 120);
+    const pointRadius = toStrokeRadius(length, 0.4, 14, 70);
+    const outwardMode = outward < 0 ? "push-left" : "push-right";
+    const inwardMode = outward < 0 ? "push-right" : "push-left";
+
+    // 上下: move the whole brow.
+    pushStroke(strokes, center.x, center.y, brows.browVertical > 0 ? "push-up" : "push-down", brows.browVertical * 0.4, wholeRadius);
+    // 粗细: push the upper edge up and lower edge down (or the reverse).
+    const thickness = brows.browThickness;
+    pushStroke(strokes, center.x, center.y - length * 0.08, thickness > 0 ? "push-up" : "push-down", thickness * 0.22, pointRadius);
+    pushStroke(strokes, center.x, center.y + length * 0.08, thickness > 0 ? "push-down" : "push-up", thickness * 0.22, pointRadius);
+    // 长短: extend or pull back the tail.
+    pushStroke(strokes, brow.outer.x, brow.outer.y, brows.browLength > 0 ? outwardMode : inwardMode, brows.browLength * 0.38, pointRadius);
+    // 间距: move both brows apart / together.
+    pushStroke(strokes, center.x, center.y, brows.browSpacing > 0 ? outwardMode : inwardMode, brows.browSpacing * 0.3, wholeRadius);
+    // 眉头间距: move only the inner ends.
+    pushStroke(strokes, brow.inner.x, brow.inner.y, brows.browInnerSpacing > 0 ? outwardMode : inwardMode, brows.browInnerSpacing * 0.32, pointRadius);
+    // 倾斜: raise the tail and lower the head (or the reverse).
+    const tilt = brows.browTilt;
+    pushStroke(strokes, brow.outer.x, brow.outer.y, tilt > 0 ? "push-up" : "push-down", tilt * 0.3, pointRadius);
+    pushStroke(strokes, brow.inner.x, brow.inner.y, tilt > 0 ? "push-down" : "push-up", tilt * 0.22, pointRadius);
+    // 眉峰: raise or flatten the arch.
+    pushStroke(strokes, brow.peak.x, brow.peak.y, brows.browArch > 0 ? "push-up" : "push-down", brows.browArch * 0.3, pointRadius);
+  }
 }
 
 export function createEyeMeshTransforms(recipe: EditRecipe, landmarks: ManualLandmarks): EyeMeshTransform[] {
@@ -417,8 +518,8 @@ export function createEyeMeshTransforms(recipe: EditRecipe, landmarks: ManualLan
   const eyeVertical = eyes.eyeVertical / maxEyeVerticalControlValue;
   const eyeTilt = eyes.eyeTilt;
   const eyeRegionScale = getEyeRegionScaleMultiplier(eyes.eyeRegionScale);
-  const scaleX = round(clamp(1 + eyeSize * 0.3 + eyeWidth * 0.22, 0.62, 1.48));
-  const scaleY = round(clamp(1 + eyeSize * 0.3 + eyeHeight * 0.34, 0.58, 1.54));
+  const scaleX = round(clamp(1 + eyeSize * 0.45 + eyeWidth * 0.3, 0.7, 1.38));
+  const scaleY = round(clamp(1 + eyeSize * 0.45 + eyeHeight * 0.5, 0.7, 1.38));
   const translateY = round(eyeVertical * maxEyeVerticalTranslateCssPixels);
   const rotationMagnitude = round(eyeTilt * maxEyeTiltRadians);
   const hasTransform =
@@ -479,8 +580,8 @@ export function createMouthMeshTransforms(recipe: EditRecipe, landmarks: ManualL
   const mouthSmile = mouth.mouthSmile / maxMouthSmileControlValue;
   const mouthWidth = mouth.mouthWidth;
   const mouthSize = mouth.mouthSize;
-  const scaleX = round(clamp(1 + mouthSize * 0.42 + mouthWidth * 0.74, 0.55, 1.72));
-  const scaleY = round(clamp(1 + mouthSize * 0.38, 0.62, 1.42));
+  const scaleX = round(clamp(1 + mouthSize * 0.32 + mouthWidth * 0.52, 0.66, 1.5));
+  const scaleY = round(clamp(1 + mouthSize * 0.28, 0.72, 1.3));
   const translateX = round(mouthHorizontal * maxMouthTranslateXCssPixels);
   const translateY = round(mouthVertical * maxMouthTranslateYCssPixels);
   const smile = round(clamp(mouthSmile, -1, 1));
@@ -642,8 +743,28 @@ async function createPixiStage(host: HTMLDivElement, pixi: PixiModule): Promise<
       if (isDestroyed) {
         throw new Error("Pixi stage is already destroyed");
       }
-      app.render();
-      return canvasToBlob(app.canvas);
+      if (!imageMesh) {
+        throw new Error("The editor image has not finished loading");
+      }
+      // Render the deformed mesh off-screen at the texture's native size. Mesh positions are stored in
+      // texture coordinates, so dropping the display fit (scale/offset) gives a full-resolution export
+      // of exactly what the user sees, independent of the on-screen canvas size.
+      const width = Math.max(1, Math.round(imageMesh.texture.width));
+      const height = Math.max(1, Math.round(imageMesh.texture.height));
+      const target = pixi.RenderTexture.create({ height, resolution: 1, width });
+      const previous = { scaleX: imageMesh.scale.x, scaleY: imageMesh.scale.y, x: imageMesh.x, y: imageMesh.y };
+      try {
+        imageMesh.scale.set(1, 1);
+        imageMesh.position.set(0, 0);
+        app.renderer.render({ clear: true, container: imageContainer, target });
+        const canvas = app.renderer.extract.canvas(target) as HTMLCanvasElement;
+        return await canvasToBlob(canvas);
+      } finally {
+        imageMesh.scale.set(previous.scaleX, previous.scaleY);
+        imageMesh.position.set(previous.x, previous.y);
+        target.destroy(true);
+        app.render();
+      }
     },
     destroy() {
       if (isDestroyed) return;
@@ -655,16 +776,22 @@ async function createPixiStage(host: HTMLDivElement, pixi: PixiModule): Promise<
   };
 }
 
+// Pixi Assets picks its parser from the file extension; URLs without one (e.g. the API's
+// `/versions/{id}/source`) resolve to null instead of a texture.
+const IMAGE_EXTENSION_PATTERN = /\.(png|jpe?g|webp|gif|avif)(?:[?#]|$)/i;
+
 async function loadPixiTexture(pixi: PixiModule, url: string) {
-  if (url.startsWith("blob:")) {
+  if (url.startsWith("blob:") || !IMAGE_EXTENSION_PATTERN.test(url)) {
     return loadBrowserImageTexture(pixi.Texture, url);
   }
 
   try {
-    return await pixi.Assets.load(url);
+    const texture = await pixi.Assets.load(url);
+    if (texture) return texture;
   } catch {
-    return loadBrowserImageTexture(pixi.Texture, url);
+    // fall through to the browser decoder
   }
+  return loadBrowserImageTexture(pixi.Texture, url);
 }
 
 function loadBrowserImageTexture(Texture: PixiModule["Texture"], url: string) {
@@ -792,12 +919,12 @@ function getStrokeVector(
 }
 
 function getWarpStrokeVector(stroke: LiquifyStroke) {
-  const deltaX = clamp(stroke.deltaX ?? 0, -0.35, 0.35);
-  const deltaY = clamp(stroke.deltaY ?? 0, -0.35, 0.35);
+  const deltaX = clamp(stroke.deltaX ?? 0, -maxWarpStrokeDelta, maxWarpStrokeDelta);
+  const deltaY = clamp(stroke.deltaY ?? 0, -maxWarpStrokeDelta, maxWarpStrokeDelta);
   const distance = Math.hypot(deltaX, deltaY);
   if (distance === 0) return { x: 0, y: 0 };
 
-  const visibleDistance = clamp(distance / 0.12, 0, 1);
+  const visibleDistance = clamp(distance / warpFullStrengthDistance, 0, 1);
 
   return {
     x: deltaX / distance * visibleDistance,
@@ -863,11 +990,24 @@ function applyMeshDeformation(
       const distance = Math.hypot(deltaX, deltaY);
       if (distance > radius) continue;
 
-      const falloff = (1 - distance / radius) ** 2 * clamp(stroke.strength, 0, 1);
+      const falloff = getBrushFalloff(distance / radius) * clamp(stroke.strength, 0, 1);
 
       if (stroke.mode === "warp") {
-        offsetX += clamp(stroke.deltaX ?? 0, -0.35, 0.35) * textureWidth * fitScale * falloff;
-        offsetY += clamp(stroke.deltaY ?? 0, -0.35, 0.35) * textureHeight * fitScale * falloff;
+        // Cap each warp stroke at the same CSS pixel budget as push strokes so
+        // fast drags never tear the mesh, and rely on the smoothstep falloff
+        // above for a soft blend.
+        offsetX +=
+          clamp(
+            clamp(stroke.deltaX ?? 0, -maxWarpStrokeDelta, maxWarpStrokeDelta) * textureWidth * fitScale,
+            -maxDisplacement,
+            maxDisplacement,
+          ) * falloff;
+        offsetY +=
+          clamp(
+            clamp(stroke.deltaY ?? 0, -maxWarpStrokeDelta, maxWarpStrokeDelta) * textureHeight * fitScale,
+            -maxDisplacement,
+            maxDisplacement,
+          ) * falloff;
         continue;
       }
 

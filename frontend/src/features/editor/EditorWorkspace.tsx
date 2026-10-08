@@ -11,6 +11,7 @@ import {
 } from "@tabler/icons-react";
 import {
   forwardRef,
+  useCallback,
   useEffect,
   useImperativeHandle,
   useMemo,
@@ -20,13 +21,16 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent,
   type PointerEvent,
+  type ReactNode,
   type SyntheticEvent,
 } from "react";
+import { createPortal } from "react-dom";
 import { AnnotationLayer } from "./components/AnnotationLayer";
 import { EditorToolbar } from "./components/EditorToolbar";
 import { EditorToolRail, type EditorTool } from "./components/EditorToolRail";
+import { BrowControls } from "./components/BrowControls";
 import { EyeControls } from "./components/EyeControls";
-import { FaceControls } from "./components/FaceControls";
+import { FaceControls, faceShapeControlKeys, proportionControlKeys } from "./components/FaceControls";
 import { LocalMaskLayer } from "./components/LocalMaskLayer";
 import { LiquifyControls, type LiquifyToolMode } from "./components/LiquifyControls";
 import { MouthControls } from "./components/MouthControls";
@@ -50,9 +54,11 @@ import {
   updateLiquifyBrushPair,
   updateLiquifyScaleBrush,
   updateManualLandmark,
+  updateBrowControl,
   updateMouthControl,
   type EditRecipe,
   type AnnotationMark,
+  type BrowControlKey,
   type EyeControlKey,
   type LiquifyStroke,
   type MouthControlKey,
@@ -78,6 +84,16 @@ export type { EditorLocalGeneratePayload, EditorLocalReferenceOption } from "./l
 
 export type EditorWorkspaceProps = {
   availableTools?: EditorTool[];
+  /** "ide": render only the canvas inline; tool panel and viewport toolbar go into the given portal targets. */
+  layout?: "card" | "ide";
+  activeTool?: EditorTool;
+  onActiveToolChange?: (tool: EditorTool) => void;
+  panelTarget?: HTMLElement | null;
+  toolbarTarget?: HTMLElement | null;
+  /** Download the edited image when saving (off in the IDE, where downloads use the watermarked version). */
+  downloadOnSave?: boolean;
+  /** Overrides the image URL used for the editor's own export/download naming. */
+  onStatusChange?: (status: EditorStatus) => void;
   candidateIndex: number;
   imageHeight?: number;
   initialLandmarks?: ManualLandmarks | null;
@@ -121,13 +137,21 @@ const toolDetails: Partial<Record<EditorTool, { description: string; title: stri
     title: "标注",
     description: "圈选需要保留、修正或重点观察的区域。",
   },
+  proportion: {
+    title: "比例",
+    description: "调整脸长和中庭，会改变五官之间的距离。",
+  },
   face: {
     title: "脸型",
-    description: "调整脸宽、下颌、下巴和 V 脸方向。",
+    description: "只调整脸部轮廓，五官位置保持不变。",
+  },
+  brows: {
+    title: "眉毛",
+    description: "调整眉毛上下、粗细、长短、间距、倾斜和眉峰。",
   },
   eyes: {
     title: "眼睛",
-    description: "调整眼睛大小、高度、宽度、距离、上下位置和倾斜角度。",
+    description: "调整眼睛大小、上下、眼高、长度、眼距、眼睑、眼瞳、眼尾和倾斜。",
   },
   mouth: {
     title: "嘴巴",
@@ -141,9 +165,19 @@ const toolDetails: Partial<Record<EditorTool, { description: string; title: stri
 
 const defaultBrushRadius = 72;
 const defaultLiquifyScaleAmount = 0;
-const defaultLiquifyWarpStrength = 0.2;
+const defaultLiquifyWarpStrength = 0.09;
 const defaultLiquifyToolMode: LiquifyToolMode = "warp";
-const defaultEditorTools: EditorTool[] = ["annotation", "face", "eyes", "mouth", "liquify", "local-generate"];
+const defaultEditorTools: EditorTool[] = [
+  "annotation",
+  "proportion",
+  "face",
+  "eyes",
+  "brows",
+  "mouth",
+  "liquify",
+  "local-generate",
+];
+const landmarkTools = new Set<EditorTool>(["proportion", "face", "eyes", "brows", "mouth"]);
 const minEditorZoom = 0.4;
 const maxEditorZoom = 2.2;
 const minLiquifySymmetryAxis = 0.35;
@@ -181,6 +215,15 @@ type StagePointerPoint = {
 export type EditorWorkspaceHandle = {
   regenerate: () => Promise<void>;
   secondaryRegenerate: () => Promise<void>;
+  save: () => Promise<void>;
+  isDirty: () => boolean;
+};
+
+export type EditorStatus = {
+  detectingLandmarks: boolean;
+  landmarksReady: boolean;
+  zoomPercent: number;
+  dirty: boolean;
 };
 type PendingTouchAction = {
   clientX: number;
@@ -207,6 +250,22 @@ function clampLiquifySymmetryAxis(value: number) {
 }
 function recipesMatch(left: EditRecipe, right: EditRecipe) {
   return JSON.stringify(left) === JSON.stringify(right);
+}
+
+/** JSON with sorted object keys, so recipes compare equal regardless of key insertion order. */
+function stableStringify(value: unknown): string {
+  return JSON.stringify(value, (_key, item: unknown) =>
+    item && typeof item === "object" && !Array.isArray(item)
+      ? Object.fromEntries(Object.entries(item as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b)))
+      : item,
+  );
+}
+
+const emptyRecipeSignature = stableStringify({ ...normalizeEditRecipe(createEmptyRecipe()), landmarks: undefined });
+
+/** True when the user changed something; detected/corrected landmarks alone do not count as an edit. */
+function recipeHasEdits(recipe: EditRecipe) {
+  return stableStringify({ ...normalizeEditRecipe(recipe), landmarks: undefined }) !== emptyRecipeSignature;
 }
 
 function calculateContainViewport(
@@ -308,9 +367,25 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
   onRegenerate,
   onSecondaryRegenerate,
   onSave,
+  layout = "card",
+  activeTool: controlledActiveTool,
+  onActiveToolChange,
+  panelTarget,
+  toolbarTarget,
+  downloadOnSave = true,
+  onStatusChange,
 }: EditorWorkspaceProps, ref) {
-  const isMobileEditor = useMediaQuery("(max-width: 768px)", false);
-  const [activeTool, setActiveTool] = useState<EditorTool>("annotation");
+  const isIdeLayout = layout === "ide";
+  const isMobileEditor = useMediaQuery("(max-width: 768px)", false) && !isIdeLayout;
+  const [uncontrolledActiveTool, setUncontrolledActiveTool] = useState<EditorTool>("annotation");
+  const activeTool = controlledActiveTool ?? uncontrolledActiveTool;
+  const setActiveTool = useCallback(
+    (tool: EditorTool) => {
+      setUncontrolledActiveTool(tool);
+      onActiveToolChange?.(tool);
+    },
+    [onActiveToolChange],
+  );
   const [recipe, setRecipe] = useState(() => normalizeEditRecipe(controlledRecipe ?? createEmptyRecipe()));
   const [liquifyToolMode, setLiquifyToolMode] = useState<LiquifyToolMode>(defaultLiquifyToolMode);
   const [brushRadius, setBrushRadius] = useState(defaultBrushRadius);
@@ -354,6 +429,7 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
   const [localMaskStrokes, setLocalMaskStrokes] = useState<LocalMaskStroke[]>([]);
   const [localMaskBrushPreview, setLocalMaskBrushPreview] = useState<{ radius: number; x: number; y: number } | null>(null);
   const [localEditNote, setLocalEditNote] = useState("");
+  const [localLockOutside, setLocalLockOutside] = useState(false);
   const [selectedLocalReferenceKeys, setSelectedLocalReferenceKeys] = useState<string[]>([]);
   const [localUploadedReferenceFile, setLocalUploadedReferenceFile] = useState<File | null>(null);
   const [localUploadedReferenceDescription, setLocalUploadedReferenceDescription] = useState("");
@@ -455,7 +531,7 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
     title: "局部生成",
     description: "涂抹要修改的区域，提交给 AI 只重做这一块。",
   };
-  const canShowLandmarkToggle = enabledToolSet.has("face") || enabledToolSet.has("eyes") || enabledToolSet.has("mouth");
+  const canShowLandmarkToggle = enabledTools.some((tool) => landmarkTools.has(tool));
   const effectiveShowLandmarks = canShowLandmarkToggle && showLandmarkControls && !temporarilyHideLandmarks;
   const zoomPercent = Math.round(zoom * 100);
   const canUndo = liquifyHistoryAvailability.canUndo;
@@ -1025,7 +1101,11 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
   }, [activeTool]);
 
   function getStagePoint(event: PointerEvent<HTMLElement>) {
-    const rect = imageViewportRef.current?.getBoundingClientRect() ?? stageRef.current?.getBoundingClientRect();
+    const viewportRect = imageViewportRef.current?.getBoundingClientRect();
+    const rect =
+      viewportRect && viewportRect.width > 0 && viewportRect.height > 0
+        ? viewportRect
+        : stageRef.current?.getBoundingClientRect();
     if (!rect || rect.width <= 0 || rect.height <= 0) return { x: 0.5, y: 0.5 };
     return {
       x: Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width)),
@@ -1307,7 +1387,7 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
     setSelectedAnnotationId(null);
     setSelectedLandmarkKey(null);
     setTemporarilyHideLandmarks(false);
-    if (tool === "face" || tool === "eyes") {
+    if (landmarkTools.has(tool)) {
       ensureFallbackLandmarks({ notify: true });
     }
     if (tool !== "liquify") {
@@ -1381,7 +1461,8 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
   }
 
   async function exportEditedBlob(includeAnnotations: boolean, annotations = latestRecipeRef.current.annotations) {
-    const pixiBlob = await pixiStageRef.current?.exportImage();
+    // Only trust the Pixi canvas once it has actually rendered the image; otherwise export the original pixels.
+    const pixiBlob = pixiVisualReady ? await pixiStageRef.current?.exportImage() : undefined;
     if (pixiBlob) {
       if (!includeAnnotations) return pixiBlob;
       const image = await loadBlobImage(pixiBlob);
@@ -1413,7 +1494,7 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
     const compactRecipe = compactRecipeAnnotations(latestRecipeRef.current);
     const imageBlob = await exportEditedBlob(false);
     const fileName = `kigcraft-edit-${Date.now()}.png`;
-    downloadBlob(imageBlob, fileName);
+    if (downloadOnSave) downloadBlob(imageBlob, fileName);
     await onSave?.({ annotationPrompt: buildAnnotationPrompt(compactRecipe.annotations), fileName, imageBlob, recipe: compactRecipe });
   }
 
@@ -1466,9 +1547,10 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
       await onLocalGenerate({
         baseImageBlob,
         editNote: localEditNote.trim(),
+        lockOutside: localLockOutside,
         maskImageBlob,
         recipe: compactRecipe,
-        selectedReferenceKeys: [],
+        selectedReferenceKeys: selectedLocalReferenceKeys,
         uploadedReferences: localUploadedReferenceFile
           ? [{ description: localEditNote.trim(), file: localUploadedReferenceFile }]
           : [],
@@ -1483,9 +1565,20 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
     () => ({
       regenerate: handleRegenerate,
       secondaryRegenerate: handleSecondaryRegenerate,
+      save: handleSave,
+      isDirty: () => recipeHasEdits(latestRecipeRef.current),
     }),
-    [handleRegenerate, handleSecondaryRegenerate],
+    [handleRegenerate, handleSecondaryRegenerate, handleSave],
   );
+
+  useEffect(() => {
+    onStatusChange?.({
+      detectingLandmarks: isDetectingLandmarks,
+      landmarksReady: Boolean(recipe.landmarks),
+      zoomPercent,
+      dirty: recipeHasEdits(recipe),
+    });
+  }, [onStatusChange, isDetectingLandmarks, recipe, zoomPercent]);
 
   function beginParameterInteraction(key?: EyeControlKey) {
     if (key !== "eyeRegionScale") {
@@ -1511,6 +1604,14 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
 
   function handleEyeControlReset(key: EyeControlKey) {
     updateRecipe((currentRecipe) => updateEyeControl(currentRecipe, key, defaultEyeControlValues[key]));
+  }
+
+  function handleBrowControlChange(key: BrowControlKey, value: number) {
+    updateRecipe((currentRecipe) => updateBrowControl(currentRecipe, key, value));
+  }
+
+  function handleBrowControlReset(key: BrowControlKey) {
+    updateRecipe((currentRecipe) => updateBrowControl(currentRecipe, key, 0));
   }
 
   function handleMouthControlChange(key: MouthControlKey, value: number) {
@@ -1928,7 +2029,7 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
                     size="lg"
                     style={{
                       background: selected ? "var(--kb-dirty-yellow)" : "var(--kb-panel-soft)",
-                      border: "2px solid var(--kb-line)",
+                      border: "1px solid var(--kb-line)",
                       borderRadius: 0,
                       boxShadow: selected ? "var(--kb-hard-shadow-sm)" : "none",
                       color: selected ? "var(--kb-off-white)" : "var(--kb-ink)",
@@ -1954,7 +2055,7 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
                 size="lg"
                 style={{
                   background: "var(--kb-panel-soft)",
-                  border: "2px solid var(--kb-line)",
+                  border: "1px solid var(--kb-line)",
                   borderRadius: 0,
                   color: canUndoAnnotation ? "var(--kb-dirty-yellow)" : "var(--kb-concrete-grey)",
                 }}
@@ -1974,7 +2075,7 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
                 size="lg"
                 style={{
                   background: "var(--kb-panel-soft)",
-                  border: "2px solid var(--kb-line)",
+                  border: "1px solid var(--kb-line)",
                   borderRadius: 0,
                   color: canRedoAnnotation ? "var(--kb-dirty-yellow)" : "var(--kb-concrete-grey)",
                 }}
@@ -2002,7 +2103,7 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
                   }}
                   style={{
                     background: color,
-                    border: annotationColor === color ? "3px solid var(--kb-ink)" : "2px solid var(--kb-line)",
+                    border: annotationColor === color ? "3px solid var(--kb-ink)" : "1px solid var(--kb-line)",
                     borderRadius: 0,
                     boxShadow: annotationColor === color ? "var(--kb-hard-shadow-sm)" : "none",
                     cursor: "pointer",
@@ -2022,7 +2123,7 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
               p={1}
               style={{
                 background: "var(--kb-panel-soft)",
-                border: "2px solid var(--kb-line)",
+                border: "1px solid var(--kb-line)",
                 borderRadius: 0,
                 boxShadow: "var(--kb-hard-shadow-sm)",
               }}
@@ -2117,7 +2218,7 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
               p={1}
               style={{
                 background: "var(--kb-panel-soft)",
-                border: "2px solid var(--kb-line)",
+                border: "1px solid var(--kb-line)",
                 borderRadius: 0,
                 boxShadow: "var(--kb-hard-shadow-sm)",
               }}
@@ -2169,120 +2270,144 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
       const canSubmitLocalGenerate = hasMask && !isRegenerating;
 
       return (
-        <Stack gap={1.25} data-testid="local-generate-controls">
-          <Group gap={0.75} wrap="wrap">
-            <Button
-              data-testid="local-mask-mode-brush"
-              onClick={() => setLocalMaskMode("brush")}
-              size="xs"
-              variant={localMaskMode === "brush" ? "filled" : "light"}
-            >
-              笔刷
-            </Button>
-            <Button
-              data-testid="local-mask-mode-erase"
-              onClick={() => setLocalMaskMode("erase")}
-              size="xs"
-              variant={localMaskMode === "erase" ? "filled" : "light"}
-            >
-              橡皮
-            </Button>
-            <Button data-testid="local-mask-clear" onClick={() => setLocalMaskStrokes([])} size="xs" variant="light">
-              清空
-            </Button>
-          </Group>
-
-          <Group align="center" gap={1} wrap="nowrap">
-            <Text c="dimmed" miw={42} size="sm">
-              笔刷
-            </Text>
-            <Slider
-              data-testid="local-mask-radius"
-              max={120}
-              min={8}
-              onChange={setLocalMaskRadius}
-              step={2}
-              style={{ flex: 1 }}
-              value={localMaskRadius}
-            />
-            <Text c="dimmed" miw={34} size="sm" ta="right">
-              {localMaskRadius}
-            </Text>
-          </Group>
-
-          <Textarea
-            data-testid="editor-local-generate-note"
-            minRows={3}
-            onChange={(event: ChangeEvent<HTMLTextAreaElement>) => setLocalEditNote(event.currentTarget.value)}
-            placeholder="描述这块要怎么改"
-            value={localEditNote}
-          />
-
-          {false && localReferenceOptions.length > 0 ? (
-            <Stack gap={0.75}>
-              <Text c="white" fw={700} size="sm">
-                参考图
+        <Stack gap={1.75} data-testid="local-generate-controls">
+          <LocalGenerateStep index={1} title="圈出要改的地方">
+            <Group gap={0.75} wrap="wrap">
+              <Button
+                data-testid="local-mask-mode-brush"
+                onClick={() => setLocalMaskMode("brush")}
+                size="xs"
+                variant={localMaskMode === "brush" ? "filled" : "light"}
+              >
+                笔刷
+              </Button>
+              <Button
+                data-testid="local-mask-mode-erase"
+                onClick={() => setLocalMaskMode("erase")}
+                size="xs"
+                variant={localMaskMode === "erase" ? "filled" : "light"}
+              >
+                橡皮
+              </Button>
+              <Box style={{ flex: 1 }} />
+              <Button data-testid="local-mask-clear" onClick={() => setLocalMaskStrokes([])} size="xs" variant="subtle">
+                清空
+              </Button>
+            </Group>
+            <Group align="center" gap={1} wrap="nowrap">
+              <Text c="dimmed" miw={56} size="sm">
+                笔刷大小
               </Text>
-              <Group gap={0.75} wrap="wrap">
-                {localReferenceOptions.map((option) => {
-                  const selected = selectedLocalReferenceKeys.includes(option.key);
-                  return (
-                    <Button
-                      key={option.key}
-                      data-testid={`editor-local-reference-${option.key}`}
-                      onClick={() => toggleLocalReferenceKey(option.key)}
-                      size="xs"
-                      variant={selected ? "filled" : "light"}
-                    >
-                      {option.label}
-                    </Button>
-                  );
-                })}
-              </Group>
-            </Stack>
-          ) : null}
-
-          <Box
-            accept="image/png,image/jpeg,image/webp"
-            component="input"
-            data-testid="editor-local-reference-file-input"
-            onChange={handleLocalReferenceSelected}
-            ref={localReferenceInputRef}
-            style={{ display: "none" }}
-            type="file"
-          />
-          <Group gap={0.75} wrap="wrap">
-            <Button
-              data-testid="editor-local-reference-upload"
-              onClick={() => localReferenceInputRef.current?.click()}
-              size="xs"
-              variant="light"
-            >
-              {localUploadedReferenceFile ? "更换参考图" : "上传参考图"}
-            </Button>
-            {localUploadedReferenceFile ? (
-              <Text c="dimmed" size="sm">
-                {localUploadedReferenceFile.name}
+              <Slider
+                data-testid="local-mask-radius"
+                max={120}
+                min={8}
+                onChange={setLocalMaskRadius}
+                step={2}
+                style={{ flex: 1 }}
+                value={localMaskRadius}
+              />
+              <Text c="dimmed" miw={28} size="sm" ta="right">
+                {localMaskRadius}
+              </Text>
+            </Group>
+            {!hasMask ? (
+              <Text c="red" size="xs">
+                在图片上涂抹要修改的区域。
               </Text>
             ) : null}
-          </Group>
-          {false && localUploadedReferenceFile ? (
-            <Textarea
-              data-testid="editor-local-reference-description"
-              minRows={2}
-              onChange={(event: ChangeEvent<HTMLTextAreaElement>) =>
-                setLocalUploadedReferenceDescription(event.currentTarget.value)
-              }
-              placeholder="这张图参考什么"
-              value={localUploadedReferenceDescription}
-            />
-          ) : null}
+          </LocalGenerateStep>
 
-          {!hasMask ? (
-            <Text c="dimmed" size="sm">
-              先涂抹要修改的区域
+          <LocalGenerateStep index={2} title="描述怎么改">
+            <Textarea
+              data-testid="editor-local-generate-note"
+              minRows={3}
+              onChange={(event: ChangeEvent<HTMLTextAreaElement>) => setLocalEditNote(event.currentTarget.value)}
+              placeholder="例如：耳朵边缘不要留这么多毛刺"
+              value={localEditNote}
+            />
+          </LocalGenerateStep>
+
+          <LocalGenerateStep index={3} title="修改范围">
+            <Group gap={0} wrap="nowrap" className="ide-segmented">
+              <Button
+                data-testid="local-scope-soft"
+                onClick={() => setLocalLockOutside(false)}
+                size="xs"
+                style={{ flex: 1 }}
+                variant={localLockOutside ? "light" : "filled"}
+              >
+                尽量保持其他部分
+              </Button>
+              <Button
+                data-testid="local-scope-lock"
+                onClick={() => setLocalLockOutside(true)}
+                size="xs"
+                style={{ flex: 1 }}
+                variant={localLockOutside ? "filled" : "light"}
+              >
+                锁定区域外
+              </Button>
+            </Group>
+            <Text c="dimmed" size="xs">
+              {localLockOutside ? "区域外的像素保持不变，边缘过渡更硬。" : "允许修改自然融入周围，区域外可能轻微变化。"}
             </Text>
-          ) : null}
+          </LocalGenerateStep>
+
+          <LocalGenerateStep index={4} title="参考图（可选）">
+            <Box
+              accept="image/png,image/jpeg,image/webp"
+              component="input"
+              data-testid="editor-local-reference-file-input"
+              onChange={handleLocalReferenceSelected}
+              ref={localReferenceInputRef}
+              style={{ display: "none" }}
+              type="file"
+            />
+            <Group gap={0.75} wrap="wrap">
+              <Button
+                data-testid="editor-local-reference-upload"
+                onClick={() => localReferenceInputRef.current?.click()}
+                size="xs"
+                variant="light"
+              >
+                {localUploadedReferenceFile ? "更换参考图" : "上传参考图"}
+              </Button>
+              {localUploadedReferenceFile ? (
+                <Text c="dimmed" size="sm">
+                  {localUploadedReferenceFile.name}
+                </Text>
+              ) : null}
+            </Group>
+            {localReferenceOptions.length > 0 ? (
+              <Stack gap={0.75}>
+                <Text c="dimmed" size="xs">
+                  选择已有参考
+                </Text>
+                <Group gap={0.75} wrap="wrap">
+                  {localReferenceOptions.map((option) => {
+                    const selected = selectedLocalReferenceKeys.includes(option.key);
+                    return (
+                      <button
+                        aria-pressed={selected}
+                        className="ide-reference-chip"
+                        data-selected={selected}
+                        data-testid={`editor-local-reference-${option.key}`}
+                        key={option.key}
+                        onClick={() => toggleLocalReferenceKey(option.key)}
+                        title={option.label}
+                        type="button"
+                      >
+                        {option.imageUrl ? <img alt="" src={option.imageUrl} /> : null}
+                        <span>{option.label}</span>
+                      </button>
+                    );
+                  })}
+                </Group>
+              </Stack>
+            ) : null}
+          </LocalGenerateStep>
+
           {localGenerateError ? (
             <Alert color="red" data-testid="editor-local-generate-error" role="alert" variant="light">
               {localGenerateError}
@@ -2302,10 +2427,38 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
       );
     }
 
+    if (activeTool === "proportion") {
+      return (
+        <FaceControls
+          compact={isMobileEditor}
+          debugValues={landmarkDebugMode}
+          keys={proportionControlKeys}
+          onChange={handleFaceControlChange}
+          onReset={handleFaceControlReset}
+          onSliderInteractionEnd={endParameterInteraction}
+          onSliderInteractionStart={beginParameterInteraction}
+          values={recipe.face}
+        />
+      );
+    }
+
+    if (activeTool === "brows") {
+      return (
+        <BrowControls
+          onChange={handleBrowControlChange}
+          onReset={handleBrowControlReset}
+          onSliderInteractionEnd={endParameterInteraction}
+          onSliderInteractionStart={beginParameterInteraction}
+          values={recipe.brows}
+        />
+      );
+    }
+
     if (activeTool === "face") {
       return (
         <FaceControls
           compact={isMobileEditor}
+          keys={faceShapeControlKeys}
           debugValues={landmarkDebugMode}
           onChange={handleFaceControlChange}
           onReset={handleFaceControlReset}
@@ -2534,7 +2687,7 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
             p={0.75}
             style={{
               background: "var(--kb-panel-soft)",
-              border: "2px solid var(--kb-line)",
+              border: "1px solid var(--kb-line)",
               borderRadius: 0,
               minWidth: 0,
             }}
@@ -2547,7 +2700,7 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
               src={extraReferencePreviewUrl}
               style={{
                 aspectRatio: "1 / 1",
-                border: "2px solid var(--kb-line)",
+                border: "1px solid var(--kb-line)",
                 borderRadius: 0,
                 flex: "0 0 52px",
                 height: 52,
@@ -2577,82 +2730,12 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
   const editorPanelStyle = {
     background:
       "repeating-linear-gradient(0deg, rgba(25,31,35,0.025) 0 1px, transparent 1px 5px), var(--kb-panel)",
-    border: "3px solid var(--kb-line)",
+    border: "1px solid var(--kb-line)",
     borderRadius: 0,
     boxShadow: "var(--kb-hard-shadow)",
   };
 
-  return (
-    <Paper className="grunge-card" component="section" p={{ base: 2, md: 3 }} shadow="sm" withBorder>
-      <Stack gap={2}>
-        <EditorToolbar
-          isComparingOriginal={compareOriginal}
-          isRecognizingFace={isDetectingLandmarks}
-          isRegenerating={isRegenerating}
-          regenerateLabel={regenerateLabel}
-          secondaryRegenerateLabel={secondaryRegenerateLabel}
-          showRegenerateActions={showRegenerateActions}
-          onCompareEnd={() => setCompareOriginal(false)}
-          onCompareStart={() => setCompareOriginal(true)}
-          onClearImage={onClearImage}
-          onFit={() => {
-            setZoom(1);
-            setPan({ x: 0, y: 0 });
-          }}
-          onRegenerate={onRegenerate ? () => void handleRegenerate() : undefined}
-          onRecognizeFace={canShowLandmarkToggle ? () => void recognizeFaceLandmarks() : undefined}
-          onResetAll={resetAllAdjustments}
-          onSecondaryRegenerate={onSecondaryRegenerate ? () => void handleSecondaryRegenerate() : undefined}
-          onSave={() => void handleSave()}
-          onZoomChange={handleZoomChange}
-          showViewportActions={false}
-          zoomPercent={zoomPercent}
-        />
-
-        <Box
-          data-parameters-position={isMobileEditor ? "bottom" : "right"}
-          data-testid="editor-shell"
-          style={{
-            alignItems: "stretch",
-            display: isMobileEditor ? "flex" : "grid",
-            flexDirection: isMobileEditor ? "column" : undefined,
-            gap: isMobileEditor ? 12 : 16,
-            gridTemplateColumns: isMobileEditor ? undefined : "144px minmax(420px, 1fr) minmax(300px, 340px)",
-            minHeight: isMobileEditor ? undefined : "min(760px, calc(100vh - 220px))",
-            overflowX: isMobileEditor ? "visible" : "auto",
-          }}
-        >
-          {!isMobileEditor && (
-            <Box
-              p={1}
-              style={{
-                ...editorPanelStyle,
-                gridColumn: 1,
-              }}
-            >
-              <EditorToolRail activeTool={activeTool} tools={enabledTools} onToolChange={handleToolChange} />
-            </Box>
-          )}
-
-          <Stack
-            gap={1}
-            style={{
-              flex: isMobileEditor ? "0 0 auto" : undefined,
-              gridColumn: isMobileEditor ? undefined : 2,
-              height: isMobileEditor ? "auto" : "100%",
-              minWidth: 0,
-            }}
-          >
-            <Box
-              data-testid="editor-viewport-toolbar-card"
-              p={isMobileEditor ? 0.75 : 1}
-              style={{
-                ...editorPanelStyle,
-                alignSelf: "stretch",
-                boxShadow: "var(--kb-hard-shadow-sm)",
-                minWidth: 0,
-              }}
-            >
+  const viewportToolbar = (
               <EditorToolbar
                 isComparingOriginal={compareOriginal}
                 landmarkDebugMode={landmarkDebugMode}
@@ -2685,7 +2768,9 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
                 showPrimaryActions={false}
                 zoomPercent={zoomPercent}
               />
-            </Box>
+  );
+
+  const stageElement = (
             <Box
               aria-label={imageUrl ? `候选 ${candidateIndex} 编辑画布` : "图像编辑画布"}
               data-testid="editor-stage"
@@ -2701,10 +2786,10 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
                 alignItems: "center",
                 background:
                   "repeating-linear-gradient(0deg, rgba(25,31,35,0.018) 0 1px, transparent 1px 5px), var(--kb-panel-soft)",
-                border: "3px solid var(--kb-line)",
+                border: "1px solid var(--kb-line)",
                 borderRadius: 0,
                 boxShadow: "var(--kb-hard-shadow)",
-                cursor: activeTool === "face" || activeTool === "eyes" || activeTool === "mouth" ? "grab" : "crosshair",
+                cursor: landmarkTools.has(activeTool) ? "grab" : "crosshair",
                 display: "flex",
                 flex: 1,
                 aspectRatio: isMobileEditor ? stageAspectRatio : undefined,
@@ -2844,11 +2929,7 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
                         showSecondaryLandmarks={landmarkDebugMode && !landmarkDebugInfo}
                         showLiquifyStrokes={activeTool === "liquify"}
                         visible={
-                          activeTool === "annotation" ||
-                          activeTool === "face" ||
-                          activeTool === "eyes" ||
-                          activeTool === "mouth" ||
-                          activeTool === "liquify"
+                          activeTool === "annotation" || landmarkTools.has(activeTool) || activeTool === "liquify"
                         }
                         width={stageWidth}
                       />
@@ -2894,7 +2975,7 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
                       size="lg"
                       style={{
                         background: compareOriginal ? "var(--kb-dirty-yellow)" : "var(--kb-paper)",
-                        border: "3px solid var(--kb-line)",
+                        border: "1px solid var(--kb-line)",
                         borderRadius: 0,
                         bottom: 12,
                         boxShadow: "var(--kb-hard-shadow-sm)",
@@ -2919,7 +3000,7 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
                       shadow="sm"
                       style={{
                         background: "var(--kb-panel)",
-                        border: "3px solid var(--kb-line)",
+                        border: "1px solid var(--kb-line)",
                         borderRadius: 0,
                         boxShadow: "var(--kb-hard-shadow-sm)",
                         left: saveMenuPosition.x,
@@ -2973,6 +3054,107 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
                 </Stack>
               )}
             </Box>
+  );
+
+  if (isIdeLayout) {
+    return (
+      <>
+        {toolbarTarget
+          ? createPortal(<div className="editor-viewport-toolbar">{viewportToolbar}</div>, toolbarTarget)
+          : null}
+        {panelTarget
+          ? createPortal(
+              <Stack gap={1.5} data-testid="editor-controls-panel">
+                <Box>
+                  <Text c="dimmed" size="sm">
+                    {activeToolDetail.description}
+                  </Text>
+                </Box>
+                {renderToolControls()}
+                {activeTool === "annotation" ? renderExtraReferenceControls() : null}
+              </Stack>,
+              panelTarget,
+            )
+          : null}
+        <div className="ide-editor-stage">{stageElement}</div>
+      </>
+    );
+  }
+
+  return (
+    <Paper className="grunge-card" component="section" p={{ base: 2, md: 3 }} shadow="sm" withBorder>
+      <Stack gap={2}>
+        <EditorToolbar
+          isComparingOriginal={compareOriginal}
+          isRecognizingFace={isDetectingLandmarks}
+          isRegenerating={isRegenerating}
+          regenerateLabel={regenerateLabel}
+          secondaryRegenerateLabel={secondaryRegenerateLabel}
+          showRegenerateActions={showRegenerateActions}
+          onCompareEnd={() => setCompareOriginal(false)}
+          onCompareStart={() => setCompareOriginal(true)}
+          onClearImage={onClearImage}
+          onFit={() => {
+            setZoom(1);
+            setPan({ x: 0, y: 0 });
+          }}
+          onRegenerate={onRegenerate ? () => void handleRegenerate() : undefined}
+          onRecognizeFace={canShowLandmarkToggle ? () => void recognizeFaceLandmarks() : undefined}
+          onResetAll={resetAllAdjustments}
+          onSecondaryRegenerate={onSecondaryRegenerate ? () => void handleSecondaryRegenerate() : undefined}
+          onSave={() => void handleSave()}
+          onZoomChange={handleZoomChange}
+          showViewportActions={false}
+          zoomPercent={zoomPercent}
+        />
+
+        <Box
+          data-parameters-position={isMobileEditor ? "bottom" : "right"}
+          data-testid="editor-shell"
+          style={{
+            alignItems: "stretch",
+            display: isMobileEditor ? "flex" : "grid",
+            flexDirection: isMobileEditor ? "column" : undefined,
+            gap: isMobileEditor ? 12 : 16,
+            gridTemplateColumns: isMobileEditor ? undefined : "144px minmax(420px, 1fr) minmax(300px, 340px)",
+            minHeight: isMobileEditor ? undefined : "min(760px, calc(100vh - 220px))",
+            overflowX: isMobileEditor ? "visible" : "auto",
+          }}
+        >
+          {!isMobileEditor && (
+            <Box
+              p={1}
+              style={{
+                ...editorPanelStyle,
+                gridColumn: 1,
+              }}
+            >
+              <EditorToolRail activeTool={activeTool} tools={enabledTools} onToolChange={handleToolChange} />
+            </Box>
+          )}
+
+          <Stack
+            gap={1}
+            style={{
+              flex: isMobileEditor ? "0 0 auto" : undefined,
+              gridColumn: isMobileEditor ? undefined : 2,
+              height: isMobileEditor ? "auto" : "100%",
+              minWidth: 0,
+            }}
+          >
+            <Box
+              data-testid="editor-viewport-toolbar-card"
+              p={isMobileEditor ? 0.75 : 1}
+              style={{
+                ...editorPanelStyle,
+                alignSelf: "stretch",
+                boxShadow: "var(--kb-hard-shadow-sm)",
+                minWidth: 0,
+              }}
+            >
+              {viewportToolbar}
+            </Box>
+            {stageElement}
           </Stack>
 
           <Box
@@ -3003,7 +3185,7 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
               <Stack gap={1.5}>
                 <Group align="center" gap={1} justify="space-between" wrap="nowrap">
                   <Box>
-                    <Title c="white" order={3} size="h4">
+                    <Title c="white" data-testid="active-editor-tool" order={3} size="h4">
                       {activeToolDetail.title}
                     </Title>
                     <Text c="dimmed" mt={0.5} size="sm">
@@ -3028,5 +3210,17 @@ function CompareOriginalIcon({ size = 20 }: { size?: number }) {
     <svg aria-hidden="true" fill="currentColor" height={size} viewBox="0 0 24 24" width={size}>
       <path d="M4 4h7v2H6v5H4V4m9 0h7v7h-2V6h-5V4M4 13h2v5h5v2H4v-7m14 0h2v7h-7v-2h5v-5M8 8h8v8H8V8m2 2v4h4v-4h-4Z" />
     </svg>
+  );
+}
+
+function LocalGenerateStep({ index, title, children }: { index: number; title: string; children: ReactNode }) {
+  return (
+    <section className="ide-step">
+      <header className="ide-step-header">
+        <span className="ide-step-index">{index}</span>
+        <span>{title}</span>
+      </header>
+      <div className="ide-step-body">{children}</div>
+    </section>
   );
 }

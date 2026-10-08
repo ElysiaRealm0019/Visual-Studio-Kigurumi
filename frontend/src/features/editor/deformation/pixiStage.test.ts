@@ -3,6 +3,7 @@ import { createDefaultLandmarks } from "./landmarks";
 import {
   createEmptyRecipe,
   createLiquifyWarpStrokeFromDrag,
+  eyeControlRanges,
   updateEyeControl,
   updateFaceControl,
   updateLiquifyBrush,
@@ -183,7 +184,8 @@ describe("calculateRecipePreview", () => {
 
     const preview = calculateRecipePreview(recipe);
 
-    expect(preview.displacementScale.x).toBeGreaterThanOrEqual(60);
+    // faceWidth is clamped to its real range (±0.4), which still gives a clearly visible displacement.
+    expect(preview.displacementScale.x).toBeGreaterThanOrEqual(20);
   });
 
   it("converts face length edits into balanced jaw and chin strokes without squaring the jaw", () => {
@@ -298,17 +300,17 @@ describe("calculateRecipePreview", () => {
   it("treats the clamped eye distance and vertical recipe values as the full real range", () => {
     const landmarks = createDefaultLandmarks(1, 1);
     const recipe = updateEyeControl(
-      updateEyeControl(createEmptyRecipe(), "eyeDistance", 0.05),
+      updateEyeControl(createEmptyRecipe(), "eyeDistance", eyeControlRanges.eyeDistance.max),
       "eyeVertical",
-      -0.05,
+      eyeControlRanges.eyeVertical.min,
     );
 
     const transforms = createEyeMeshTransforms(recipe, landmarks);
 
     expect(transforms[0].translateX).toBe(-34);
     expect(transforms[1].translateX).toBe(34);
-    expect(transforms[0].translateY).toBe(-28);
-    expect(transforms[1].translateY).toBe(-28);
+    expect(transforms[0].translateY).toBe(-36);
+    expect(transforms[1].translateY).toBe(-36);
   });
 
   it("uses eye size for uniform scaling and eye height for vertical-only scaling", () => {
@@ -318,7 +320,7 @@ describe("calculateRecipePreview", () => {
     const transforms = createEyeMeshTransforms(recipe, landmarks);
     const leftTransform = transforms.find((transform) => transform.centerX === landmarks.leftEye.x);
 
-    expect(leftTransform?.scaleX).toBeGreaterThan(1);
+    expect(leftTransform?.scaleX).toBeGreaterThan(1.15);
     expect(leftTransform?.scaleY).toBeGreaterThan(leftTransform?.scaleX ?? 0);
   });
 
@@ -526,6 +528,62 @@ describe("calculateRecipePreview", () => {
     await stage.setImageUrl("blob:http://127.0.0.1:15175/local-image");
 
     expect(pixiMocks.assetsLoad).not.toHaveBeenCalled();
+    expect(pixiMocks.textureFrom).toHaveBeenCalledWith(expect.any(ImageStub));
+    expect(pixiMocks.meshes).toHaveLength(1);
+
+    stage.destroy();
+  });
+
+  it("decodes extension-less API URLs (version source) in the browser so the mesh still gets a texture", async () => {
+    vi.stubGlobal("ResizeObserver", ResizeObserverStub);
+    class ImageStub {
+      crossOrigin = "";
+      height = 100;
+      naturalHeight = 100;
+      naturalWidth = 100;
+      onerror: (() => void) | null = null;
+      onload: (() => void) | null = null;
+      width = 100;
+
+      set src(_value: string) {
+        queueMicrotask(() => this.onload?.());
+      }
+    }
+    vi.stubGlobal("Image", ImageStub);
+    const host = document.createElement("div");
+    const stage = await mountPixiStage(host);
+
+    await stage.setImageUrl("/api/agent/conversations/c/versions/design-1/source");
+
+    expect(pixiMocks.assetsLoad).not.toHaveBeenCalled();
+    expect(pixiMocks.textureFrom).toHaveBeenCalledWith(expect.any(ImageStub));
+    expect(pixiMocks.meshes).toHaveLength(1);
+
+    stage.destroy();
+  });
+
+  it("falls back to the browser decoder when Pixi Assets resolves to nothing", async () => {
+    vi.stubGlobal("ResizeObserver", ResizeObserverStub);
+    class ImageStub {
+      crossOrigin = "";
+      height = 100;
+      naturalHeight = 100;
+      naturalWidth = 100;
+      onerror: (() => void) | null = null;
+      onload: (() => void) | null = null;
+      width = 100;
+
+      set src(_value: string) {
+        queueMicrotask(() => this.onload?.());
+      }
+    }
+    vi.stubGlobal("Image", ImageStub);
+    pixiMocks.assetsLoad.mockResolvedValueOnce(null);
+    const host = document.createElement("div");
+    const stage = await mountPixiStage(host);
+
+    await stage.setImageUrl("/candidate.webp");
+
     expect(pixiMocks.textureFrom).toHaveBeenCalledWith(expect.any(ImageStub));
     expect(pixiMocks.meshes).toHaveLength(1);
 

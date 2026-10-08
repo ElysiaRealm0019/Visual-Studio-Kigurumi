@@ -15,17 +15,21 @@ type EyeControlConfig = {
 };
 
 const eyeControls: EyeControlConfig[] = [
-  { actualMax: 0.3, actualMin: -0.3, key: "eyeSize", label: "眼睛大小" },
-  { actualMax: 0.3, actualMin: -0.3, key: "eyeHeight", label: "眼高" },
-  { actualMax: 0.5, actualMin: -0.5, key: "eyeWidth", label: "眼宽" },
-  { actualMax: 0.05, actualMin: -0.05, key: "eyeDistance", label: "眼距" },
-  { actualMax: 0.05, actualMin: -0.05, key: "eyeVertical", label: "眼睛上下位置" },
-  { actualMax: 0.5, actualMin: -0.5, key: "eyeTilt", label: "眼角倾斜" },
+  { actualMax: 0.18, actualMin: -0.18, key: "eyeSize", label: "大小" },
+  { actualMax: 0.03, actualMin: -0.03, key: "eyeVertical", label: "上下" },
+  { actualMax: 0.18, actualMin: -0.18, key: "eyeHeight", label: "眼高" },
+  { actualMax: 0.3, actualMin: -0.3, key: "eyeWidth", label: "长度" },
+  { actualMax: 0.03, actualMin: -0.03, key: "eyeDistance", label: "眼距" },
+  { actualMax: 0.18, actualMin: -0.18, key: "eyeLift", label: "提肌" },
+  { actualMax: 0.18, actualMin: -0.18, key: "pupilSize", label: "眼瞳大小" },
+  { actualMax: 0.18, actualMin: -0.18, key: "lowerLid", label: "眼睑下至" },
+  { actualMax: 0.18, actualMin: -0.18, key: "eyeTail", label: "眼尾上扬" },
+  { actualMax: 0.3, actualMin: -0.3, key: "eyeTilt", label: "倾斜" },
   {
     actualMax: 70,
     actualMin: -30,
     key: "eyeRegionScale",
-    label: "眼睛选区范围",
+    label: "选区范围",
     offset: defaultEyeControlValues.eyeRegionScale,
   },
 ];

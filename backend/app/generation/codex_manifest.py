@@ -2,7 +2,8 @@ import json
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 
-from app.generation.provider import ProviderOutput
+from app.generation.backends.types import ProviderOutput
+from app.generation.modes import is_turnaround_mode
 
 
 DEFAULT_WIDTH = 2048
@@ -112,9 +113,9 @@ def _parse_output(
 
 
 def _default_dimensions(generation_mode: str | None) -> tuple[int, int]:
-    if generation_mode == "turnaround":
+    if is_turnaround_mode(generation_mode):
         return TURNAROUND_WIDTH, TURNAROUND_HEIGHT
-    if generation_mode in {"front_design", "front_revision", "front_local_revision"}:
+    if generation_mode in {"front_design", "front_revision", "front_local_revision", "character_front", "character_revision"}:
         return FRONT_WIDTH, FRONT_HEIGHT
     return DEFAULT_WIDTH, DEFAULT_HEIGHT
 

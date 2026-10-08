@@ -1,7 +1,15 @@
-import { IconEdit, IconEye, IconMoodSmile, IconSparkles, IconUserCircle, IconWand } from "@tabler/icons-react";
+import { IconEdit, IconEye, IconFeather, IconMoodSmile, IconRuler2, IconSparkles, IconUserCircle, IconWand } from "@tabler/icons-react";
 import { Box, Button, Stack, Tab, Tabs, Text } from "../../../ui/mui";
 
-export type EditorTool = "annotation" | "face" | "eyes" | "mouth" | "liquify" | "local-generate";
+export type EditorTool =
+  | "annotation"
+  | "proportion"
+  | "face"
+  | "eyes"
+  | "brows"
+  | "mouth"
+  | "liquify"
+  | "local-generate";
 
 type EditorToolConfig = {
   key: EditorTool;
@@ -9,10 +17,12 @@ type EditorToolConfig = {
   icon: typeof IconEdit;
 };
 
-const editorTools: EditorToolConfig[] = [
+export const editorTools: EditorToolConfig[] = [
   { key: "annotation", label: "标注", icon: IconEdit },
+  { key: "proportion", label: "比例", icon: IconRuler2 },
   { key: "face", label: "脸型", icon: IconUserCircle },
   { key: "eyes", label: "眼睛", icon: IconEye },
+  { key: "brows", label: "眉毛", icon: IconFeather },
   { key: "mouth", label: "嘴巴", icon: IconMoodSmile },
   { key: "liquify", label: "液化", icon: IconWand },
   { key: "local-generate", label: "局部生成", icon: IconSparkles },
@@ -75,7 +85,7 @@ export function EditorToolRail({ activeTool, orientation = "vertical", tools, on
                 height: 3,
               },
               "& .MuiTab-root": {
-                borderBottom: "2px solid var(--kb-line)",
+                borderBottom: "1px solid var(--kb-line)",
                 color: "var(--kb-muted)",
                 fontSize: "0.78rem",
                 fontWeight: 800,

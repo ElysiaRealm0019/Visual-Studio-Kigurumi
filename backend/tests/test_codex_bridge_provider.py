@@ -1,7 +1,8 @@
 import pytest
 
 from app.core.config import get_settings
-from app.generation import provider as provider_module
+from app.generation import provider as provider_factory
+from app.generation.backends import codex as provider_module
 
 
 @pytest.fixture(autouse=True)
@@ -47,7 +48,7 @@ async def test_codex_bridge_provider_posts_sanitized_job_to_bridge(monkeypatch):
 
     monkeypatch.setattr(provider_module, "_post_codex_bridge_candidate", fake_post, raising=False)
 
-    provider = provider_module.get_generation_provider()
+    provider = provider_factory.get_generation_provider()
     outputs = await provider.generate(
         "job-1",
         {
@@ -101,7 +102,7 @@ async def test_codex_bridge_provider_rejects_wrong_candidate_response_count(monk
 
     monkeypatch.setattr(provider_module, "_post_codex_bridge_candidate", fake_post, raising=False)
 
-    provider = provider_module.get_generation_provider()
+    provider = provider_factory.get_generation_provider()
 
     with pytest.raises(RuntimeError, match="exactly 1"):
         await provider.generate(
@@ -116,7 +117,7 @@ async def test_codex_bridge_provider_rejects_wrong_candidate_response_count(monk
 def test_get_generation_provider_supports_codex_bridge(monkeypatch):
     enable_bridge_provider(monkeypatch)
 
-    provider = provider_module.get_generation_provider()
+    provider = provider_factory.get_generation_provider()
 
     assert provider.name == "codex_bridge"
 

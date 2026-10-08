@@ -80,7 +80,7 @@ export function LiquifyControls({
           <Slider
             color="cyan"
             data-testid="liquify-radius-slider"
-            max={160}
+            max={120}
             min={12}
             onChange={onBrushRadiusChange}
             size="sm"
@@ -117,7 +117,7 @@ export function LiquifyControls({
             <Slider
               color="cyan"
               data-testid="liquify-warp-strength-slider"
-              max={0.5}
+              max={0.25}
               min={0}
               onChange={onWarpStrengthChange}
               size="sm"
@@ -203,8 +203,8 @@ export function LiquifyControls({
             <Slider
               color="cyan"
               data-testid="liquify-scale-slider"
-              max={10}
-              min={-10}
+              max={5}
+              min={-5}
               onChange={onScaleChange}
               size="sm"
               step={0.1}

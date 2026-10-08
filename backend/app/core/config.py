@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     jwt_secret: str = Field(default="change-me-generate-a-long-random-secret")
     mock_sms_code: str = "000000"
     generation_provider: str = "fixture"
+    llm_provider: str = ""
+    image_provider: str = ""
     allow_fixture_generation: bool = False
     fixture_dir: str = "app/static/fixtures"
     codex_path: str = "codex"
@@ -36,6 +38,44 @@ class Settings(BaseSettings):
     codex_usage_check_enabled: bool = True
     codex_usage_check_timeout_seconds: int = 12
     codex_product_reference_path: str = "ref/product-reference.png"
+    claude_code_path: str = "claude"
+    claude_code_model: str = ""
+    claude_code_workspace_dir: str = "runtime/claude-code"
+    claude_code_timeout_seconds: int = 240
+    siliconflow_api_key: str = ""
+    siliconflow_base_url: str = "https://api.siliconflow.cn/v1"
+    siliconflow_image_model: str = "Qwen/Qwen-Image-Edit-2509"
+    siliconflow_num_inference_steps: int = 0
+    siliconflow_cfg: float = 0.0
+    siliconflow_negative_prompt: str = (
+        "text, watermark, logo, caption, realistic human skin, realistic human eyes, multiple characters"
+    )
+    siliconflow_timeout_seconds: int = 300
+    siliconflow_max_retries: int = 3
+    siliconflow_max_input_side: int = 2048
+    siliconflow_workspace_dir: str = "runtime/siliconflow"
+    ark_api_key: str = ""
+    ark_base_url: str = "https://ark.cn-beijing.volces.com/api/plan/v3"
+    ark_image_model: str = "doubao-seedream-5-0-pro"
+    ark_front_size: str = "2K"
+    ark_turnaround_size: str = "1920x1280"
+    ark_local_edit_size: str = "1K"
+    ark_max_reference_images: int = 4
+    ark_timeout_seconds: int = 300
+    ark_max_retries: int = 2
+    ark_max_input_side: int = 2048
+    ark_workspace_dir: str = "runtime/ark"
+    agent_llm_provider: str = "openai_compatible"
+    agent_llm_base_url: str = "https://ark.cn-beijing.volces.com/api/plan/v3"
+    agent_llm_api_key: str = ""
+    agent_llm_model: str = "doubao-seed-2-0-pro"
+    agent_llm_extra_body: str = '{"thinking": {"type": "disabled"}}'
+    agent_llm_timeout_seconds: int = 120
+    agent_claude_code_model: str = ""
+    agent_max_steps_per_turn: int = 12
+    agent_max_generations_per_turn: int = 3
+    agent_dir: str = "runtime/agent"
+    clean_output_dir: str = "runtime/clean-outputs"
     reference_upload_dir: str = "runtime/references"
     generated_public_prefix: str = "/api/generated"
     generation_audit_db_path: str = "runtime/generation_audit.sqlite3"

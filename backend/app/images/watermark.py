@@ -1,5 +1,6 @@
 import logging
 import math
+import shutil
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont, UnidentifiedImageError
@@ -73,6 +74,7 @@ def apply_kigcraft_watermark(
     if width <= 0 or height <= 0:
         return False
 
+    _preserve_clean_copy(image_path)
     overlay = Image.new("RGBA", image.size, (0, 0, 0, 0))
     if WATERMARK_ADD_TILED_DOMAIN:
         _draw_tiled_domain_watermark(overlay, image.size, text=effective_domain_text)
@@ -242,6 +244,29 @@ def _save_image(image: Image.Image, image_path: Path, fmt: str | None, exif: byt
         image.save(image_path, format="WEBP", quality=94, method=6)
         return
     image.save(image_path, format="PNG", optimize=True)
+
+
+def clean_output_path(image_path: Path) -> Path | None:
+    """Private location of the unwatermarked copy of a generated output, or None if not a generated output."""
+    settings = get_settings()
+    try:
+        relative = image_path.resolve().relative_to(resolve_repo_path(settings.codex_output_dir).resolve())
+    except ValueError:
+        return None
+    return resolve_repo_path(settings.clean_output_dir) / relative
+
+
+def _preserve_clean_copy(image_path: Path) -> None:
+    # Generated outputs are fed back as references (revisions, turnarounds); keep an unwatermarked copy
+    # outside the public generated directory so watermarks do not accumulate across rounds.
+    target = clean_output_path(image_path)
+    if target is None:
+        return
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(image_path, target)
+    except OSError as exc:
+        logger.warning("Failed to keep clean output copy path=%s error=%s", image_path, exc)
 
 
 def _is_currently_watermarked(image_path: Path) -> bool:

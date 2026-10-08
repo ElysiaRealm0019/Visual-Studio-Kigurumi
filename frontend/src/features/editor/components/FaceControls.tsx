@@ -14,19 +14,35 @@ type FaceControlConfig = {
 };
 
 const faceControls: FaceControlConfig[] = [
-  { actualMax: 0.2, actualMin: -0.2, key: "faceWidth", label: "脸宽" },
   { actualMax: 0.3, actualMin: -0.3, key: "faceLength", label: "脸长" },
-  { actualMax: 0.2, actualMin: -0.2, key: "midFaceLength", label: "中庭长度" },
+  { actualMax: 0.2, actualMin: -0.2, key: "midFaceLength", label: "中庭" },
+  { actualMax: 0.2, actualMin: -0.2, key: "faceWidth", label: "脸宽" },
   { actualMax: 0.2, actualMin: 0, key: "smallFace", label: "小脸", max: 1, min: 0 },
+  { actualMax: 0.2, actualMin: -0.2, key: "temple", label: "太阳穴" },
   { actualMax: 0.2, actualMin: -0.2, key: "cheekbone", label: "颧骨" },
-  { actualMax: 0.2, actualMin: -0.2, key: "chinLength", label: "下巴长度" },
-  { actualMax: 0.2, actualMin: -0.2, key: "chinPoint", label: "下巴尖度" },
+  { actualMax: 0.2, actualMin: -0.2, key: "chinLength", label: "下巴长短" },
+  { actualMax: 0.2, actualMin: -0.2, key: "chinPoint", label: "尖下巴" },
   { actualMax: 0.2, actualMin: 0, key: "vLine", label: "V脸", max: 1, min: 0 },
   { actualMax: 0.2, actualMin: -0.2, key: "jawAngle", label: "下颌角" },
 ];
 
+/** 比例 panel: lengths that change the distances between features. */
+export const proportionControlKeys: FaceControlKey[] = ["faceLength", "midFaceLength"];
+/** 脸型 panel: contour only, feature positions stay put. */
+export const faceShapeControlKeys: FaceControlKey[] = [
+  "faceWidth",
+  "smallFace",
+  "temple",
+  "cheekbone",
+  "chinLength",
+  "chinPoint",
+  "vLine",
+  "jawAngle",
+];
+
 export type FaceControlsProps = {
   compact?: boolean;
+  keys?: FaceControlKey[];
   debugValues?: boolean;
   values: EditRecipe["face"];
   onChange: (key: FaceControlKey, value: number) => void;
@@ -37,6 +53,7 @@ export type FaceControlsProps = {
 
 export function FaceControls({
   compact = false,
+  keys,
   debugValues = false,
   values,
   onChange,
@@ -44,16 +61,17 @@ export function FaceControls({
   onSliderInteractionEnd,
   onSliderInteractionStart,
 }: FaceControlsProps) {
-  const [activeControlKey, setActiveControlKey] = useState<FaceControlKey>(faceControls[0].key);
+  const visibleControls = keys ? faceControls.filter((control) => keys.includes(control.key)) : faceControls;
+  const [activeControlKey, setActiveControlKey] = useState<FaceControlKey>(visibleControls[0].key);
   const [expandedRangeEnabled, setExpandedRangeEnabled] = useState(false);
-  const activeControl = faceControls.find((control) => control.key === activeControlKey) ?? faceControls[0];
+  const activeControl = visibleControls.find((control) => control.key === activeControlKey) ?? visibleControls[0];
 
   if (compact) {
     return (
       <Stack gap="sm" data-testid="face-controls-compact">
         <Box className="editor-horizontal-scroll" style={{ paddingBottom: 2 }}>
           <Group gap={0.75} wrap="nowrap">
-            {faceControls.map((control) => (
+            {visibleControls.map((control) => (
               <Button
                 key={control.key}
                 color="gray"
@@ -93,7 +111,7 @@ export function FaceControls({
 
   return (
     <Stack gap="md">
-      {faceControls.map((control) => (
+      {visibleControls.map((control) => (
         <FaceControlSlider
           key={control.key}
           control={control}

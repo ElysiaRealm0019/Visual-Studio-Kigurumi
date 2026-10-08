@@ -216,7 +216,7 @@ function GenerationImageGrid({
               src={image.image_url ?? undefined}
               style={{
                 background: "#fff",
-                border: "2px solid var(--kb-line)",
+                border: "1px solid var(--kb-line)",
               }}
               w="100%"
             />
@@ -287,7 +287,7 @@ function GenerationJobRecords({
                     radius={0}
                     style={{
                       background: selected ? "var(--kb-old-paper-2)" : "var(--kb-panel)",
-                      border: "2px solid var(--kb-line)",
+                      border: "1px solid var(--kb-line)",
                       boxShadow: selected ? "var(--kb-hard-shadow-sm)" : "none",
                       cursor: "pointer",
                       textAlign: "left",
@@ -323,7 +323,7 @@ function GenerationJobRecords({
               className="audit-generation-job-detail"
               p="md"
               radius={0}
-              style={{ border: "2px solid var(--kb-line)" }}
+              style={{ border: "1px solid var(--kb-line)" }}
             >
               {selectedJob ? (
                 <Stack gap="md" data-testid="audit-generation-job-detail">
@@ -527,7 +527,7 @@ export function AdminAuditPage() {
       <AppShell.Header
         bg="var(--kb-panel)"
         style={{
-          borderBottom: "3px solid var(--kb-line)",
+          borderBottom: "1px solid var(--kb-line)",
           boxShadow: "0 5px 0 var(--kb-shadow)",
         }}
       >

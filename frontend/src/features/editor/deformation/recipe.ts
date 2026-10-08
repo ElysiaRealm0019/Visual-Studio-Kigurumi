@@ -5,6 +5,7 @@ export type FaceControlKey =
   | "faceLength"
   | "midFaceLength"
   | "smallFace"
+  | "temple"
   | "cheekbone"
   | "chinLength"
   | "chinPoint"
@@ -18,7 +19,20 @@ export type EyeControlKey =
   | "eyeDistance"
   | "eyeVertical"
   | "eyeTilt"
+  | "eyeLift"
+  | "pupilSize"
+  | "lowerLid"
+  | "eyeTail"
   | "eyeRegionScale";
+
+export type BrowControlKey =
+  | "browVertical"
+  | "browThickness"
+  | "browLength"
+  | "browSpacing"
+  | "browInnerSpacing"
+  | "browTilt"
+  | "browArch";
 
 export type MouthControlKey =
   | "mouthHorizontal"
@@ -80,6 +94,7 @@ export type DetailSettings = {
 export type EditRecipe = {
   face: Record<FaceControlKey, number>;
   eyes: Record<EyeControlKey, number>;
+  brows: Record<BrowControlKey, number>;
   mouth: Record<MouthControlKey, number>;
   liquify: LiquifyStroke[];
   annotations: AnnotationMark[];
@@ -92,6 +107,7 @@ const faceControlKeys = [
   "faceLength",
   "midFaceLength",
   "smallFace",
+  "temple",
   "cheekbone",
   "chinLength",
   "chinPoint",
@@ -106,8 +122,22 @@ const eyeControlKeys = [
   "eyeDistance",
   "eyeVertical",
   "eyeTilt",
+  "eyeLift",
+  "pupilSize",
+  "lowerLid",
+  "eyeTail",
   "eyeRegionScale",
 ] as const satisfies readonly EyeControlKey[];
+
+const browControlKeys = [
+  "browVertical",
+  "browThickness",
+  "browLength",
+  "browSpacing",
+  "browInnerSpacing",
+  "browTilt",
+  "browArch",
+] as const satisfies readonly BrowControlKey[];
 
 const mouthControlKeys = [
   "mouthHorizontal",
@@ -120,11 +150,15 @@ const mouthControlKeys = [
 export const defaultEyeControlValues = {
   eyeDistance: 0,
   eyeHeight: 0,
+  eyeLift: 0,
   eyeRegionScale: 20,
   eyeSize: 0,
+  eyeTail: 0,
   eyeTilt: 0,
   eyeVertical: 0,
   eyeWidth: 0,
+  lowerLid: 0,
+  pupilSize: 0,
 } as const satisfies Record<EyeControlKey, number>;
 
 export type ControlRange = { max: number; min: number; precision: number };
@@ -138,17 +172,32 @@ export const faceControlRanges = {
   jawAngle: { max: 0.4, min: -0.4, precision: 3 },
   midFaceLength: { max: 0.4, min: -0.4, precision: 3 },
   smallFace: { max: 0.4, min: 0, precision: 3 },
+  temple: { max: 0.4, min: -0.4, precision: 3 },
   vLine: { max: 0.4, min: 0, precision: 3 },
 } as const satisfies Record<FaceControlKey, ControlRange>;
 export const eyeControlRanges = {
-  eyeDistance: { max: 0.1, min: -0.1, precision: 4 },
-  eyeHeight: { max: 0.6, min: -0.6, precision: 4 },
+  eyeDistance: { max: 0.06, min: -0.06, precision: 4 },
+  eyeHeight: { max: 0.36, min: -0.36, precision: 4 },
+  eyeLift: { max: 0.36, min: -0.36, precision: 4 },
+  eyeTail: { max: 0.36, min: -0.36, precision: 4 },
+  lowerLid: { max: 0.36, min: -0.36, precision: 4 },
+  pupilSize: { max: 0.36, min: -0.36, precision: 4 },
   eyeRegionScale: { max: 120, min: -80, precision: 0 },
-  eyeSize: { max: 0.6, min: -0.6, precision: 4 },
-  eyeTilt: { max: 1, min: -1, precision: 4 },
-  eyeVertical: { max: 0.1, min: -0.1, precision: 4 },
-  eyeWidth: { max: 1, min: -1, precision: 4 },
+  eyeSize: { max: 0.36, min: -0.36, precision: 4 },
+  eyeTilt: { max: 0.6, min: -0.6, precision: 4 },
+  eyeVertical: { max: 0.06, min: -0.06, precision: 4 },
+  eyeWidth: { max: 0.6, min: -0.6, precision: 4 },
 } as const satisfies Record<EyeControlKey, ControlRange>;
+
+export const browControlRanges = {
+  browArch: { max: 0.6, min: -0.6, precision: 4 },
+  browInnerSpacing: { max: 0.6, min: -0.6, precision: 4 },
+  browLength: { max: 0.6, min: -0.6, precision: 4 },
+  browSpacing: { max: 0.6, min: -0.6, precision: 4 },
+  browThickness: { max: 0.6, min: -0.6, precision: 4 },
+  browTilt: { max: 0.6, min: -0.6, precision: 4 },
+  browVertical: { max: 0.6, min: -0.6, precision: 4 },
+} as const satisfies Record<BrowControlKey, ControlRange>;
 
 export const mouthControlRanges = {
   mouthHorizontal: { max: 0.05, min: -0.05, precision: 4 },
@@ -179,6 +228,7 @@ export function createEmptyRecipe(): EditRecipe {
   return {
     face: createZeroedRecord(faceControlKeys),
     eyes: { ...defaultEyeControlValues },
+    brows: createZeroedRecord(browControlKeys),
     mouth: createZeroedRecord(mouthControlKeys),
     liquify: [],
     annotations: [],
@@ -208,6 +258,7 @@ export function normalizeEditRecipe(recipe: EditRecipe | Partial<EditRecipe> | u
   return {
     face: clampFaceControls({ ...emptyRecipe.face, ...recipe.face }),
     eyes: clampEyeControls(mergedEyes),
+    brows: clampBrowControls({ ...emptyRecipe.brows, ...recipe.brows }),
     mouth: clampMouthControls({ ...emptyRecipe.mouth, ...recipe.mouth }),
     liquify: Array.isArray(recipe.liquify) ? recipe.liquify : [],
     annotations: Array.isArray(recipe.annotations) ? recipe.annotations : [],
@@ -236,6 +287,12 @@ function clampEyeControls(values: Record<EyeControlKey, number>) {
   ) as Record<EyeControlKey, number>;
 }
 
+function clampBrowControls(values: Record<BrowControlKey, number>) {
+  return Object.fromEntries(
+    browControlKeys.map((key) => [key, clampControlRange(values[key], browControlRanges[key])]),
+  ) as Record<BrowControlKey, number>;
+}
+
 function clampMouthControls(values: Record<MouthControlKey, number>) {
   return Object.fromEntries(
     mouthControlKeys.map((key) => [key, clampControlRange(values[key], mouthControlRanges[key])]),
@@ -258,6 +315,16 @@ export function updateEyeControl(recipe: EditRecipe, key: EyeControlKey, value: 
     eyes: {
       ...recipe.eyes,
       [key]: clampControlRange(value, eyeControlRanges[key]),
+    },
+  };
+}
+
+export function updateBrowControl(recipe: EditRecipe, key: BrowControlKey, value: number): EditRecipe {
+  return {
+    ...recipe,
+    brows: {
+      ...recipe.brows,
+      [key]: clampControlRange(value, browControlRanges[key]),
     },
   };
 }
@@ -297,7 +364,7 @@ function clampSignedScale(value: number) {
 }
 
 function clampNormalizedDelta(value: number) {
-  return Math.min(0.35, Math.max(-0.35, Number(value.toFixed(4))));
+  return Math.min(0.15, Math.max(-0.15, Number(value.toFixed(4))));
 }
 
 function clampSymmetryAxis(value: number) {

@@ -251,7 +251,7 @@ async def create_job(
 ) -> GenerationJobOut:
     _enforce_create_job_rate_limit(request)
     _ensure_real_generation_provider(provider)
-    if provider.name in {"codex", "codex_bridge"}:
+    if provider.uses_codex:
         await ensure_codex_usage_allows_generation(get_settings())
     job = job_store.create(payload, provider=provider.name)
     generation_queue.submit_job(job.id, provider)
@@ -269,9 +269,10 @@ async def create_local_revision_job(
 ) -> GenerationJobOut:
     _enforce_create_job_rate_limit(request)
     _ensure_real_generation_provider(provider)
-    if provider.name != "codex":
+    if not provider.supports_local_revision:
         raise HTTPException(status_code=503, detail="local_revision_provider_unsupported")
-    await ensure_codex_usage_allows_generation(get_settings())
+    if provider.uses_codex:
+        await ensure_codex_usage_allows_generation(get_settings())
 
     parsed = _parse_local_revision_metadata(metadata)
     if parsed.selected_reference_keys or parsed.reference_descriptions:
@@ -376,7 +377,7 @@ async def create_legacy_project_job(
 ) -> LegacyJobOut:
     _enforce_create_job_rate_limit(request)
     _ensure_real_generation_provider(provider)
-    if provider.name in {"codex", "codex_bridge"}:
+    if provider.uses_codex:
         await ensure_codex_usage_allows_generation(get_settings())
     job = job_store.create(
         CreateJobRequest(
@@ -387,7 +388,7 @@ async def create_legacy_project_job(
         ),
         provider=provider.name,
     )
-    if provider.name != "fixture":
+    if not provider.is_fixture:
         generation_queue.submit_job(job.id, provider)
         return legacy_job_to_out(job, project_id)
 
@@ -399,7 +400,7 @@ async def create_legacy_project_job(
 
 
 def _ensure_real_generation_provider(provider: ImageGenerationProvider) -> None:
-    if provider.name not in {"fixture", "mock"}:
+    if not provider.is_fixture:
         return
     settings = get_settings()
     configured_provider = settings.generation_provider

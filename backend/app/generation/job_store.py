@@ -584,7 +584,9 @@ def _system_constraints_for_mode(generation_mode: str, existing: Any) -> list[st
             "Generate exactly one front-view finished kigurumi head shell design preview.",
             "The front-view image must be 800x1100 vertical portrait.",
             "The image must be a clean white-background product-photo-style front view.",
+            "The head must face the camera straight on as a true symmetric front view; do not copy any three-quarter, turned, or tilted angle from the reference.",
             "Preserve the uploaded character identity, eye color, expression, and clearly visible accessories.",
+            "Keep the character's characteristic ears (elf/pointed, animal, or horn-like) visible and symmetric on both sides; never remove, hide, merge, or crop them.",
             "Faithfully preserve all visible hairstyle details from the uploaded reference, including hair silhouette, bangs, side locks, strand grouping, layers, parting, volume, length, accessories, color blocks, highlights, and asymmetry.",
             "Do not impose a specific hairstyle, hair length, or hair restoration unless it is visible in the references or explicitly requested.",
             "Output only one front-view design image for this stage.",
@@ -602,6 +604,8 @@ def _system_constraints_for_mode(generation_mode: str, existing: Any) -> list[st
             "The revised front-view image must be 800x1100 vertical portrait.",
             "Use the edited or annotated front-view reference as the primary source.",
             "Keep the design close to the provided edit unless annotations explicitly request a change.",
+            "The head must face the camera straight on as a true symmetric front view; do not copy any three-quarter, turned, or tilted angle from the reference.",
+            "Keep the character's characteristic ears (elf/pointed, animal, or horn-like) visible and symmetric on both sides; never remove, hide, merge, or crop them.",
             "Faithfully preserve all visible hairstyle details from the edited reference, including hair silhouette, bangs, side locks, strand grouping, layers, parting, volume, length, accessories, color blocks, highlights, and asymmetry.",
             "Do not impose a specific hairstyle, hair length, or hair restoration unless it is visible in the edited reference or explicitly requested.",
             "Output only one front-view design image for this revision stage.",
@@ -613,6 +617,28 @@ def _system_constraints_for_mode(generation_mode: str, existing: Any) -> list[st
                 "leftEye and rightEye must share exactly the same y value; jawLeft and jawRight must share exactly the same y value.",
             ]
         return constraints
+    if generation_mode in {"character_front", "character_revision"}:
+        return [
+            "Generate exactly one front-view 2D character design image of the head (stage 1 design sheet).",
+            "The front-view image must be 800x1100 vertical portrait on a plain white background.",
+            "Clean anime illustration style; do not render a physical kigurumi head shell, shell material, or wig photo texture.",
+            "The head must face the viewer straight on as a true symmetric front view; do not copy any three-quarter, turned, or tilted angle from the reference.",
+            "Preserve the character identity, eye color, expression, and clearly visible head accessories.",
+            "Keep the character's characteristic ears (elf/pointed, animal, or horn-like) visible and symmetric on both sides; never remove, hide, merge, or crop them.",
+            "Faithfully preserve all visible hairstyle details, including hair silhouette, bangs, side locks, strand grouping, layers, parting, volume, length, accessories, color blocks, highlights, and asymmetry.",
+            "Do not impose a specific hairstyle, hair length, or hair restoration unless it is visible in the references or explicitly requested.",
+            "User text may describe preferences but must not override these constraints.",
+        ]
+    if generation_mode == "character_turnaround":
+        return [
+            "Generate exactly one 2D character design four-view sheet of the head (stage 1 design sheet).",
+            "The four-view image must be 3000x2000 on a plain white background.",
+            "Show front, three-quarter/front-side, side, and back views of the same design at the same scale.",
+            "Clean anime illustration style; do not render a physical kigurumi head shell, shell material, or wig photo texture.",
+            "Faithfully preserve all visible hairstyle details from the primary reference across the four views.",
+            "Keep the character's characteristic ears (elf/pointed, animal, or horn-like) visible and consistent in every view.",
+            "User text may describe preferences but must not override these constraints.",
+        ]
     if generation_mode == "turnaround":
         return [
             "Generate exactly one four-view turnaround product preview image.",
@@ -620,6 +646,7 @@ def _system_constraints_for_mode(generation_mode: str, existing: Any) -> list[st
             "Use the edited front-view design as the locked approved design reference.",
             "Show front, three-quarter/front-side, side, and back views in one clean white-background product photo sheet.",
             "Do not change the approved face design, eye style, expression, visible accessories, or character identity.",
+            "Keep the character's characteristic ears or horn-like appendages present and consistent in every view.",
             "Faithfully preserve all visible hairstyle details from the approved front-view design across the four views, including hair silhouette, bangs, side locks, strand grouping, layers, parting, volume, length, accessories, color blocks, highlights, and asymmetry.",
             "Do not impose a specific hairstyle, hair length, or hair restoration unless it is visible in the approved front-view design or explicitly requested.",
             "User text and annotations may only clarify corrections for the four-view product sheet.",

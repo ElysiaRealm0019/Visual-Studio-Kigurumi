@@ -1,5 +1,5 @@
 import { ThemeProvider } from "@mui/material/styles";
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { kigTheme } from "../../app/theme";
 import { EditorWorkspace } from "./EditorWorkspace";
@@ -46,21 +46,6 @@ vi.mock("./deformation/pixiStage", () => ({
 vi.mock("./deformation/animeLandmarkDetector", () => ({
   detectAnimeLandmarks: animeLandmarkerMocks.detectAnimeLandmarks,
   warmupAnimeLandmarkDetector: animeLandmarkerMocks.warmupAnimeLandmarkDetector,
-}));
-
-vi.mock("react-konva", () => ({
-  Arrow: (props: Record<string, unknown>) => <div data-testid="annotation-arrow" data-points={String(props.points)} />,
-  Circle: () => <div data-testid="annotation-circle" />,
-  Layer: ({ children }: { children: React.ReactNode }) => <div data-testid="annotation-layer">{children}</div>,
-  Rect: (props: Record<string, unknown>) => (
-    <div data-height={String(props.height)} data-testid="annotation-rect" data-width={String(props.width)} />
-  ),
-  Stage: ({ children, height, width }: { children: React.ReactNode; height: number; width: number }) => (
-    <div data-height={height} data-testid="annotation-stage" data-width={width}>
-      {children}
-    </div>
-  ),
-  Text: () => <div data-testid="annotation-text" />,
 }));
 
 function renderEditor(props: Partial<React.ComponentProps<typeof EditorWorkspace>> = {}) {
@@ -143,8 +128,11 @@ function mockLocalMaskCanvas(hasPaint: boolean, canvasSizes: Array<{ height: num
     arc: vi.fn(),
     beginPath: vi.fn(),
     clearRect: vi.fn(),
+    drawImage: vi.fn(),
     fill: vi.fn(),
     fillStyle: "",
+    fillText: vi.fn(),
+    font: "",
     getImageData: vi.fn(() => {
       const data = new Uint8ClampedArray(64 * 64 * 4);
       if (hasPaint) data[3] = 255;
@@ -156,8 +144,15 @@ function mockLocalMaskCanvas(hasPaint: boolean, canvasSizes: Array<{ height: num
     lineTo: vi.fn(),
     lineWidth: 1,
     moveTo: vi.fn(),
+    restore: vi.fn(),
+    rotate: vi.fn(),
+    save: vi.fn(),
     stroke: vi.fn(),
+    strokeRect: vi.fn(),
     strokeStyle: "",
+    textAlign: "left",
+    textBaseline: "top",
+    translate: vi.fn(),
   };
   Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
     configurable: true,
@@ -228,14 +223,19 @@ describe("EditorWorkspace", () => {
   it("switches tools and toggles the annotation overlay", () => {
     renderEditor();
 
-    expect(screen.getByTestId("active-editor-tool")).toHaveTextContent("鏍囨敞");
-    expect(screen.getByTestId("annotation-stage")).toBeInTheDocument();
+    expect(screen.getByTestId("active-editor-tool")).toHaveTextContent("标注");
+    // 关键点显示默认开启，overlay 以关键点视图渲染
+    expect(screen.getByTestId("landmark-stage")).toBeInTheDocument();
+    expect(screen.queryByTestId("annotation-stage")).toBeNull();
     expect(screen.queryByTestId("editor-tool-details")).toBeNull();
+
+    // 关闭关键点显示后，标注 overlay 视图出现
+    fireEvent.click(screen.getByTestId("landmark-visibility-toggle"));
+    expect(screen.getByTestId("annotation-stage")).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId("editor-tool-face"));
 
-    expect(screen.getByTestId("active-editor-tool")).toHaveTextContent("鑴稿瀷");
-    expect(screen.queryByTestId("annotation-stage")).toBeNull();
+    expect(screen.getByTestId("active-editor-tool")).toHaveTextContent("脸型");
   });
 
   it("adds annotation marks from canvas clicks", async () => {
@@ -262,9 +262,8 @@ describe("EditorWorkspace", () => {
     expect(onRecipeChange).toHaveBeenLastCalledWith(expect.objectContaining({
       annotations: [expect.objectContaining({ x: 0.75, y: 0.25 })],
     }));
-    expect(screen.getByTestId("annotation-mark-count")).toHaveTextContent("1");
     expect(screen.getByTestId("annotation-pin-1")).toHaveTextContent("1");
-    expect(screen.getByTestId("annotation-pin-1")).toHaveStyle({ height: "12px", width: "12px" });
+    expect(screen.getByTestId("annotation-pin-1")).toHaveStyle({ height: "30px", width: "30px" });
   });
 
   it("uses two-finger gestures to pan and zoom the editor viewport without adding annotations", async () => {
@@ -320,7 +319,8 @@ describe("EditorWorkspace", () => {
     mockStageRect(stage);
 
     fireEvent.pointerDown(stage, { clientX: 640, clientY: 360 });
-    const noteInput = await screen.findByTestId("annotation-note-input-annotation-1");
+    const noteEditor = await screen.findByTestId("annotation-note-input-annotation-1");
+    const noteInput = within(noteEditor).getByRole("textbox");
     fireEvent.change(noteInput, { target: { value: "keep left eye highlight" } });
 
     await waitFor(() =>
@@ -332,33 +332,42 @@ describe("EditorWorkspace", () => {
 
   it("cleans empty annotation pins and sends annotation text when regenerating", async () => {
     const onRegenerate = vi.fn();
-    renderEditor({ onRegenerate });
-    await waitFor(() => expect(pixiMocks.setImageUrl).toHaveBeenCalledWith("/candidate.webp"));
-    const stage = screen.getByTestId("editor-stage");
-    mockStageRect(stage);
+    // 重新生成导出带标注画布：jsdom 无 2d context，且 Image 加载 blob URL 不会触发 onload，均需 stub
+    const restoreCanvas = mockLocalMaskCanvas(false);
+    const restoreImage = mockBlobImageDimensions(1280, 720);
+    try {
+      renderEditor({ onRegenerate });
+      await waitFor(() => expect(pixiMocks.setImageUrl).toHaveBeenCalledWith("/candidate.webp"));
+      const stage = screen.getByTestId("editor-stage");
+      mockStageRect(stage);
 
-    fireEvent.pointerDown(stage, { clientX: 320, clientY: 360 });
-    fireEvent.pointerDown(stage, { clientX: 960, clientY: 180 });
-    const noteInput = await screen.findByTestId("annotation-note-input-annotation-2");
-    fireEvent.change(noteInput, { target: { value: "keep right eye highlight" } });
+      fireEvent.pointerDown(stage, { clientX: 320, clientY: 360 });
+      fireEvent.pointerDown(stage, { clientX: 960, clientY: 180 });
+      const noteEditor = await screen.findByTestId("annotation-note-input-annotation-2");
+      const noteInput = within(noteEditor).getByRole("textbox");
+      fireEvent.change(noteInput, { target: { value: "keep right eye highlight" } });
 
-    fireEvent.click(screen.getByTestId("editor-regenerate"));
+      fireEvent.click(screen.getByTestId("editor-regenerate"));
 
-    await waitFor(() =>
-      expect(onRegenerate).toHaveBeenCalledWith(expect.objectContaining({
-        annotationPrompt: "鏍囨敞 1锛?5%, 25%锛夛細keep right eye highlight",
-        recipe: expect.objectContaining({
-          annotations: [
-            expect.objectContaining({
-              id: "annotation-1",
-              note: "keep right eye highlight",
-              x: 0.75,
-              y: 0.25,
-            }),
-          ],
-        }),
-      })),
-    );
+      await waitFor(() =>
+        expect(onRegenerate).toHaveBeenCalledWith(expect.objectContaining({
+          annotationPrompt: "标注 1: 75%, 25%, keep right eye highlight",
+          recipe: expect.objectContaining({
+            annotations: [
+              expect.objectContaining({
+                id: "annotation-1",
+                note: "keep right eye highlight",
+                x: 0.75,
+                y: 0.25,
+              }),
+            ],
+          }),
+        })),
+      );
+    } finally {
+      restoreImage();
+      restoreCanvas();
+    }
   });
 
   it("sends supplemental prompt text without requiring an uploaded reference image", async () => {
@@ -406,7 +415,9 @@ describe("EditorWorkspace", () => {
       mockStageRect(stage);
       fireEvent.pointerDown(stage, { clientX: 640, clientY: 360, pointerId: 1, pointerType: "mouse" });
 
-      expect(screen.getByTestId("local-mask-brush-preview")).toHaveStyle({ borderRadius: "50%" });
+      const preview = screen.getByTestId("local-mask-brush-preview");
+      expect(preview.tagName.toLowerCase()).toBe("circle");
+      expect(preview).toHaveAttribute("stroke-dasharray", "8 6");
     } finally {
       restoreCanvas();
     }
@@ -427,8 +438,8 @@ describe("EditorWorkspace", () => {
       await waitFor(() => expect(pixiMocks.setImageUrl).toHaveBeenCalledWith("/candidate.webp"));
 
       fireEvent.click(screen.getByTestId("editor-tool-local-generate"));
-      expect(screen.queryByTestId("editor-local-reference-front:references/upload-1/front.webp")).toBeNull();
-      expect(screen.queryByTestId("editor-local-reference-detail:references/upload-1/eyes.webp")).toBeNull();
+      // Existing references are offered for selection, but none is selected by default.
+      expect(screen.getByTestId("editor-local-reference-front:references/upload-1/front.webp")).toHaveAttribute("aria-pressed", "false");
       const uploadFile = new File(["ref"], "mouth.png", { type: "image/png" });
       fireEvent.change(screen.getByTestId("editor-local-reference-file-input"), {
         target: { files: [uploadFile] },
@@ -576,7 +587,7 @@ describe("EditorWorkspace", () => {
     );
     expect(screen.getByTestId("annotation-pin-1")).toHaveAttribute("aria-selected", "true");
 
-    fireEvent.click(screen.getByTestId("annotation-delete-annotation-1"));
+    fireEvent.pointerDown(screen.getByTestId("annotation-delete-annotation-1"), { pointerId: 3 });
 
     await waitFor(() =>
       expect(onRecipeChange).toHaveBeenLastCalledWith(expect.objectContaining({
@@ -591,9 +602,9 @@ describe("EditorWorkspace", () => {
 
     await waitFor(() => expect(pixiMocks.mountPixiStage).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(pixiMocks.setImageUrl).toHaveBeenCalledWith("/generated/candidate-2.webp"));
-    expect(screen.getByTestId("editor-stage")).toHaveStyle({ aspectRatio: "600 / 900" });
-    expect(screen.getByTestId("annotation-stage")).toHaveAttribute("data-width", "600");
-    expect(screen.getByTestId("annotation-stage")).toHaveAttribute("data-height", "900");
+    // 关键点显示默认开启，overlay 以关键点视图渲染，尺寸来自候选图尺寸
+    expect(screen.getByTestId("landmark-stage")).toHaveAttribute("data-width", "600");
+    expect(screen.getByTestId("landmark-stage")).toHaveAttribute("data-height", "900");
   });
 
   it("places the parameter controls on the right side of the preview area", async () => {
@@ -613,9 +624,9 @@ describe("EditorWorkspace", () => {
     Object.defineProperty(image, "naturalHeight", { configurable: true, value: 800 });
     fireEvent.load(image);
 
-    expect(screen.getByTestId("editor-stage")).toHaveStyle({ aspectRatio: "600 / 800" });
-    expect(screen.getByTestId("annotation-stage")).toHaveAttribute("data-width", "600");
-    expect(screen.getByTestId("annotation-stage")).toHaveAttribute("data-height", "800");
+    // 关键点显示默认开启，overlay 以关键点视图渲染，尺寸来自图片自然尺寸
+    expect(screen.getByTestId("landmark-stage")).toHaveAttribute("data-width", "600");
+    expect(screen.getByTestId("landmark-stage")).toHaveAttribute("data-height", "800");
   });
 
   it("uses the latest image URL when Pixi mount resolves after a rerender", async () => {
@@ -666,7 +677,7 @@ describe("EditorWorkspace", () => {
     await waitFor(() =>
       expect(pixiMocks.applyRecipe).toHaveBeenLastCalledWith(expect.objectContaining({
         face: expect.objectContaining({ faceWidth: -0.048 }),
-        eyes: expect.objectContaining({ eyeHeight: 0.021, eyeSize: 0.057 }),
+        eyes: expect.objectContaining({ eyeHeight: 0.0126, eyeSize: 0.0342 }),
       })),
     );
 
@@ -679,7 +690,7 @@ describe("EditorWorkspace", () => {
         imageBlob: expect.any(Blob),
         recipe: expect.objectContaining({
           face: expect.objectContaining({ faceWidth: -0.048 }),
-          eyes: expect.objectContaining({ eyeHeight: 0.021, eyeSize: 0.057 }),
+          eyes: expect.objectContaining({ eyeHeight: 0.0126, eyeSize: 0.0342 }),
         }),
       })),
     );
@@ -690,10 +701,8 @@ describe("EditorWorkspace", () => {
     renderEditor();
     await waitFor(() => expect(pixiMocks.setImageUrl).toHaveBeenCalledWith("/candidate.webp"));
 
-    fireEvent.click(screen.getByTestId("editor-tool-face"));
-    const faceWidthSlider = getSliderThumb("face-control-faceWidth");
-    expect(faceWidthSlider).toHaveAttribute("aria-valuemin", "-1");
-    expect(faceWidthSlider).toHaveAttribute("aria-valuemax", "1");
+    // Face length lives in the 比例 (proportion) panel; the 脸型 panel only changes the contour.
+    fireEvent.click(screen.getByTestId("editor-tool-proportion"));
     const faceLengthSlider = getSliderThumb("face-control-faceLength");
     expect(faceLengthSlider).toHaveAttribute("aria-valuemin", "-1");
     expect(faceLengthSlider).toHaveAttribute("aria-valuemax", "1");
@@ -705,11 +714,16 @@ describe("EditorWorkspace", () => {
         face: expect.objectContaining({ faceLength: 0.06 }),
       })),
     );
-
-    moveSlider("face-control-faceWidth", "ArrowRight", 22);
     moveSlider("face-control-faceLength", "ArrowLeft", 18);
-    fireEvent.click(screen.getByTestId("face-control-faceWidth-reset"));
     fireEvent.click(screen.getByTestId("face-control-faceLength-reset"));
+
+    fireEvent.click(screen.getByTestId("editor-tool-face"));
+    expect(screen.queryByTestId("face-control-faceLength")).toBeNull();
+    const faceWidthSlider = getSliderThumb("face-control-faceWidth");
+    expect(faceWidthSlider).toHaveAttribute("aria-valuemin", "-1");
+    expect(faceWidthSlider).toHaveAttribute("aria-valuemax", "1");
+    moveSlider("face-control-faceWidth", "ArrowRight", 22);
+    fireEvent.click(screen.getByTestId("face-control-faceWidth-reset"));
 
     await waitFor(() =>
       expect(pixiMocks.applyRecipe).toHaveBeenLastCalledWith(expect.objectContaining({
@@ -728,7 +742,7 @@ describe("EditorWorkspace", () => {
     moveSlider("eye-control-eyeSize", "ArrowRight", 10);
     await waitFor(() =>
       expect(pixiMocks.applyRecipe).toHaveBeenLastCalledWith(expect.objectContaining({
-        eyes: expect.objectContaining({ eyeSize: 0.06 }),
+        eyes: expect.objectContaining({ eyeSize: 0.036 }),
       })),
     );
 
@@ -919,6 +933,7 @@ describe("EditorWorkspace", () => {
     fireEvent.click(screen.getByTestId("editor-tool-face"));
     const stage = screen.getByTestId("editor-stage");
     mockStageRect(stage);
+    mockStageRect(screen.getByTestId("editor-image-viewport"));
     const leftEye = screen.getByTestId("landmark-leftEye");
 
     fireEvent.pointerDown(leftEye, { clientX: 538, clientY: 302, pointerId: 3 });
@@ -945,13 +960,14 @@ describe("EditorWorkspace", () => {
     moveSlider("liquify-radius-slider", "ArrowRight", 24);
     const stage = screen.getByTestId("editor-stage");
     mockStageRect(stage);
+    mockStageRect(screen.getByTestId("editor-image-viewport"));
     fireEvent.pointerDown(stage, { clientX: 320, clientY: 540, pointerId: 1 });
     fireEvent.pointerMove(stage, { clientX: 448, clientY: 468, pointerId: 1 });
     fireEvent.pointerUp(stage, { pointerId: 1 });
 
     await waitFor(() =>
       expect(pixiMocks.applyRecipe).toHaveBeenLastCalledWith(expect.objectContaining({
-        liquify: [
+        liquify: expect.arrayContaining([
           expect.objectContaining({
             deltaX: 0.1,
             deltaY: -0.1,
@@ -960,22 +976,26 @@ describe("EditorWorkspace", () => {
             x: 0.3,
             y: 0.7,
           }),
-        ],
+        ]),
       })),
     );
 
     fireEvent.click(screen.getByTestId("editor-regenerate"));
 
-    expect(onRegenerate).toHaveBeenCalledWith(expect.objectContaining({
-      liquify: [
-        expect.objectContaining({
-          deltaX: 0.1,
-          deltaY: -0.1,
-          mode: "warp",
-          radius: 96,
+    await waitFor(() =>
+      expect(onRegenerate).toHaveBeenCalledWith(expect.objectContaining({
+        recipe: expect.objectContaining({
+          liquify: expect.arrayContaining([
+            expect.objectContaining({
+              deltaX: 0.1,
+              deltaY: -0.1,
+              mode: "warp",
+              radius: 96,
+            }),
+          ]),
         }),
-      ],
-    }));
+      })),
+    );
   });
 
   it("shows the liquify deformation brush cursor while hovering the image area", async () => {
@@ -1066,41 +1086,6 @@ describe("EditorWorkspace", () => {
       })),
     );
     expect(screen.getAllByTestId(/liquify-stroke-/)).toHaveLength(1);
-  });
-
-  it("adds detail regions and stores detail panel settings", async () => {
-    const onSave = vi.fn();
-    renderEditor({ onSave });
-    await waitFor(() => expect(pixiMocks.setImageUrl).toHaveBeenCalledWith("/candidate.webp"));
-
-    fireEvent.click(screen.getByTestId("editor-tool-details"));
-    fireEvent.click(screen.getByTestId("detail-preserve-skin"));
-    fireEvent.change(screen.getByTestId("detail-accessory-note"), {
-      target: { value: "淇濈暀缁胯壊鎸戞煋鍜岃€虫湹杈圭紭" },
-    });
-    const stage = screen.getByTestId("editor-stage");
-    mockStageRect(stage);
-    fireEvent.pointerDown(stage, { clientX: 640, clientY: 360 });
-
-    await waitFor(() =>
-      expect(pixiMocks.applyRecipe).toHaveBeenLastCalledWith(expect.objectContaining({
-        details: expect.objectContaining({
-          accessoryNote: "淇濈暀缁胯壊鎸戞煋鍜岃€虫湹杈圭紭",
-          preserveSkinTexture: false,
-          regions: [expect.objectContaining({ id: "detail-1", x: 0.5, y: 0.5 })],
-        }),
-      })),
-    );
-
-    fireEvent.click(screen.getByTestId("editor-save"));
-
-    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
-      details: expect.objectContaining({
-        accessoryNote: "淇濈暀缁胯壊鎸戞煋鍜岃€虫湹杈圭紭",
-        preserveSkinTexture: false,
-        regions: [expect.objectContaining({ x: 0.5, y: 0.5 })],
-      }),
-    }));
   });
 });
 

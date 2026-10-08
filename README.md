@@ -6,21 +6,21 @@
   <img src="docs/logo.png" alt="KigCraft logo" width="160" />
 </p>
 
-KigCraft is a web tool for making Kigurumi head-shell preview images from character references. The workflow follows the way a maker usually works: upload references, confirm the important head details, generate a front view, edit it, and then produce a four-view sheet.
+KigCraft is a web tool for making Kigurumi head-shell preview images. Each character is a project: chat with the agent on the right to analyse references, generate and revise the front view, and make the four-view sheet, or adjust the image directly with the manual tools (proportion, face, eyes, brows, mouth, liquify, annotation, local generation). Every result lands in the project's version history.
 
 Developer: SeaRabbit / 海兔  
 User group: QQ 934715528
 
-![KigCraft editor workspace](docs/images/editor-workspace.png)
-
 ## Features
 
-- Upload character references and add a short note about what should stay unchanged.
-- Review an editable detail list before generation, including hair, eyes, expression, ears, and head accessories.
-- Generate front-view and four-view previews through a pluggable generation provider.
-- Edit generated images with annotation, landmark correction, face shape, eyes, mouth, liquify, and local regeneration tools.
-- Switch between Chinese, English, and Japanese UI modes. The app can also choose the default language from the browser.
-- Run the local stack with Docker Compose, FastAPI, React, Postgres, Redis, and MinIO.
+- Project workspace: a VS Code-like layout with an explorer (references, version tree) and tool panels on the left, a tabbed canvas in the middle, the agent chat on the right, and a status bar; dark and light themes.
+- Manual editing: proportion, face, eye, brow, and mouth sliders deform the image live (mesh warping in the browser, no AI call), plus liquify, annotation, and local generation. Saving creates a new version (Ctrl+S).
+- Conversational flow: an LLM acts as the middleware and calls reference analysis, front-view generation, front-view revision, and four-view generation as the conversation needs; it also sees versions you saved by hand.
+- Checkpoint before spending more: the four-view sheet is only generated after the user approves a front view (the "Use this one" button or an explicit yes in the chat).
+- A per-message generation cap (`AGENT_MAX_GENERATIONS_PER_TURN`) stops the model from generating in a loop.
+- Conversations are saved locally, so you can return to an earlier design and keep revising.
+- The LLM, image, and orchestration backends are configured separately (Codex, Claude Code, SiliconFlow, Volcengine Ark, ...).
+- Chinese, English, and Japanese UI.
 
 ## License
 
@@ -43,7 +43,18 @@ docker compose up --build
 
 Before using Codex generation, create `ref/` at the repo root and add your own product reference images. See [Product reference images](#product-reference-images).
 
-Local URLs:
+### Run locally without Docker
+
+Local development does not need Docker: generation jobs run inside the API process, job state lives in SQLite, and outputs go to `runtime/`, so Postgres, Redis, and MinIO are not used.
+
+```powershell
+Copy-Item .env.example .env   # set LLM_PROVIDER / IMAGE_PROVIDER etc.
+.\scripts\start-local.ps1
+```
+
+The script creates `backend\.venv` and runs `npm install` when dependencies are missing, then starts the backend (`127.0.0.1:18000`) and the frontend (<http://localhost:5173>). Ctrl+C stops both. Pass `-Lan` to open the frontend from a phone on the same network. If `codex` is not on PATH, the script uses `codex.exe` from the official install location.
+
+Local URLs with Docker:
 
 - Frontend: <http://localhost:15173>
 - API health: <http://localhost:18000/health>
@@ -65,6 +76,61 @@ GENERATION_PROVIDER=codex
 CODEX_PATH=codex
 CODEX_CONFIG_DIR=/home/deploy/.codex
 CODEX_PRODUCT_REFERENCE_PATH=ref/product-reference.png
+```
+
+### Separate LLM and image backends
+
+Generation uses two kinds of models:
+
+- **LLM** (`LLM_PROVIDER`): reference safety check and detail analysis. Options: `codex`, `claude_code`.
+- **Image** (`IMAGE_PROVIDER`): front view, four-view sheet, and local revision. Options: `codex`, `codex_bridge`, `siliconflow`, `ark`.
+
+When both are empty they are derived from `GENERATION_PROVIDER`, so existing setups keep working. A setup with no Codex dependency:
+
+```dotenv
+LLM_PROVIDER=claude_code
+IMAGE_PROVIDER=siliconflow
+SILICONFLOW_API_KEY=your-key
+```
+
+**Claude Code** needs a logged-in Claude Code config directory, mounted at `/root/.claude`:
+
+```powershell
+Copy-Item -Recurse "$env:USERPROFILE\.claude" ".\runtime\claude-home"
+```
+
+Claude models cannot generate images, so `LLM_PROVIDER=claude_code` always needs a separate image backend. On macOS the login is stored in the Keychain, so copying the directory does not carry it; log in on a Linux or Windows host and copy from there.
+
+**SiliconFlow** uses `Qwen/Qwen-Image-Edit-2509` by default and sends at most three images per request:
+
+- front view: character front reference + `ref/product-reference.png` + one contact sheet of the other references;
+- four-view sheet: the approved front view + `ref/turnaround-reference.png`;
+- local revision: only the masked region is cropped and edited, then composited back with the mask.
+
+Four-view sheets keep the model's native resolution and are not upscaled. The platform watermark is turned off in the request, and KigCraft's own AI-generated watermark is always applied.
+
+**Volcengine Ark (Agent Plan)**: `IMAGE_PROVIDER=ark` uses `doubao-seedream-5-0-pro` by default and sends all reference images in one `image` list, capped by `ARK_MAX_REFERENCE_IMAGES` (default 4; extra references are merged into one contact sheet). It needs the Agent Plan dedicated API key (`ARK_API_KEY`); other Ark keys do not work with Agent Plan. Usage is deducted in AFP: the first input image is free, each further one costs 10 AFP, and each output image costs 150 AFP (300 above about 2.61 MP). Four-view sheets request `1920x1280` by default (3:2, billed at 150 AFP); with `2K` the model picks its own aspect ratio and the backend pads the result to 3:2 with the background colour.
+
+Try the API first with the probe script:
+
+```powershell
+$env:SILICONFLOW_API_KEY = "your-key"
+backend\.venv\Scripts\python tools\siliconflow_probe.py size-test
+```
+
+### Chat assistant (orchestrator LLM)
+
+The chat UI is driven by an orchestrator LLM that interprets the conversation and calls tools. It is separate from `LLM_PROVIDER` above (reference safety check and detail analysis):
+
+- `AGENT_LLM_PROVIDER=openai_compatible` (default): any OpenAI-compatible endpoint with tool calling. Defaults to Volcengine Ark Agent Plan `doubao-seed-2-0-pro` with reasoning turned off (about 5 s per step). An empty `AGENT_LLM_API_KEY` reuses `ARK_API_KEY`.
+- `AGENT_LLM_PROVIDER=claude_code`: orchestrate with the logged-in Claude Code. No extra key, but each step starts a CLI process, so it is slower.
+
+Recommended setup:
+
+```dotenv
+LLM_PROVIDER=claude_code
+IMAGE_PROVIDER=ark
+ARK_API_KEY=your-agent-plan-key
 ```
 
 ### Product reference images
