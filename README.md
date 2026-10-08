@@ -2,214 +2,151 @@
 
 [中文](README.zh-CN.md) | English
 
-<p align="center">
-  <img src="docs/logo.png" alt="Visual Studio Kigurumi logo" width="160" />
-</p>
+V.S.K is a web tool for designing kigurumi head shells. Upload character references, talk to the design assistant, and get a 2D character design, then a finished head-shell product view and a four-view sheet. Every image can also be adjusted by hand in a built-in editor, and every result is kept in the project's version history.
 
-Visual Studio Kigurumi (V.S.K) is a web tool for making Kigurumi head-shell preview images, developed based on [KigCraft](https://kigcraft.com). Each character is a project: chat with the agent on the right to analyse references, generate and revise the front view, and make the four-view sheet, or adjust the image directly with the manual tools (proportion, face, eyes, brows, mouth, liquify, annotation, local generation). Every result lands in the project's version history.
+V.S.K is an independent project based on [KigCraft](https://kigcraft.com) by SeaRabbit / 海兔 (user group QQ 934715528). The conversational workflow, workspace and generation pipeline come from KigCraft; V.S.K adds pluggable model backends, a settings page, editor improvements and prompt tuning.
 
-## About this project
+## How it works
 
-V.S.K is an independent project developed based on [KigCraft](https://kigcraft.com), the original Kigurumi head preview tool by SeaRabbit / 海兔. The conversational workflow, workspace concept, and generation pipeline come from the KigCraft codebase; this project extends them with pluggable generation backends (Codex, Claude Code, SiliconFlow, Volcengine Ark), editor deformation refinements, and generation prompt tuning.
+Each character is a project. The assistant on the right drives a two-stage flow and stops for your approval before each paid step:
 
-Upstream credits: KigCraft by SeaRabbit / 海兔 — <https://kigcraft.com> — user group QQ 934715528.
+1. **Character design**: it analyses the references and generates a 2D design (front view, optionally four views). If something essential is missing or contradictory, such as which character is meant or hidden ears, it asks one short question first.
+2. **Head shell**: once you approve a design, it generates the head-shell front view (product photo style). After you approve that, it generates the head-shell four-view sheet.
+
+You can ask for changes in chat at any step, or edit the image yourself and save it as a new version. The assistant sees those versions too.
 
 ## Features
 
-- Project workspace: a VS Code-like layout with an explorer (references, version tree) and tool panels on the left, a tabbed canvas in the middle, the agent chat on the right, and a status bar; dark and light themes.
-- Manual editing: proportion, face, eye, brow, and mouth sliders deform the image live (mesh warping in the browser, no AI call), plus liquify, annotation, and local generation. Saving creates a new version (Ctrl+S).
-- Conversational flow: an LLM acts as the middleware and calls reference analysis, front-view generation, front-view revision, and four-view generation as the conversation needs; it also sees versions you saved by hand.
-- Checkpoint before spending more: the four-view sheet is only generated after the user approves a front view (the "Use this one" button or an explicit yes in the chat).
-- A per-message generation cap (`AGENT_MAX_GENERATIONS_PER_TURN`) stops the model from generating in a loop.
-- Conversations are saved locally, so you can return to an earlier design and keep revising.
-- The LLM, image, and orchestration backends are configured separately (Codex, Claude Code, SiliconFlow, Volcengine Ark, ...).
-- Chinese, English, and Japanese UI.
+- **IDE-style workspace**: an explorer with references and the version tree, a tabbed canvas, the assistant panel and a status bar. Dark and light themes.
+- **Manual editor** with live mesh deformation in the browser (no AI call):
+  - proportion, face shape, eyes (size, lids, iris, tail), brows and mouth sliders, with draggable landmarks;
+  - liquify and annotation;
+  - local regeneration of a masked area.
+  - Saving creates a new version (Ctrl+S).
+- **Local drafts**: unsaved edits are kept per version in the browser (IndexedDB) and restored when you switch back or reload.
+- **Settings page** (`/settings`):
+  - choose the chat assistant LLM, the reference-analysis LLM and the image backend;
+  - fill in API keys, endpoints and model names without editing `.env`.
+- **Cost guards**: approval checkpoints between stages, plus a per-message generation cap (`AGENT_MAX_GENERATIONS_PER_TURN`).
+- **Languages**: Chinese, English and Japanese UI.
 
-## License
+## Quick start (Windows, no Docker)
 
-Visual Studio Kigurumi (V.S.K) is released under GPL-3.0-or-later, following the upstream KigCraft license. See [LICENSE](LICENSE).
-
-## Requirements
-
-- Docker Desktop or Docker Engine with Compose
-- Node.js 22 or newer for frontend-only development
-- Python 3.12 or newer for backend-only development
-- Codex CLI authentication when `GENERATION_PROVIDER=codex`
-
-## Quick start
+Local development needs no Docker. Jobs run inside the API process, state lives in SQLite and outputs go to `runtime/`.
 
 ```powershell
 Copy-Item .env.example .env
-# Edit .env and replace every change-me-* value before exposing the service.
-docker compose up --build
-```
-
-Before using Codex generation, create `ref/` at the repo root and add your own product reference images. See [Product reference images](#product-reference-images).
-
-### Run locally without Docker
-
-Local development does not need Docker: generation jobs run inside the API process, job state lives in SQLite, and outputs go to `runtime/`, so Postgres, Redis, and MinIO are not used.
-
-```powershell
-Copy-Item .env.example .env   # set LLM_PROVIDER / IMAGE_PROVIDER etc.
 .\scripts\start-local.ps1
 ```
 
-The script creates `backend\.venv` and runs `npm install` when dependencies are missing, then starts the backend (`127.0.0.1:18000`) and the frontend (<http://localhost:5173>). Ctrl+C stops both. Pass `-Lan` to open the frontend from a phone on the same network. If `codex` is not on PATH, the script uses `codex.exe` from the official install location.
+The script:
 
-Local URLs with Docker:
+- creates `backend\.venv` and installs frontend dependencies on first run;
+- starts the API on `127.0.0.1:18000` and the app on <http://localhost:5173>;
+- `-Lan` makes the app reachable from other devices on your network;
+- Ctrl+C stops both.
 
-- Frontend: <http://localhost:15173>
-- API health: <http://localhost:18000/health>
-- MinIO console: <http://localhost:19001>
+Then open **Settings** (gear icon, top right), pick your backends and enter their API keys.
 
-## Generation providers
+## Backends
 
-`GENERATION_PROVIDER=codex` runs generation through the Codex CLI inside the backend container. Mount an authenticated Codex config directory at runtime:
+There are three roles, each configured separately on the settings page or in `.env`:
 
-```powershell
-Copy-Item -Recurse "$env:USERPROFILE\.codex" ".\runtime\codex-home"
-docker compose up --build
-```
+| Role | Setting | Options |
+| --- | --- | --- |
+| Chat assistant (calls the tools) | `AGENT_LLM_PROVIDER` | `openai_compatible` (any OpenAI-compatible API with tool calling; default Volcengine Ark `doubao-seed-2-0-pro`), `claude_code` |
+| Reference analysis (safety check + details) | `LLM_PROVIDER` | `openai_compatible` (needs a vision model), `codex`, `claude_code` |
+| Image generation | `IMAGE_PROVIDER` | `ark` (Seedream), `siliconflow` (Qwen-Image-Edit), `codex`, `codex_bridge` |
 
-For a Linux server, copy an authenticated Codex config directory to the host and set:
-
-```dotenv
-GENERATION_PROVIDER=codex
-CODEX_PATH=codex
-CODEX_CONFIG_DIR=/home/deploy/.codex
-CODEX_PRODUCT_REFERENCE_PATH=ref/product-reference.png
-```
-
-### Separate LLM and image backends
-
-Generation uses two kinds of models:
-
-- **LLM** (`LLM_PROVIDER`): reference safety check and detail analysis. Options: `codex`, `claude_code`.
-- **Image** (`IMAGE_PROVIDER`): front view, four-view sheet, and local revision. Options: `codex`, `codex_bridge`, `siliconflow`, `ark`.
-
-When both are empty they are derived from `GENERATION_PROVIDER`, so existing setups keep working. A setup with no Codex dependency:
+A setup with only one Volcengine Ark Agent Plan key:
 
 ```dotenv
-LLM_PROVIDER=claude_code
-IMAGE_PROVIDER=siliconflow
-SILICONFLOW_API_KEY=your-key
-```
-
-**Claude Code** needs a logged-in Claude Code config directory, mounted at `/root/.claude`:
-
-```powershell
-Copy-Item -Recurse "$env:USERPROFILE\.claude" ".\runtime\claude-home"
-```
-
-Claude models cannot generate images, so `LLM_PROVIDER=claude_code` always needs a separate image backend. On macOS the login is stored in the Keychain, so copying the directory does not carry it; log in on a Linux or Windows host and copy from there.
-
-**SiliconFlow** uses `Qwen/Qwen-Image-Edit-2509` by default and sends at most three images per request:
-
-- front view: character front reference + `ref/product-reference.png` + one contact sheet of the other references;
-- four-view sheet: the approved front view + `ref/turnaround-reference.png`;
-- local revision: only the masked region is cropped and edited, then composited back with the mask.
-
-Four-view sheets keep the model's native resolution and are not upscaled. The platform watermark is turned off in the request, and V.S.K's own AI-generated watermark is always applied.
-
-**Volcengine Ark (Agent Plan)**: `IMAGE_PROVIDER=ark` uses `doubao-seedream-5-0-pro` by default and sends all reference images in one `image` list, capped by `ARK_MAX_REFERENCE_IMAGES` (default 4; extra references are merged into one contact sheet). It needs the Agent Plan dedicated API key (`ARK_API_KEY`); other Ark keys do not work with Agent Plan. Usage is deducted in AFP: the first input image is free, each further one costs 10 AFP, and each output image costs 150 AFP (300 above about 2.61 MP). Four-view sheets request `1920x1280` by default (3:2, billed at 150 AFP); with `2K` the model picks its own aspect ratio and the backend pads the result to 3:2 with the background colour.
-
-Try the API first with the probe script:
-
-```powershell
-$env:SILICONFLOW_API_KEY = "your-key"
-backend\.venv\Scripts\python tools\siliconflow_probe.py size-test
-```
-
-### Chat assistant (orchestrator LLM)
-
-The chat UI is driven by an orchestrator LLM that interprets the conversation and calls tools. It is separate from `LLM_PROVIDER` above (reference safety check and detail analysis):
-
-- `AGENT_LLM_PROVIDER=openai_compatible` (default): any OpenAI-compatible endpoint with tool calling. Defaults to Volcengine Ark Agent Plan `doubao-seed-2-0-pro` with reasoning turned off (about 5 s per step). An empty `AGENT_LLM_API_KEY` reuses `ARK_API_KEY`.
-- `AGENT_LLM_PROVIDER=claude_code`: orchestrate with the logged-in Claude Code. No extra key, but each step starts a CLI process, so it is slower.
-
-Recommended setup:
-
-```dotenv
-LLM_PROVIDER=claude_code
+AGENT_LLM_PROVIDER=openai_compatible
+LLM_PROVIDER=openai_compatible
 IMAGE_PROVIDER=ark
 ARK_API_KEY=your-agent-plan-key
 ```
 
-### Product reference images
+Empty analysis and assistant keys fall back to the Ark key when they use the Ark endpoint.
 
-This repository does not ship product reference images. You need to create `ref/` yourself and place your own files there before running Codex generation.
+### Where settings are stored
 
-| File | Purpose |
+- Values saved on the settings page go to `runtime/settings-overrides.json` and take precedence over `.env`. "Reset all to .env" removes them.
+- API keys are write-only: the page only shows whether a key is set and its last four characters.
+- Keys are stored in plain text on this machine. `runtime/` is gitignored.
+- With `APP_ENV=production` the settings page is read-only.
+
+### Backend notes
+
+- **Volcengine Ark**: needs the Agent Plan dedicated key; other Ark keys do not work.
+  - Up to `ARK_MAX_REFERENCE_IMAGES` references are sent per request (default 4); the rest are merged into one contact sheet.
+  - Four-view sheets request `1920x1280` by default.
+- **SiliconFlow**: sends at most three images per request.
+  - Local revision only edits the masked crop and composites it back.
+  - Try the API with `tools\siliconflow_probe.py`.
+- **Codex / Claude Code**: use the logged-in CLI on the host, so no API key is needed but each step is slower.
+  - `codex_bridge` runs Codex outside the backend container; start it with `tools\start_codex_bridge.ps1` and set `CODEX_BRIDGE_TOKEN`.
+  - Claude cannot generate images, so it only serves the LLM roles.
+- All generated images carry V.S.K's own "AI generated" watermark. Platform watermarks are turned off.
+
+### Product reference images (optional)
+
+The repository does not ship product photos. To constrain the finished head-shell style (background, shell material, wig texture, lighting), put your own PNGs in `ref/` (gitignored):
+
+| File | Used for |
 | --- | --- |
-| `ref/product-reference.png` | Finished-product style reference for front-view generation |
-| `ref/turnaround-reference.png` | Finished-product style reference for four-view generation |
+| `ref/product-reference.png` | head-shell front view |
+| `ref/turnaround-reference.png` | head-shell four-view sheet |
 
-Use PNG files with the exact filenames above. They constrain the finished head-shell style of generated results: studio background, shell material, wig texture, framing, and lighting. They are not the character reference images uploaded through the UI.
-
-`ref/` is listed in `.gitignore`, so private reference assets stay on your machine and are not committed to Git.
+## Docker
 
 ```powershell
-New-Item -ItemType Directory -Force ref
-# Copy your own reference images into ref/
+Copy-Item .env.example .env   # replace every change-me-* value first
+docker compose up --build
 ```
 
-Override the front-view reference path in `.env` if needed:
+The app runs at <http://localhost:15173> and the API at <http://localhost:18000/health>.
 
-```dotenv
-CODEX_PRODUCT_REFERENCE_PATH=ref/product-reference.png
-```
+To use the CLI backends, mount logged-in config directories:
 
-`GENERATION_PROVIDER=codex_bridge` runs the Codex CLI outside the backend container. Start the bridge with:
-
-```powershell
-.\tools\start_codex_bridge.ps1
-```
-
-Use a custom `CODEX_BRIDGE_TOKEN` outside local development.
-
-Fixture and mock generation are for tests and local smoke runs only. Do not enable them in production.
+- Codex: copy `%USERPROFILE%\.codex` to `runtime\codex-home`, or set `CODEX_CONFIG_DIR` on Linux.
+- Claude Code: copy `%USERPROFILE%\.claude` to `runtime\claude-home`. On macOS the login lives in the Keychain, so copy the directory from a Linux or Windows host instead.
 
 ## Deployment
 
-Create a production `.env` on the server before deploying. At minimum, set:
+On the server, create a production `.env` with at least:
 
 - `APP_ENV=production`
-- Strong values for `POSTGRES_PASSWORD`, `MINIO_ROOT_PASSWORD`, `JWT_SECRET`, and `ADMIN_AUDIT_PASSWORD`
-- Production `CORS_ALLOWED_ORIGINS`
-- `GENERATION_PROVIDER=codex` or `codex_bridge`
 - `ALLOW_FIXTURE_GENERATION=false`
+- strong values for `POSTGRES_PASSWORD`, `MINIO_ROOT_PASSWORD`, `JWT_SECRET` and `ADMIN_AUDIT_PASSWORD`
+- `CORS_ALLOWED_ORIGINS`
+- your backends and keys
 
-Deploy the current Git commit over SSH:
+Then deploy the current commit:
 
 ```powershell
-.\scripts\deploy-ssh.ps1 `
-  -KeyPath "$env:USERPROFILE\.ssh\id_ed25519" `
-  -SshTarget "deploy@example.com" `
-  -RemoteAppDir "/opt/vsk"
+.\scripts\deploy-ssh.ps1 -KeyPath "$env:USERPROFILE\.ssh\id_ed25519" -SshTarget "deploy@example.com" -RemoteAppDir "/opt/vsk"
 ```
 
-The script uploads a `git archive`, extracts it on the server, checks that production is not using fixture generation, and rebuilds `api`, `worker`, and `frontend` with Docker Compose.
+The script uploads a `git archive`, refuses fixture generation in production and rebuilds the containers.
+
+Never commit `.env` or `runtime/settings-overrides.json`; both may contain keys.
 
 ## Development
 
-Frontend:
-
 ```powershell
-cd frontend
-npm install
-npm run dev
-npm run build
-npm test
-```
+# frontend
+cd frontend; npm install; npm run dev; npm test
 
-Backend:
-
-```powershell
+# backend
 cd backend
 python -m venv .venv
 .\.venv\Scripts\python -m pip install -e .[dev]
 .\.venv\Scripts\python -m pytest
 ```
 
-Design notes live in [docs/plans](docs/plans/).
+Design notes are in [docs/plans](docs/plans/). Current status and implementation details are in [docs/handover.md](docs/handover.md).
+
+## License
+
+GPL-3.0-or-later, following the upstream KigCraft license. See [LICENSE](LICENSE).
