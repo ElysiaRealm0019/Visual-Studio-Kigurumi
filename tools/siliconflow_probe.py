@@ -1,4 +1,4 @@
-"""Probe SiliconFlow image generation behaviour before wiring it into KigCraft.
+"""Probe SiliconFlow image generation behaviour before wiring it into V.S.K.
 
 Reads the API key from SILICONFLOW_API_KEY. Results (images + summary.json) go to
 runtime/siliconflow-probe/<timestamp>/ by default.

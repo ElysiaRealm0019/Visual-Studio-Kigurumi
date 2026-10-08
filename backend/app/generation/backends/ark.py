@@ -11,7 +11,7 @@ class ArkImageBackend(HttpImageBackend):
     """Volcengine Ark (Agent Plan) Seedream via /images/generations.
 
     Reference images go into one ``image`` list; the platform watermark is turned off with
-    ``watermark: false`` and KigCraft adds its own AI label afterwards.
+    ``watermark: false`` and V.S.K adds its own AI label afterwards.
     """
 
     name = "ark"

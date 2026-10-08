@@ -30,7 +30,7 @@ import { EditorToolbar } from "./components/EditorToolbar";
 import { EditorToolRail, type EditorTool } from "./components/EditorToolRail";
 import { BrowControls } from "./components/BrowControls";
 import { EyeControls } from "./components/EyeControls";
-import { FaceControls, faceShapeControlKeys, proportionControlKeys } from "./components/FaceControls";
+import { FaceControls } from "./components/FaceControls";
 import { LocalMaskLayer } from "./components/LocalMaskLayer";
 import { LiquifyControls, type LiquifyToolMode } from "./components/LiquifyControls";
 import { MouthControls } from "./components/MouthControls";
@@ -71,6 +71,7 @@ import {
   type AnimeLandmarkDebugInfo,
 } from "./deformation/animeLandmarkDetector";
 import { calculateRecipePreview, mountPixiStage, type PixiStageHandle } from "./deformation/pixiStage";
+import type { EditorDraftState } from "./drafts/localDrafts";
 import {
   exportLocalMaskBlob,
   hasLocalMaskPaint,
@@ -81,6 +82,7 @@ import {
 } from "./localGeneration";
 
 export type { EditorLocalGeneratePayload, EditorLocalReferenceOption } from "./localGeneration";
+export type { EditorDraftState } from "./drafts/localDrafts";
 
 export type EditorWorkspaceProps = {
   availableTools?: EditorTool[];
@@ -111,6 +113,11 @@ export type EditorWorkspaceProps = {
   onRegenerate?: (payload: EditorRegeneratePayload) => void | Promise<void>;
   onSecondaryRegenerate?: (payload: EditorRegeneratePayload) => void | Promise<void>;
   onSave?: (payload: EditorImageSavePayload) => void | Promise<void>;
+  /** Restored draft state for the first image (the recipe and landmarks come in via `recipe`/`initialLandmarks`). */
+  initialMaskStrokes?: LocalMaskStroke[];
+  initialLocalEditNote?: string;
+  /** Called with the unsaved state whenever it changes, so the host can keep a local draft. */
+  onDraftChange?: (state: EditorDraftState) => void;
 };
 
 export type EditorRegeneratePayload = {
@@ -165,7 +172,7 @@ const toolDetails: Partial<Record<EditorTool, { description: string; title: stri
 
 const defaultBrushRadius = 72;
 const defaultLiquifyScaleAmount = 0;
-const defaultLiquifyWarpStrength = 0.09;
+const defaultLiquifyWarpStrength = 0.2;
 const defaultLiquifyToolMode: LiquifyToolMode = "warp";
 const defaultEditorTools: EditorTool[] = [
   "annotation",
@@ -264,7 +271,7 @@ function stableStringify(value: unknown): string {
 const emptyRecipeSignature = stableStringify({ ...normalizeEditRecipe(createEmptyRecipe()), landmarks: undefined });
 
 /** True when the user changed something; detected/corrected landmarks alone do not count as an edit. */
-function recipeHasEdits(recipe: EditRecipe) {
+export function recipeHasEdits(recipe: EditRecipe) {
   return stableStringify({ ...normalizeEditRecipe(recipe), landmarks: undefined }) !== emptyRecipeSignature;
 }
 
@@ -374,6 +381,9 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
   toolbarTarget,
   downloadOnSave = true,
   onStatusChange,
+  initialMaskStrokes,
+  initialLocalEditNote,
+  onDraftChange,
 }: EditorWorkspaceProps, ref) {
   const isIdeLayout = layout === "ide";
   const isMobileEditor = useMediaQuery("(max-width: 768px)", false) && !isIdeLayout;
@@ -426,9 +436,10 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
   const [extraReferenceDescription, setExtraReferenceDescription] = useState("");
   const [localMaskMode, setLocalMaskMode] = useState<LocalMaskMode>("brush");
   const [localMaskRadius, setLocalMaskRadius] = useState(36);
-  const [localMaskStrokes, setLocalMaskStrokes] = useState<LocalMaskStroke[]>([]);
+  const [localMaskStrokes, setLocalMaskStrokes] = useState<LocalMaskStroke[]>(() => initialMaskStrokes ?? []);
+  const restoredMaskStrokesRef = useRef<LocalMaskStroke[] | null>(initialMaskStrokes ?? null);
   const [localMaskBrushPreview, setLocalMaskBrushPreview] = useState<{ radius: number; x: number; y: number } | null>(null);
-  const [localEditNote, setLocalEditNote] = useState("");
+  const [localEditNote, setLocalEditNote] = useState(initialLocalEditNote ?? "");
   const [localLockOutside, setLocalLockOutside] = useState(false);
   const [selectedLocalReferenceKeys, setSelectedLocalReferenceKeys] = useState<string[]>([]);
   const [localUploadedReferenceFile, setLocalUploadedReferenceFile] = useState<File | null>(null);
@@ -792,6 +803,12 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
     };
   }, [extraReferencePreviewUrl]);
 
+  const onDraftChangeRef = useRef(onDraftChange);
+  onDraftChangeRef.current = onDraftChange;
+  useEffect(() => {
+    onDraftChangeRef.current?.({ recipe, maskStrokes: localMaskStrokes, localEditNote });
+  }, [recipe, localMaskStrokes, localEditNote]);
+
   useEffect(() => {
     latestRecipeRef.current = recipe;
     if (shouldNotifyRecipeRef.current) {
@@ -810,7 +827,9 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
     setLiquifyBrushPreview(null);
     setScaleBrushPoint(null);
     setLocalMaskBrushPreview(null);
-    setLocalMaskStrokes([]);
+    // A restored draft applies to the first image only.
+    setLocalMaskStrokes(restoredMaskStrokesRef.current ?? []);
+    restoredMaskStrokesRef.current = null;
     setIsScaleBrushDragging(false);
     setLiquifyScaleAmount(defaultLiquifyScaleAmount);
     setZoom(1);
@@ -1493,7 +1512,7 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
   async function handleSave() {
     const compactRecipe = compactRecipeAnnotations(latestRecipeRef.current);
     const imageBlob = await exportEditedBlob(false);
-    const fileName = `kigcraft-edit-${Date.now()}.png`;
+    const fileName = `vsk-edit-${Date.now()}.png`;
     if (downloadOnSave) downloadBlob(imageBlob, fileName);
     await onSave?.({ annotationPrompt: buildAnnotationPrompt(compactRecipe.annotations), fileName, imageBlob, recipe: compactRecipe });
   }
@@ -2432,7 +2451,7 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
         <FaceControls
           compact={isMobileEditor}
           debugValues={landmarkDebugMode}
-          keys={proportionControlKeys}
+          group="proportion"
           onChange={handleFaceControlChange}
           onReset={handleFaceControlReset}
           onSliderInteractionEnd={endParameterInteraction}
@@ -2458,7 +2477,7 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
       return (
         <FaceControls
           compact={isMobileEditor}
-          keys={faceShapeControlKeys}
+          group="shape"
           debugValues={landmarkDebugMode}
           onChange={handleFaceControlChange}
           onReset={handleFaceControlReset}

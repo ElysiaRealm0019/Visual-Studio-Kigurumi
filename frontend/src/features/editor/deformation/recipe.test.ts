@@ -127,7 +127,7 @@ describe("editor recipe", () => {
     ]);
   });
 
-  it("combines annotation content into a generation prompt segment", () => {
+  it("combines annotation content into a coordinate-first generation prompt segment", () => {
     const recipe = compactRecipeAnnotations(
       updateAnnotationNote(
         addAnnotationMark(createEmptyRecipe(), {
@@ -140,7 +140,27 @@ describe("editor recipe", () => {
     );
 
     expect(buildAnnotationPrompt(recipe.annotations)).toBe(
-      "标注 1: 25%, 50%, preserve the left eyelash curve",
+      "1. (x: 25.0%, y: 50.0%) preserve the left eyelash curve",
+    );
+  });
+
+  it("uses the center point for boxed annotation prompt coordinates", () => {
+    const recipe = compactRecipeAnnotations(
+      updateAnnotationNote(
+        addAnnotationMark(createEmptyRecipe(), {
+          endX: 0.8,
+          endY: 0.6,
+          kind: "rect",
+          x: 0.4,
+          y: 0.2,
+        }),
+        "annotation-1",
+        "replace this accessory",
+      ),
+    );
+
+    expect(buildAnnotationPrompt(recipe.annotations)).toBe(
+      "1. (x: 60.0%, y: 40.0%) replace this accessory",
     );
   });
 
@@ -326,7 +346,7 @@ describe("editor recipe", () => {
     );
 
     expect(recipe.face.vLine).toBe(0.4);
-    expect(recipe.eyes.eyeSize).toBe(0.36);
+    expect(recipe.eyes.eyeSize).toBe(0.6);
     expect(recipe.mouth.mouthSmile).toBe(0.08);
     expect(recipe.liquify).toHaveLength(1);
   });
@@ -360,16 +380,16 @@ describe("editor recipe", () => {
     expect(finalRecipe.face.midFaceLength).toBe(0.4);
     expect(finalRecipe.face.smallFace).toBe(0.4);
     expect(finalRecipe.face.jawAngle).toBe(-0.4);
-    expect(finalRecipe.eyes.eyeSize).toBe(0.36);
-    expect(finalRecipe.eyes.eyeDistance).toBe(-0.06);
-    expect(finalRecipe.eyes.eyeTilt).toBe(0.6);
+    expect(finalRecipe.eyes.eyeSize).toBe(0.6);
+    expect(finalRecipe.eyes.eyeDistance).toBe(-0.1);
+    expect(finalRecipe.eyes.eyeTilt).toBe(1);
   });
 
-  it("maps legacy eyeHeight recipes to the renamed eyeSize control", () => {
+  it.each([[0.3, 0.3], [-0.2, -0.2], [7.5, 0.6], [-7.5, -0.6]])("maps legacy eyeHeight %s once into the supported eyeSize range", (legacyValue, expected) => {
     const legacyRecipe = {
       eyes: {
         eyeDistance: 0,
-        eyeHeight: 7.5,
+        eyeHeight: legacyValue,
         eyeTilt: 0,
         eyeVertical: 0,
         eyeWidth: 0,
@@ -377,9 +397,10 @@ describe("editor recipe", () => {
     } as Parameters<typeof normalizeEditRecipe>[0];
     const recipe = normalizeEditRecipe(legacyRecipe);
 
-    // Legacy values are mapped, then clamped to the real eyeSize range.
-    expect(recipe.eyes.eyeSize).toBe(0.36);
+    expect(recipe.eyes.eyeSize).toBe(expected);
     expect(recipe.eyes.eyeHeight).toBe(0);
+    const edited = updateEyeControl(recipe, "eyeHeight", 0.2);
+    expect(normalizeEditRecipe(edited)).toEqual(edited);
   });
 });
 

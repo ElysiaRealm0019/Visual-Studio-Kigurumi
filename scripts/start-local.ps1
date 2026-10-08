@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  Start KigCraft locally without Docker: FastAPI backend + Vite frontend.
+  Start Visual Studio Kigurumi (V.S.K) locally without Docker: FastAPI backend + Vite frontend.
 
 .DESCRIPTION
   Postgres, Redis, MinIO and the worker container are not needed for local runs:

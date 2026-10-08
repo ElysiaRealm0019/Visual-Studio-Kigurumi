@@ -160,3 +160,59 @@ jsdom 无法出像素，本轮用真实管线做了人眼比对：
 2. 嘴部仿射上一轮已减半、未恢复；若用户后续对嘴部也给出类似的「幅度不足」反馈，参照本轮思路处理（提系数、保留平滑 falloff），勿再动全局常量。
 3. `ref/` 下仅有 kigurumi 实拍参考图，无原作者面板截图入库；本轮基准来自用户对话截图。
 
+
+## 9. 换用原作者 V2 形变模块（2026-10-08 晚）
+
+原作者发布了 V2 代码（本地参考：`KigCraft-2`）。第 3、8 节的手调常数已被整体替换，**以 V2 实现为准**，旧文件备份在 `runtime/v1-editor-backup/`（不入库）。
+
+- `deformation/` 整体换成 V2：新增 `faceDeformation.ts`（脸型 + 五官保护区）、`browDeformation.ts`、`falloff.ts`；网格 65×89 → 129×177；眼睛不再用仿射 + plateau，改为分区位移模型（鼓包 / 平移 / 拉伸 / 眼睑 / 眼尾）。
+- 新增 `core/imageCoordinates.ts`（recipe 可选 `imageCoordinates`，使效果与视口无关）。**我们的 EditorWorkspace 暂未接入锚定**，未设置时 pixiStage 走旧的视口单位逻辑。
+- 眉毛关键点（眉头 / 眉峰 / 眉尾）可拖动（`AnnotationLayer`），未检测到时按双眼估算并以虚线显示。
+- 关键点检测：多候选人脸框中选 HRNet 拟合最好的一个；眉点在眼线以下视为误检。
+- recipe 键名变更：`eyeLift→eyeUpperLid`、`pupilSize→eyeIrisSize`、`lowerLid→eyeLowerLid`、`eyeTail→eyeTailLift`、`browInnerSpacing→browHeadSpacing`、`browArch→browPeak`；`smallFace` 允许负值。
+- 控件：`FaceControls` 用 `group="shape" | "proportion"`；眼 / 眉 / 液化范围按 V2；液化默认强度 0.09 → 0.2。
+- 标注 prompt 格式改为 `1. (x: 75.0%, y: 25.0%) 内容`（后端按自由文本处理，无影响）。
+- 验证：`npx tsc --noEmit` 通过；vitest 24 个文件 / 340 个用例全部通过；真实页面中，眼睛大小 +1、提肌 -1 的效果干净。
+
+## 10. 生成 prompt 换用 V2 的阶段描述（2026-10-08 晚）
+
+只改了 `backend/app/generation/backends/prompting.py` 和 `backend/app/agent/runner.py`。两阶段流程（2D 设定图 → 头壳正视图 → 四视图）本来就和 V2 的「平面参考图 → 头壳渲染 → 四视图」一一对应，所以没有改流程，只换了各阶段的 prompt 文本：
+
+- 新增共享片段：`HEAD_POSE`（正脸、不歪不转，参考图是斜角也要重建成正面）、`HEAD_SHELL_LOOK`（写实影棚产品照：85mm、柔光箱布光、树脂壳面、带厚度的透明镜面眼、假发纤维高光）、`HEAD_SHELL_PRESENTATION`（头壳悬空，无底座无脖子，头发自然垂落）、`WATERMARK_LINE`。
+- 2D 设定图：按参考图原画风画，不萌化、不 3D 化；去掉兜帽/帽子等遮挡物并补全头发；只保留属于角色身份的小饰品；纯白、无阴影。
+- 头壳正视图：明确是「把平面设定翻译成实物」，不是重画；眼睛改成镜面眼（替换原来的「simplified weak nose」等写法）。
+- 四视图：单行，从左到右依次为正面、左前 3/4（45°）、侧面（90°）、背面；四个头等大、基线对齐；不出现文字和边框。
+- Agent：分析参考图之后，如果缺少可用参考，或关键信息矛盾/被遮挡（发色、瞳色、耳朵被帽子挡住、不确定是哪个角色），先问一个简短问题；否则直接生成。
+- 为满足既有测试的意图，prompt 中不出现 "stand" 一词（防止模型把支架画出来）。耳朵描述分为设定图版和头壳版。
+- 篇幅：头壳正视图 prompt 在 image API 后端约 7.7k 字符（约 1260 词）。如果 SiliconFlow / 方舟对长 prompt 效果变差，优先给 image API 单独精简 `HEAD_SHELL_LOOK`。
+- 测试：与 prompt、agent 和各后端相关的 9 个测试文件共 140 个用例全部通过，其余文件也逐个跑过。`test_generation_local_revision.py` 原先会卡死，已修复（见第 11 节）。
+
+## 11. 后端测试卡死的原因（2026-10-08）
+
+- 现象：`tests/test_generation_local_revision.py::test_local_revision_creates_front_local_revision_job` 一直挂住，整套 pytest 无法结束。
+- 原因：该文件的 `make_client` 设置了 `GENERATION_PROVIDER=codex`，提交局部重绘任务后，队列（`generation_queue.submit_job` → `asyncio.create_task`）会**真的启动 `codex exec` 子进程**（本机装了 codex，有可能消耗 Codex 额度）。不在 `with` 块里使用的 `TestClient` 每个请求都会临时开一个事件循环，请求结束时取消剩余任务。此时子进程还在 `create_subprocess_exec` 连接管道，Windows 下 asyncio 取消后会一直等子进程传输层收尾，任务因此永远不结束。
+- 修复：这些测试只校验任务创建，所以在 `make_client` 里把 `generation_queue.submit_job` 替换为空操作。现在整套后端测试 232 个用例 20 秒跑完。
+- 注意：以后写走 HTTP 接口创建生成任务的测试，要么用 `GENERATION_PROVIDER=fixture`，要么替换掉 `submit_job`，不要让真实后端在测试里运行。
+
+## 12. 编辑器本地草稿（2026-10-08）
+
+参考 V2 的 `drafts/`，但按本项目单机的定位做了精简：不做云同步，不保存撤销历史。
+
+- `frontend/src/features/editor/drafts/localDrafts.ts`：IndexedDB 库 `vsk-editor-drafts`，键为 `[projectId, versionId]`，存 `recipe`（含关键点、液化、标注）、局部生成蒙版笔画和局部生成说明。没有 IndexedDB 的环境（如 jsdom）下所有操作都不做任何事。
+- `frontend/src/features/workspace/useEditorDrafts.ts`：打开版本时先读草稿，读完才挂载编辑器；编辑停止 400ms 后写入，`pagehide` 和切换版本时立即落盘；内容变回空就删除草稿；「保存为新版本」成功后删除原版本的草稿。
+- `EditorWorkspace` 新增 props：`initialMaskStrokes`、`initialLocalEditNote`、`onDraftChange`；recipe 和关键点沿用原有的 `recipe`、`initialLandmarks`。导出 `recipeHasEdits`。
+- 交互变化：切换或关闭标签页不再弹「放弃修改」确认框（i18n 键 `workspace.discardChanges` 已删除）；有草稿的标签页显示未保存圆点。
+- 已知限制：recipe 仍未做 `imageCoordinates` 锚定（见第 9 节），液化半径、蒙版半径按预览尺寸记录，窗口大小变化后恢复的效果可能有轻微差异。V2 的工程包（`.kigcraft`）导出依赖锚定，本次未做。
+- 验证：在真实浏览器中，调整滑块后刷新页面，数值和画面都恢复；复位后草稿删除、圆点消失；只填局部生成说明时也能恢复。vitest 340 个用例全部通过。
+
+## 13. 设置页（切换后端）
+
+- 入口：首页和工作区标题栏的齿轮按钮，路由 `/settings`。
+- 可切换：对话助手 LLM（`AGENT_LLM_PROVIDER` 及 API 地址/模型）、参考图分析 LLM（`LLM_PROVIDER`）、生图后端（`IMAGE_PROVIDER` 及 SiliconFlow/Ark 模型名）。
+- 后端：`GET/PUT/DELETE /api/settings`（`backend/app/settings/router.py`）。修改写入 `RUNTIME_SETTINGS_PATH`（默认 `runtime/settings-overrides.json`，已被 gitignore），`get_settings()` 把它叠加在 `.env` 之上；PUT 传 `null` 删除单项覆盖，DELETE 全部恢复为 `.env`。
+- 可编辑字段白名单在 `config.py` 的 `EDITABLE_SETTINGS`，包括各后端的地址、模型名，以及 API Key（`agent_llm_api_key`、`siliconflow_api_key`、`ark_api_key`、`codex_bridge_token`）。
+- API Key 只写不读（`SECRET_SETTINGS`）：GET 只返回 `secrets.{key}.set/source/hint`（是否设置、来自 .env 还是本页、末 4 位），页面输入框留空表示不改；“清除本页保存的 Key”发 `null`，回落到 .env。Key 以明文存在 `runtime/settings-overrides.json`，**发布/打包前要连同 .env 一起清掉**。
+- 页面同时显示各后端是否就绪（key 是否存在、`codex`/`claude` 命令是否可执行）。
+- `APP_ENV=production` 时只读（PUT/DELETE 返回 403）；`fixture` 选项只在允许测试样例时出现。
+- 测试：`tests/conftest.py` 的 autouse fixture 把 `RUNTIME_SETTINGS_PATH` 指到临时目录，避免本机保存的设置影响测试。
+- 参考图分析新增 `LLM_PROVIDER=openai_compatible`（`backend/app/generation/backends/openai_compatible.py`）：安全检查和细节分析各发一次 `/chat/completions`，参考图缩到 `ANALYSIS_LLM_MAX_IMAGE_SIDE`（默认 1536）后以 base64 `image_url` 附上，模型必须支持图片输入。`ANALYSIS_LLM_BASE_URL/API_KEY/MODEL` 留空时沿用对话助手的地址、Key、模型（地址等于方舟地址时也会沿用 `ARK_API_KEY`），请求体合并 `AGENT_LLM_EXTRA_BODY`。尚未用真实参考图跑过，豆包 seed 2.0 pro 是否稳定输出要求的 JSON 需要实测。

@@ -1,4 +1,7 @@
+import json
+import logging
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -72,6 +75,11 @@ class Settings(BaseSettings):
     agent_llm_extra_body: str = '{"thinking": {"type": "disabled"}}'
     agent_llm_timeout_seconds: int = 120
     agent_claude_code_model: str = ""
+    # LLM_PROVIDER=openai_compatible (reference analysis). Empty values reuse the chat assistant's endpoint.
+    analysis_llm_base_url: str = ""
+    analysis_llm_api_key: str = ""
+    analysis_llm_model: str = ""
+    analysis_llm_max_image_side: int = 1536
     agent_max_steps_per_turn: int = 12
     agent_max_generations_per_turn: int = 3
     agent_dir: str = "runtime/agent"
@@ -94,10 +102,71 @@ class Settings(BaseSettings):
     trusted_proxy_hosts: str = "127.0.0.1,::1"
     generation_create_rate_limit_window_seconds: int = 300
     generation_create_rate_limit_max_requests: int = 3
-    watermark_text: str = "KigCraft AI generated"
-    watermark_domain_text: str = "KigCraft"
+    watermark_text: str = "V.S.K AI generated"
+    watermark_domain_text: str = "V.S.K"
+    # Values changed on the settings page; they override .env until reset.
+    runtime_settings_path: str = "runtime/settings-overrides.json"
+
+
+# Fields the settings page may change, with their allowed values (None = free text).
+EDITABLE_SETTINGS: dict[str, tuple[str, ...] | None] = {
+    "agent_llm_provider": ("openai_compatible", "claude_code"),
+    "agent_llm_base_url": None,
+    "agent_llm_model": None,
+    "agent_claude_code_model": None,
+    "llm_provider": ("openai_compatible", "codex", "claude_code", "fixture"),
+    "analysis_llm_base_url": None,
+    "analysis_llm_model": None,
+    "image_provider": ("codex", "codex_bridge", "siliconflow", "ark", "fixture"),
+    "siliconflow_base_url": None,
+    "siliconflow_image_model": None,
+    "ark_base_url": None,
+    "ark_image_model": None,
+    "codex_bridge_url": None,
+    "agent_llm_api_key": None,
+    "analysis_llm_api_key": None,
+    "siliconflow_api_key": None,
+    "ark_api_key": None,
+    "codex_bridge_token": None,
+}
+# Write-only fields: the API reports whether they are set, never their value.
+SECRET_SETTINGS = frozenset(
+    {"agent_llm_api_key", "analysis_llm_api_key", "siliconflow_api_key", "ark_api_key", "codex_bridge_token"}
+)
+MAX_SETTING_CHARS = 300
+
+
+def runtime_settings_file(settings: Settings) -> Path:
+    from app.core.paths import resolve_repo_path
+
+    return resolve_repo_path(settings.runtime_settings_path)
+
+
+def valid_setting(key: str, value: object) -> bool:
+    if key not in EDITABLE_SETTINGS or not isinstance(value, str) or len(value) > MAX_SETTING_CHARS:
+        return False
+    if key in SECRET_SETTINGS and (not value.strip() or any(char.isspace() for char in value.strip())):
+        return False
+    allowed = EDITABLE_SETTINGS[key]
+    return allowed is None or value in allowed
+
+
+def load_runtime_overrides(settings: Settings) -> dict[str, str]:
+    path = runtime_settings_file(settings)
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return {}
+    except (OSError, ValueError) as exc:
+        logging.getLogger("uvicorn.error").warning("Ignoring unreadable %s: %s", path, exc)
+        return {}
+    if not isinstance(raw, dict):
+        return {}
+    return {key: value.strip() for key, value in raw.items() if valid_setting(key, value)}
 
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    settings = Settings()
+    overrides = load_runtime_overrides(settings)
+    return settings.model_copy(update=overrides) if overrides else settings

@@ -54,3 +54,6 @@ skills-lock.json
 AGENTS.md
 CLAUDE.md
 GEMINI.md
+
+# Local development notes (not for publishing)
+docs/development.md

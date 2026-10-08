@@ -14,7 +14,7 @@ from app.images.watermark import WATERMARK_TEXT, apply_kigcraft_watermark  # noq
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Apply the KigCraft watermark to an image.")
+    parser = argparse.ArgumentParser(description="Apply the V.S.K watermark to an image.")
     parser.add_argument("image", type=Path, help="Input image path. Modified in place unless --output is set.")
     parser.add_argument("-o", "--output", type=Path, help="Optional output path. The input image is copied first.")
     parser.add_argument("--force", action="store_true", help="Apply the watermark even if a marker file already exists.")

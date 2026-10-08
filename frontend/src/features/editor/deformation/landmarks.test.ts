@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createDefaultLandmarks, normalizeLandmarks } from "./landmarks";
 
 describe("editor landmarks", () => {
-  it("creates default face anchors from planned proportions", () => {
+  it("creates default face anchors from established editor proportions", () => {
     const width = 1000;
     const height = 800;
     const landmarks = createDefaultLandmarks(width, height);
@@ -19,7 +19,7 @@ describe("editor landmarks", () => {
     expect(landmarks.jawRight.y).toBeCloseTo(height * 0.6);
   });
 
-  it("preserves fractional default face anchors from planned proportions", () => {
+  it("preserves fractional default face anchors from established editor proportions", () => {
     const width = 101;
     const height = 103;
     const landmarks = createDefaultLandmarks(width, height);

@@ -13,6 +13,7 @@ from app.core.paths import resolve_repo_path
 from app.generation.router import router as generation_router
 from app.prompts.router import router as prompts_router
 from app.references.router import router as references_router
+from app.settings.router import router as settings_router
 
 
 IMAGE_MEDIA_TYPES = {
@@ -80,6 +81,8 @@ def create_app() -> FastAPI:
     app.include_router(references_router, prefix="/api")
     app.include_router(agent_router)
     app.include_router(agent_router, prefix="/api")
+    app.include_router(settings_router)
+    app.include_router(settings_router, prefix="/api")
 
     return app
 

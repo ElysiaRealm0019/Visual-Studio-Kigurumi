@@ -9,6 +9,7 @@ from PIL import Image
 
 from app.core.config import get_settings
 from app.generation.job_store import job_store
+from app.generation.queue import generation_queue
 from app.generation.router import clear_jobs
 from app.main import create_app
 
@@ -44,6 +45,9 @@ def make_client(monkeypatch, **env_overrides: str) -> TestClient:
     monkeypatch.setenv("CODEX_USAGE_CHECK_ENABLED", "false")
     for key, value in env_overrides.items():
         monkeypatch.setenv(key, value)
+    # These tests only check job creation. Running the job would start a real `codex exec`, and TestClient tears
+    # down its per-request event loop while the subprocess is still starting, which hangs on Windows.
+    monkeypatch.setattr(generation_queue, "submit_job", lambda job_id, provider: None)
     get_settings.cache_clear()
     return TestClient(create_app())
 

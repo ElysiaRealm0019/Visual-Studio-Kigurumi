@@ -1,15 +1,18 @@
-# KigCraft
+# Visual Studio Kigurumi (V.S.K)
 
 中文 | [English](README.md)
 
 <p align="center">
-  <img src="frontend/public/logo.png" alt="KigCraft logo" width="160" />
+  <img src="frontend/public/logo.png" alt="Visual Studio Kigurumi logo" width="160" />
 </p>
 
-KigCraft 是一个用于制作 Kigurumi 头壳预览图的网页工具。每个角色是一个项目：在右侧和 Agent 对话，让它分析参考图、生成和修改正视图、出四视图；也可以在编辑器里用手动工具（比例、脸型、眼睛、眉毛、嘴巴、液化、标注、局部生成）直接调整。所有结果都进入项目的版本历史。
+Visual Studio Kigurumi（V.S.K）是一个用于制作 Kigurumi 头壳预览图的网页工具，基于 [KigCraft](https://kigcraft.com) 开发。每个角色是一个项目：在右侧和 Agent 对话，让它分析参考图、生成和修改正视图、出四视图；也可以在编辑器里用手动工具（比例、脸型、眼睛、眉毛、嘴巴、液化、标注、局部生成）直接调整。所有结果都进入项目的版本历史。
 
-开发者：SeaRabbit / 海兔  
-用户交流群：QQ 934715528
+## 关于本项目
+
+V.S.K 是在 [KigCraft](https://kigcraft.com)（原作者 SeaRabbit / 海兔）基础上开发的独立项目。对话式工作流、工作区形态和生成管线源自 KigCraft 代码库；本项目在其之上扩展了可插拔生成后端（Codex、Claude Code、SiliconFlow、火山方舟）、编辑器形变优化和生成提示词调优。
+
+上游信息：KigCraft（SeaRabbit / 海兔）— <https://kigcraft.com> — 用户交流群 QQ 934715528。
 
 ## 功能
 
@@ -24,7 +27,7 @@ KigCraft 是一个用于制作 Kigurumi 头壳预览图的网页工具。每个�
 
 ## 许可证
 
-KigCraft 使用 GPL-3.0-or-later 发布。详见 [LICENSE](LICENSE)。
+Visual Studio Kigurumi (V.S.K) 使用 GPL-3.0-or-later 发布（延续上游 KigCraft 的许可证）。详见 [LICENSE](LICENSE)。
 
 ## 环境要求
 
@@ -107,7 +110,7 @@ Claude 模型不能生成图片，因此 `LLM_PROVIDER=claude_code` 时必须另
 - 四视图：已确认的正视图 + `ref/turnaround-reference.png`；
 - 局部重绘：只把蒙版区域裁出来编辑，再按蒙版合成回原图。
 
-四视图按模型原生分辨率输出，不做放大。请求时会关闭平台水印，KigCraft 自己的 AI 生成水印会强制添加。
+四视图按模型原生分辨率输出，不做放大。请求时会关闭平台水印，V.S.K 自己的 AI 生成水印会强制添加。
 
 **火山方舟（Agent Plan）**：`IMAGE_PROVIDER=ark`，默认模型 `doubao-seedream-5-0-pro`，所有参考图放在同一个 `image` 列表里一起发送，数量上限由 `ARK_MAX_REFERENCE_IMAGES` 控制（默认 4 张，超出部分会拼成一张拼图）。需要 Agent Plan 的专属 API Key（`ARK_API_KEY`），其他方舟 Key 不能用于 Agent Plan。计费按 AFP 抵扣：第一张输入图免费，之后每张 10 AFP；每张输出图 150 AFP（超过约 261 万像素为 300）。四视图默认请求 `1920x1280`（3:2，按 150 AFP 计）；如果设成 `2K`，模型会按参考图比例自选尺寸，后端再用背景色补边到 3:2。
 
@@ -185,7 +188,7 @@ Fixture 和 mock 生成只用于测试或本地 smoke run，不要在生产环�
 .\scripts\deploy-ssh.ps1 `
   -KeyPath "$env:USERPROFILE\.ssh\id_ed25519" `
   -SshTarget "deploy@example.com" `
-  -RemoteAppDir "/opt/kigcraft"
+  -RemoteAppDir "/opt/vsk"
 ```
 
 脚本会上传当前提交的 `git archive`，在服务器上解压，检查生产环境没有使用 fixture 生成，然后用 Docker Compose 重建 `api`、`worker` 和 `frontend`。
@@ -199,6 +202,7 @@ cd frontend
 npm install
 npm run dev
 npm run build
+npm test
 ```
 
 后端：
@@ -209,3 +213,5 @@ python -m venv .venv
 .\.venv\Scripts\python -m pip install -e .[dev]
 .\.venv\Scripts\python -m pytest
 ```
+
+设计文档见 [docs/plans](docs/plans/)。

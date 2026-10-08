@@ -40,8 +40,10 @@ import {
   type EditorWorkspaceHandle,
 } from "../editor/EditorWorkspace";
 import { LanguageSelector } from "../i18n/LanguageSelector";
+import { SettingsLink } from "../settings/SettingsLink";
 import { ThemeToggle } from "./ThemeToggle";
 import { AgentPanel } from "./AgentPanel";
+import { useEditorDrafts } from "./useEditorDrafts";
 import { ExplorerPanel } from "./ExplorerPanel";
 
 type Activity = "explorer" | EditorTool;
@@ -77,6 +79,7 @@ export function WorkspacePage() {
   const activeVersion = images.find((image) => image.id === activeTabId) ?? null;
   const dirty = Boolean(editorStatus?.dirty);
   const availableTools = isTurnaroundRole(activeVersion?.role) ? TURNAROUND_TOOLS : undefined;
+  const drafts = useEditorDrafts(projectId, activeTabId);
 
   useEffect(() => window.localStorage.setItem(AGENT_OPEN_KEY, agentOpen ? "1" : "0"), [agentOpen]);
 
@@ -94,14 +97,11 @@ export function WorkspacePage() {
   }, [projectId]);
 
   const openVersion = useCallback(
-    (imageId: string, { force = false }: { force?: boolean } = {}) => {
-      if (!force && imageId !== activeTabId && editorRef.current?.isDirty() && !window.confirm(t("workspace.discardChanges"))) {
-        return;
-      }
+    (imageId: string) => {
       setOpenTabs((tabs) => (tabs.includes(imageId) ? tabs : [...tabs, imageId]));
       setActiveTabId(imageId);
     },
-    [activeTabId, t],
+    [],
   );
 
   // Open the current version on load, then follow new versions as they arrive (unless the user is mid-edit).
@@ -111,7 +111,7 @@ export function WorkspacePage() {
     if (seenImageIds.current === null) {
       seenImageIds.current = new Set(ids);
       const initial = conversation.state.current_front_id ?? conversation.state.current_design_id ?? ids[ids.length - 1];
-      if (initial) openVersion(initial, { force: true });
+      if (initial) openVersion(initial);
       return;
     }
     const fresh = ids.filter((id) => !seenImageIds.current?.has(id));
@@ -121,7 +121,7 @@ export function WorkspacePage() {
     if (editorRef.current?.isDirty()) {
       setOpenTabs((tabs) => (tabs.includes(newest) ? tabs : [...tabs, newest]));
     } else {
-      openVersion(newest, { force: true });
+      openVersion(newest);
     }
   }, [conversation, openVersion]);
 
@@ -131,7 +131,6 @@ export function WorkspacePage() {
   }, [availableTools, editorTool]);
 
   function closeTab(imageId: string) {
-    if (imageId === activeTabId && editorRef.current?.isDirty() && !window.confirm(t("workspace.discardChanges"))) return;
     setOpenTabs((tabs) => {
       const next = tabs.filter((id) => id !== imageId);
       if (imageId === activeTabId) setActiveTabId(next[next.length - 1] ?? null);
@@ -198,8 +197,9 @@ export function WorkspacePage() {
       });
       const created = updated.state.images[updated.state.images.length - 1];
       seenImageIds.current?.add(created.id);
+      drafts.discard(activeVersion.id);
       await refresh();
-      openVersion(created.id, { force: true });
+      openVersion(created.id);
       setToast({ text: t("workspace.savedVersion", { id: created.id }) });
     } catch (error) {
       reportError(error);
@@ -374,7 +374,9 @@ export function WorkspacePage() {
                     {id}
                     <span className="text-[var(--ide-text-faint)]">{t(`workspace.roles.${image.role}`)}</span>
                   </button>
-                  {isActive && dirty ? <span className="ide-tab-dirty" title={t("workspace.unsaved")} /> : null}
+                  {(isActive && dirty) || drafts.draftIds.has(id) ? (
+                    <span className="ide-tab-dirty" title={t("workspace.unsaved")} />
+                  ) : null}
                   <button aria-label={t("workspace.closeTab")} className="ide-tab-close" onClick={() => closeTab(id)} type="button">
                     <IconX size={12} />
                   </button>
@@ -416,28 +418,35 @@ export function WorkspacePage() {
                 </div>
               </div>
               <div className="ide-canvas">
-                <EditorWorkspace
-                  activeTool={availableTools && !availableTools.includes(editorTool) ? availableTools[0] : editorTool}
-                  availableTools={availableTools}
-                  candidateIndex={1}
-                  downloadOnSave={false}
-                  imageHeight={activeVersion.height}
-                  imageUrl={versionSourceUrl(projectId, activeVersion.id)}
-                  imageWidth={activeVersion.width}
-                  isRegenerating={running}
-                  key={activeVersion.id}
-                  layout="ide"
-                  localReferenceOptions={localReferenceOptions}
-                  onActiveToolChange={setEditorTool}
-                  onLocalGenerate={handleLocalGenerate}
-                  onRegenerate={handleAnnotatedRegenerate}
-                  onSave={handleSave}
-                  onStatusChange={setEditorStatus}
-                  panelTarget={activity !== "explorer" && sidebarOpen ? panelEl : null}
-                  ref={editorRef}
-                  showRegenerateActions={false}
-                  toolbarTarget={toolbarEl}
-                />
+                {drafts.loaded ? (
+                  <EditorWorkspace
+                    activeTool={availableTools && !availableTools.includes(editorTool) ? availableTools[0] : editorTool}
+                    availableTools={availableTools}
+                    candidateIndex={1}
+                    downloadOnSave={false}
+                    imageHeight={activeVersion.height}
+                    imageUrl={versionSourceUrl(projectId, activeVersion.id)}
+                    initialLandmarks={drafts.loaded.draft?.recipe.landmarks ?? null}
+                    initialLocalEditNote={drafts.loaded.draft?.localEditNote}
+                    initialMaskStrokes={drafts.loaded.draft?.maskStrokes}
+                    onDraftChange={drafts.schedule}
+                    recipe={drafts.loaded.draft?.recipe}
+                    imageWidth={activeVersion.width}
+                    isRegenerating={running}
+                    key={activeVersion.id}
+                    layout="ide"
+                    localReferenceOptions={localReferenceOptions}
+                    onActiveToolChange={setEditorTool}
+                    onLocalGenerate={handleLocalGenerate}
+                    onRegenerate={handleAnnotatedRegenerate}
+                    onSave={handleSave}
+                    onStatusChange={setEditorStatus}
+                    panelTarget={activity !== "explorer" && sidebarOpen ? panelEl : null}
+                    ref={editorRef}
+                    showRegenerateActions={false}
+                    toolbarTarget={toolbarEl}
+                  />
+                ) : null}
               </div>
             </>
           ) : (
@@ -599,7 +608,7 @@ function TitleBar({
       <Link aria-label={t("workspace.home")} className="ide-icon-button" title={t("workspace.home")} to="/">
         <IconArrowLeft size={16} />
       </Link>
-      <img alt="KigCraft" className="h-5 w-5" src="/logo.png" />
+      <img alt="Visual Studio Kigurumi" className="h-5 w-5" src="/logo.png" />
       <div className="ide-titlebar-title">
         <Link className="hover:text-[var(--ide-text)]" to="/">
           {t("workspace.projects")}
@@ -632,6 +641,7 @@ function TitleBar({
       >
         <IconLayoutSidebarRight size={16} />
       </button>
+      <SettingsLink />
       <ThemeToggle />
       <LanguageSelector compact />
     </header>

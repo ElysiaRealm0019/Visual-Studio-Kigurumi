@@ -9,6 +9,7 @@ from app.generation.backends.codex import (
     request_codex_bridge_cancel,
 )
 from app.generation.backends.fixture import FixtureImageProvider, MockProvider
+from app.generation.backends.openai_compatible import OpenAICompatibleLLMBackend
 from app.generation.backends.prompting import _format_detail_lock_for_prompt
 from app.generation.backends.siliconflow import SiliconFlowImageBackend
 from app.generation.backends.types import (
@@ -29,6 +30,7 @@ __all__ = [
     "FixtureImageProvider",
     "ImageGenerationProvider",
     "MockProvider",
+    "OpenAICompatibleLLMBackend",
     "ProviderOutput",
     "ProviderUsage",
     "ReferenceRejectedError",
@@ -42,7 +44,7 @@ __all__ = [
     "resolve_backend_names",
 ]
 
-LLM_BACKENDS = {"fixture", "codex", "claude_code"}
+LLM_BACKENDS = {"fixture", "codex", "claude_code", "openai_compatible"}
 IMAGE_BACKENDS = {"fixture", "codex", "codex_bridge", "siliconflow", "ark"}
 _LEGACY_BACKENDS: dict[str, tuple[str, str]] = {
     "fixture": ("fixture", "fixture"),
@@ -118,6 +120,8 @@ def _build_llm_backend(name: str) -> ImageGenerationProvider:
         return FixtureImageProvider()
     if name == "claude_code":
         return ClaudeCodeLLMBackend()
+    if name == "openai_compatible":
+        return OpenAICompatibleLLMBackend()
     return CodexImageProvider()
 
 

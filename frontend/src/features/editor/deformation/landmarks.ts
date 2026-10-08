@@ -10,11 +10,11 @@ export type EyeRegion = {
   radiusY: number;
 };
 
-/** Eyebrow points: inner end (towards the face centre), arch peak, outer end. Normalised 0-1. */
-export type BrowPoints = {
+/** Brow line from the end nearest the face center to the tail; peak is the highest middle point. */
+export type BrowLandmark = {
   inner: LandmarkPoint;
-  peak: LandmarkPoint;
   outer: LandmarkPoint;
+  peak: LandmarkPoint;
 };
 
 export type ManualLandmarks = {
@@ -31,10 +31,18 @@ export type ManualLandmarks = {
     right: EyeRegion;
   };
   brows?: {
-    left: BrowPoints;
-    right: BrowPoints;
+    left: BrowLandmark;
+    right: BrowLandmark;
   };
 };
+
+export type BrowLandmarkKey =
+  | "leftBrowInner"
+  | "leftBrowPeak"
+  | "leftBrowOuter"
+  | "rightBrowInner"
+  | "rightBrowPeak"
+  | "rightBrowOuter";
 
 export type ManualLandmarkKey =
   | "leftEye"
@@ -44,7 +52,36 @@ export type ManualLandmarkKey =
   | "jawRight"
   | "mouthCenter"
   | "mouthLeft"
-  | "mouthRight";
+  | "mouthRight"
+  | BrowLandmarkKey;
+
+const browLandmarkParts: Record<BrowLandmarkKey, ["left" | "right", keyof BrowLandmark]> = {
+  leftBrowInner: ["left", "inner"],
+  leftBrowPeak: ["left", "peak"],
+  leftBrowOuter: ["left", "outer"],
+  rightBrowInner: ["right", "inner"],
+  rightBrowPeak: ["right", "peak"],
+  rightBrowOuter: ["right", "outer"],
+};
+
+function isBrowLandmarkKey(key: ManualLandmarkKey): key is BrowLandmarkKey {
+  return key in browLandmarkParts;
+}
+
+/** A landmark point by key; brow points fall back to the eye-based estimate. */
+export function getManualLandmarkPoint(landmarks: ManualLandmarks, key: ManualLandmarkKey): LandmarkPoint {
+  if (!isBrowLandmarkKey(key)) return landmarks[key];
+  const [side, part] = browLandmarkParts[key];
+  return resolveBrowLandmarks(landmarks)[side][part];
+}
+
+/** Moves one landmark. Moving an estimated brow point keeps the other estimated brow points where they show. */
+export function setManualLandmarkPoint(landmarks: ManualLandmarks, key: ManualLandmarkKey, point: LandmarkPoint): ManualLandmarks {
+  if (!isBrowLandmarkKey(key)) return { ...landmarks, [key]: point };
+  const [side, part] = browLandmarkParts[key];
+  const brows = resolveBrowLandmarks(landmarks);
+  return { ...landmarks, brows: { ...brows, [side]: { ...brows[side], [part]: point } } };
+}
 
 export type DeformationRegions = {
   eyeCenter: LandmarkPoint;
@@ -116,21 +153,6 @@ export function completeLandmarks(landmarks: Partial<ManualLandmarks> | ManualLa
   };
 }
 
-/** Detected brows when available, otherwise an estimate above each eye (for manual or legacy landmarks). */
-export function resolveBrows(landmarks: ManualLandmarks): { left: BrowPoints; right: BrowPoints } {
-  if (landmarks.brows) return landmarks.brows;
-  const eyeDistance = Math.max(0.08, Math.abs(landmarks.rightEye.x - landmarks.leftEye.x));
-  const lift = eyeDistance * 0.42;
-  const halfLength = eyeDistance * 0.3;
-  const estimate = (eye: LandmarkPoint, outward: number): BrowPoints => ({
-    inner: { x: eye.x - outward * halfLength * 0.9, y: eye.y - lift * 0.92 },
-    peak: { x: eye.x + outward * halfLength * 0.25, y: eye.y - lift * 1.08 },
-    outer: { x: eye.x + outward * halfLength, y: eye.y - lift * 0.9 },
-  });
-  const leftOutward = landmarks.leftEye.x <= landmarks.rightEye.x ? -1 : 1;
-  return { left: estimate(landmarks.leftEye, leftOutward), right: estimate(landmarks.rightEye, -leftOutward) };
-}
-
 export function normalizeLandmarks(landmarks: ManualLandmarks, width: number, height: number): ManualLandmarks {
   const completed = completeLandmarks(landmarks);
 
@@ -144,20 +166,34 @@ export function normalizeLandmarks(landmarks: ManualLandmarks, width: number, he
     mouthLeft: normalizePoint(completed.mouthLeft, width, height),
     mouthRight: normalizePoint(completed.mouthRight, width, height),
     eyeRegions: completed.eyeRegions,
-    brows: completed.brows
-      ? {
-          left: normalizeBrow(completed.brows.left, width, height),
-          right: normalizeBrow(completed.brows.right, width, height),
-        }
-      : undefined,
+    brows: completed.brows,
   };
 }
 
-function normalizeBrow(brow: BrowPoints, width: number, height: number): BrowPoints {
+/**
+ * Detected brows, or brows estimated above the eyes for landmarks without them.
+ * Anime brows usually sit a little under half the eye distance above the eye center.
+ */
+export function resolveBrowLandmarks(landmarks: ManualLandmarks): { left: BrowLandmark; right: BrowLandmark } {
+  if (landmarks.brows) return landmarks.brows;
+
+  const eyeDistance = Math.max(0.02, Math.abs(landmarks.rightEye.x - landmarks.leftEye.x));
+  const estimate = (eye: LandmarkPoint, otherEye: LandmarkPoint): BrowLandmark => {
+    const inward = eye.x <= otherEye.x ? 1 : -1;
+    const y = eye.y - eyeDistance * 0.45;
+    const halfLength = eyeDistance * 0.2;
+    const centerX = eye.x + inward * eyeDistance * 0.04;
+
+    return {
+      inner: { x: centerX + inward * halfLength, y },
+      outer: { x: centerX - inward * halfLength, y },
+      peak: { x: centerX - inward * halfLength * 0.3, y: y - eyeDistance * 0.02 },
+    };
+  };
+
   return {
-    inner: normalizePoint(brow.inner, width, height),
-    peak: normalizePoint(brow.peak, width, height),
-    outer: normalizePoint(brow.outer, width, height),
+    left: estimate(landmarks.leftEye, landmarks.rightEye),
+    right: estimate(landmarks.rightEye, landmarks.leftEye),
   };
 }
 

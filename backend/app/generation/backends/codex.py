@@ -553,7 +553,7 @@ def _build_codex_local_revision_prompt(prompt_payload: dict[str, Any], output_in
     reference_descriptions = prompt_payload.get("reference_descriptions") or []
     return "\n".join(
         [
-            "You are editing one existing KigCraft front-view image locally.",
+            "You are editing one existing V.S.K front-view image locally.",
             IMAGE_GENERATION_TOOL_REQUIREMENT,
             TOOL_OUTPUT_COLLECTION_NOTE,
             "",

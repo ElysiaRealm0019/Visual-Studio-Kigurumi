@@ -3,6 +3,17 @@ from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
 
+@pytest.fixture(autouse=True)
+def isolated_runtime_settings(monkeypatch: pytest.MonkeyPatch, tmp_path):
+    """Keep overrides saved from the local settings page out of the tests."""
+    from app.core.config import get_settings
+
+    monkeypatch.setenv("RUNTIME_SETTINGS_PATH", str(tmp_path / "settings-overrides.json"))
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
+
+
 @pytest.fixture
 def test_app(monkeypatch: pytest.MonkeyPatch, tmp_path) -> FastAPI:
     from app.core.config import get_settings

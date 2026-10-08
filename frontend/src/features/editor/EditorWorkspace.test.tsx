@@ -351,7 +351,7 @@ describe("EditorWorkspace", () => {
 
       await waitFor(() =>
         expect(onRegenerate).toHaveBeenCalledWith(expect.objectContaining({
-          annotationPrompt: "标注 1: 75%, 25%, keep right eye highlight",
+          annotationPrompt: "1. (x: 75.0%, y: 25.0%) keep right eye highlight",
           recipe: expect.objectContaining({
             annotations: [
               expect.objectContaining({
@@ -677,7 +677,7 @@ describe("EditorWorkspace", () => {
     await waitFor(() =>
       expect(pixiMocks.applyRecipe).toHaveBeenLastCalledWith(expect.objectContaining({
         face: expect.objectContaining({ faceWidth: -0.048 }),
-        eyes: expect.objectContaining({ eyeHeight: 0.0126, eyeSize: 0.0342 }),
+        eyes: expect.objectContaining({ eyeHeight: 0.021, eyeSize: 0.057 }),
       })),
     );
 
@@ -686,11 +686,11 @@ describe("EditorWorkspace", () => {
     await waitFor(() =>
       expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
         annotationPrompt: "",
-        fileName: expect.stringMatching(/^kigcraft-edit-\d+\.png$/),
+        fileName: expect.stringMatching(/^vsk-edit-\d+\.png$/),
         imageBlob: expect.any(Blob),
         recipe: expect.objectContaining({
           face: expect.objectContaining({ faceWidth: -0.048 }),
-          eyes: expect.objectContaining({ eyeHeight: 0.0126, eyeSize: 0.0342 }),
+          eyes: expect.objectContaining({ eyeHeight: 0.021, eyeSize: 0.057 }),
         }),
       })),
     );
@@ -742,7 +742,7 @@ describe("EditorWorkspace", () => {
     moveSlider("eye-control-eyeSize", "ArrowRight", 10);
     await waitFor(() =>
       expect(pixiMocks.applyRecipe).toHaveBeenLastCalledWith(expect.objectContaining({
-        eyes: expect.objectContaining({ eyeSize: 0.036 }),
+        eyes: expect.objectContaining({ eyeSize: 0.06 }),
       })),
     );
 

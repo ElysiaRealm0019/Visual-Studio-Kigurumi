@@ -1,15 +1,18 @@
-# KigCraft
+# Visual Studio Kigurumi (V.S.K)
 
 [中文](README.zh-CN.md) | English
 
 <p align="center">
-  <img src="docs/logo.png" alt="KigCraft logo" width="160" />
+  <img src="docs/logo.png" alt="Visual Studio Kigurumi logo" width="160" />
 </p>
 
-KigCraft is a web tool for making Kigurumi head-shell preview images. Each character is a project: chat with the agent on the right to analyse references, generate and revise the front view, and make the four-view sheet, or adjust the image directly with the manual tools (proportion, face, eyes, brows, mouth, liquify, annotation, local generation). Every result lands in the project's version history.
+Visual Studio Kigurumi (V.S.K) is a web tool for making Kigurumi head-shell preview images, developed based on [KigCraft](https://kigcraft.com). Each character is a project: chat with the agent on the right to analyse references, generate and revise the front view, and make the four-view sheet, or adjust the image directly with the manual tools (proportion, face, eyes, brows, mouth, liquify, annotation, local generation). Every result lands in the project's version history.
 
-Developer: SeaRabbit / 海兔  
-User group: QQ 934715528
+## About this project
+
+V.S.K is an independent project developed based on [KigCraft](https://kigcraft.com), the original Kigurumi head preview tool by SeaRabbit / 海兔. The conversational workflow, workspace concept, and generation pipeline come from the KigCraft codebase; this project extends them with pluggable generation backends (Codex, Claude Code, SiliconFlow, Volcengine Ark), editor deformation refinements, and generation prompt tuning.
+
+Upstream credits: KigCraft by SeaRabbit / 海兔 — <https://kigcraft.com> — user group QQ 934715528.
 
 ## Features
 
@@ -24,7 +27,7 @@ User group: QQ 934715528
 
 ## License
 
-KigCraft is released under GPL-3.0-or-later. See [LICENSE](LICENSE).
+Visual Studio Kigurumi (V.S.K) is released under GPL-3.0-or-later, following the upstream KigCraft license. See [LICENSE](LICENSE).
 
 ## Requirements
 
@@ -107,7 +110,7 @@ Claude models cannot generate images, so `LLM_PROVIDER=claude_code` always needs
 - four-view sheet: the approved front view + `ref/turnaround-reference.png`;
 - local revision: only the masked region is cropped and edited, then composited back with the mask.
 
-Four-view sheets keep the model's native resolution and are not upscaled. The platform watermark is turned off in the request, and KigCraft's own AI-generated watermark is always applied.
+Four-view sheets keep the model's native resolution and are not upscaled. The platform watermark is turned off in the request, and V.S.K's own AI-generated watermark is always applied.
 
 **Volcengine Ark (Agent Plan)**: `IMAGE_PROVIDER=ark` uses `doubao-seedream-5-0-pro` by default and sends all reference images in one `image` list, capped by `ARK_MAX_REFERENCE_IMAGES` (default 4; extra references are merged into one contact sheet). It needs the Agent Plan dedicated API key (`ARK_API_KEY`); other Ark keys do not work with Agent Plan. Usage is deducted in AFP: the first input image is free, each further one costs 10 AFP, and each output image costs 150 AFP (300 above about 2.61 MP). Four-view sheets request `1920x1280` by default (3:2, billed at 150 AFP); with `2K` the model picks its own aspect ratio and the backend pads the result to 3:2 with the background colour.
 
@@ -142,7 +145,7 @@ This repository does not ship product reference images. You need to create `ref/
 | `ref/product-reference.png` | Finished-product style reference for front-view generation |
 | `ref/turnaround-reference.png` | Finished-product style reference for four-view generation |
 
-Use PNG files with the exact filenames above., such as studio background, shell material, wig texture, framing, and lighting. They are not the character reference images uploaded through the UI.
+Use PNG files with the exact filenames above. They constrain the finished head-shell style of generated results: studio background, shell material, wig texture, framing, and lighting. They are not the character reference images uploaded through the UI.
 
 `ref/` is listed in `.gitignore`, so private reference assets stay on your machine and are not committed to Git.
 
@@ -183,7 +186,7 @@ Deploy the current Git commit over SSH:
 .\scripts\deploy-ssh.ps1 `
   -KeyPath "$env:USERPROFILE\.ssh\id_ed25519" `
   -SshTarget "deploy@example.com" `
-  -RemoteAppDir "/opt/kigcraft"
+  -RemoteAppDir "/opt/vsk"
 ```
 
 The script uploads a `git archive`, extracts it on the server, checks that production is not using fixture generation, and rebuilds `api`, `worker`, and `frontend` with Docker Compose.
@@ -197,6 +200,7 @@ cd frontend
 npm install
 npm run dev
 npm run build
+npm test
 ```
 
 Backend:
@@ -207,3 +211,5 @@ python -m venv .venv
 .\.venv\Scripts\python -m pip install -e .[dev]
 .\.venv\Scripts\python -m pytest
 ```
+
+Design notes live in [docs/plans](docs/plans/).

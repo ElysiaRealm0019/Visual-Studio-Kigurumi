@@ -12,6 +12,7 @@ import {
   type ConversationSummary,
 } from "../agent/agentApi";
 import { LanguageSelector } from "../i18n/LanguageSelector";
+import { SettingsLink } from "../settings/SettingsLink";
 import { ThemeToggle } from "./ThemeToggle";
 
 export function ProjectsPage() {
@@ -46,9 +47,10 @@ export function ProjectsPage() {
   return (
     <div className="ide-home">
       <header className="ide-titlebar" style={{ height: 44 }}>
-        <img alt="KigCraft" className="h-6 w-6" src="/logo.png" />
-        <span className="text-sm font-semibold">KigCraft</span>
+        <img alt="Visual Studio Kigurumi" className="h-6 w-6" src="/logo.png" />
+        <span className="text-sm font-semibold">Visual Studio Kigurumi</span>
         <span className="flex-1" />
+        <SettingsLink />
         <ThemeToggle />
         <LanguageSelector compact />
       </header>

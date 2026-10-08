@@ -1,6 +1,6 @@
 ---
 version: "alpha"
-name: "KigCraft paper workbench"
+name: "Visual Studio Kigurumi paper workbench"
 description: "A retro paper workbench for image generation, review, and editing."
 colors:
   primary: "#151D24"

@@ -10,8 +10,8 @@ from app.core.paths import resolve_repo_path
 
 logger = logging.getLogger("uvicorn.error")
 
-WATERMARK_TEXT = "KigCraft AI generated"
-WATERMARK_DOMAIN_TEXT = "KigCraft"
+WATERMARK_TEXT = "V.S.K AI generated"
+WATERMARK_DOMAIN_TEXT = "V.S.K"
 WATERMARK_ADD_CORNER_LOGO = True
 WATERMARK_ADD_TILED_DOMAIN = True
 

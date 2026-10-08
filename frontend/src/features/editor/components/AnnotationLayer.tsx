@@ -1,6 +1,9 @@
 import type { PointerEvent } from "react";
 import { IconTrash } from "@tabler/icons-react";
-import { resolveBrows, type EyeRegion, type LandmarkPoint, type ManualLandmarkKey, type ManualLandmarks } from "../deformation/landmarks";
+import {
+  getManualLandmarkPoint,
+  resolveBrowLandmarks,
+  type EyeRegion, type LandmarkPoint, type ManualLandmarkKey, type ManualLandmarks } from "../deformation/landmarks";
 import type { AnnotationMark, DetailRegion, LiquifyStroke } from "../deformation/recipe";
 
 export type AnnotationLayerProps = {
@@ -40,6 +43,12 @@ const landmarkLabels: Array<{ key: ManualLandmarkKey; label: string }> = [
   { key: "mouthLeft", label: "左嘴角" },
   { key: "mouthCenter", label: "嘴巴" },
   { key: "mouthRight", label: "右嘴角" },
+  { key: "leftBrowInner", label: "左眉头" },
+  { key: "leftBrowPeak", label: "左眉峰" },
+  { key: "leftBrowOuter", label: "左眉尾" },
+  { key: "rightBrowInner", label: "右眉头" },
+  { key: "rightBrowPeak", label: "右眉峰" },
+  { key: "rightBrowOuter", label: "右眉尾" },
 ];
 
 function toPercent(value: number) {
@@ -436,14 +445,18 @@ export function AnnotationLayer({
 
       {showLandmarks && landmarks
         ? landmarkLabels.map(({ key, label }) => {
-            const landmark = landmarks[key];
+            const landmark = getManualLandmarkPoint(landmarks, key);
             if (!landmark) return null;
             const selected = selectedLandmarkKey === key;
+            const brow = key.includes("Brow");
+            // Brows without detection are estimated from the eyes; show them fainter until confirmed.
+            const estimated = brow && !landmarks.brows;
 
             return (
               <div
                 aria-label={`landmark ${label}`}
                 aria-selected={selected}
+                data-estimated={estimated || undefined}
                 data-testid={`landmark-${key}`}
                 key={key}
                 onPointerDown={(event) => {
@@ -466,16 +479,16 @@ export function AnnotationLayer({
               >
                 <span
                   style={{
-                    background: "var(--kb-accent)",
-                    border: "2px solid var(--kb-panel)",
+                    background: brow ? "rgb(20, 160, 140)" : "var(--kb-accent)",
+                    border: estimated ? "2px dashed var(--kb-panel)" : "2px solid var(--kb-panel)",
                     borderRadius: 999,
                     boxShadow: selected
-                      ? "0 0 0 7px rgba(209, 82, 47, 0.28), var(--kb-hard-shadow-sm)"
-                      : "0 0 0 5px rgba(209, 82, 47, 0.16)",
+                      ? `0 0 0 7px ${brow ? "rgba(20, 160, 140, 0.3)" : "rgba(209, 82, 47, 0.28)"}, var(--kb-hard-shadow-sm)`
+                      : `0 0 0 5px ${brow ? "rgba(20, 160, 140, 0.16)" : "rgba(209, 82, 47, 0.16)"}`,
                     display: "block",
-                    height: 18,
-                    opacity: 0.72,
-                    width: 18,
+                    height: brow ? 12 : 18,
+                    opacity: estimated ? 0.45 : 0.72,
+                    width: brow ? 12 : 18,
                   }}
                 />
               </div>
@@ -513,7 +526,7 @@ export function AnnotationLayer({
 
       {showLandmarks && landmarks
         ? (() => {
-            const brows = resolveBrows(landmarks);
+            const brows = resolveBrowLandmarks(landmarks);
             const sides = [brows.left, brows.right];
             return (
               <>
@@ -535,26 +548,6 @@ export function AnnotationLayer({
                     />
                   ))}
                 </svg>
-                {sides.flatMap((brow, sideIndex) =>
-                  [brow.inner, brow.peak, brow.outer].map((point, pointIndex) => (
-                    <span
-                      data-testid={`brow-point-${sideIndex}-${pointIndex}`}
-                      key={`brow-${sideIndex}-${pointIndex}`}
-                      style={{
-                        background: "rgb(52, 211, 153)",
-                        border: "1.5px solid rgba(255,255,255,0.85)",
-                        borderRadius: 999,
-                        height: 9,
-                        left: toPercent(point.x),
-                        pointerEvents: "none",
-                        position: "absolute",
-                        top: toPercent(point.y),
-                        transform: "translate(-50%, -50%)",
-                        width: 9,
-                      }}
-                    />
-                  )),
-                )}
               </>
             );
           })()

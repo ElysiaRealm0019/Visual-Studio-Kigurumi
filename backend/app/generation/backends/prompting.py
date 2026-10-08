@@ -36,30 +36,114 @@ PRODUCT_STYLE_LINE_REPLACEMENTS: dict[tuple[str, str], str] = {
     ),
 }
 
+# Shared wording adapted from the upstream KigCraft V2 stage briefs (app/conversation/stages.py, GPL-3.0-or-later).
+
+# Pose rule for every front image (2D design and head shell). Four-view sheets state their own angles.
+HEAD_POSE = (
+    "Head pose: the head is upright and faces the camera straight on, with no tilt, roll, turn or nod: the face's "
+    "midline is vertical, the eyes and the mouth line are level, the chin is level, and the head is centred and "
+    "symmetric, with both eyes at exactly the same height mirrored across the face centerline and the nose and mouth "
+    "on that centerline. This holds even when a reference shows the character at an angle, tilted, turned, looking up "
+    "or down or leaning: rebuild the head upright and frontal, inferring the hidden side conservatively from the visible "
+    "hair and features, and never copy a three-quarter, turned or tilted pose from the references."
+)
+
+# How a head-shell image should look: a photograph of a physical object, not an illustration.
+HEAD_SHELL_LOOK = (
+    "Look: a photorealistic studio product photograph of a real, physical, hand-made kigurumi head shell wearing its wig, "
+    "the kind of catalogue photo a professional maker shoots for a commission. Shot on a full-frame camera with an 85 mm "
+    "lens at f/8, tack sharp across the face and fringe with only a gentle falloff toward the far hair ends, true colour, "
+    "natural dynamic range with soft highlights and open shadows, fine real-world surface texture. "
+    "It must not read as anime art, an illustration, a 3D render, a figure or a digital painting: no outlines or ink "
+    "lines, no cel shading, no flat colour fills, no airbrushed gradients, no painted-on highlights, no glow or bloom. "
+    "Anime proportions and the character's design stay, but everything is built from real materials with real depth. "
+    "Studio set-up: a seamless light grey-white paper backdrop, a large soft box key light from the front left at about "
+    "45 degrees, a softer fill from the right, a strip light or hair light from behind and above that rims the wig and "
+    "separates it from the backdrop, and a faint kicker on the cheek. Light falls off naturally: the side of the face "
+    "away from the key is a few stops darker, with soft form shadows under the brow, nose, lower lip, fringe and wig. "
+    "Materials: the shell is a smooth hand-painted resin or fibreglass surface with a soft satin sheen, faint brush "
+    "and sanding texture, and subtle sculpted relief at the brow, nose bridge, cheeks and lips, so the face is a real "
+    "three-dimensional form lit from the side, not a flat drawing. The eyes are glossy clear-domed lens-like eyes set "
+    "in sculpted sockets with printed or painted irises, a visible thickness and depth to the dome, sharp softbox "
+    "reflections (catchlights) as rectangular window highlights, and a thin eyelid and lash edge casting a small shadow; "
+    "never flat drawn eyes. Brows, lashes, blush and lips are matte paint sitting on the surface. The wig is "
+    "heat-resistant synthetic fibre with a pronounced silky sheen: individual strands are visible, bright specular "
+    "highlights run along the strands in soft bands that curve with the hair, the roots are darker and the layers "
+    "underneath fall into shadow, there is natural volume, fine flyaways at the edges and a believable parting where the "
+    "wig meets the shell; braids show the woven strand structure with a highlight on each ridge; the fringe casts a soft "
+    "shadow on the forehead. Colours stay true to the character, rendered with real-world tonal range, soft contact "
+    "shading between hair and face, and fine surface detail everywhere."
+)
+
+# Shared by every head-shell image (front, revisions and four-view) so they all hang the same way.
+HEAD_SHELL_PRESENTATION = (
+    "Presentation: the head shell is photographed floating in mid-air, as if suspended by an invisible support. "
+    "No mount, mannequin, bust, table, floor, shelf or any other surface touches or supports it, and there is no "
+    "floor or contact shadow beneath it (at most a faint soft shadow far behind it on the backdrop). The shell is a "
+    "hollow head: below the face it simply ends at its natural jaw and opening edge, with no neck stub and no base. "
+    "The wig hangs freely under gravity: loose hair, side locks, braids, twin tails and ponytails fall straight down with "
+    "natural weight, pass beyond the bottom of the shell through open air, and never rest on, bend against or pile up on "
+    "any surface; long braids end in the air with their tips pointing down."
+)
+
+WATERMARK_LINE = (
+    "Reference and base images may carry a watermark: faint tiled text and an AI-generated notice in a corner. Ignore it "
+    "as if it were not there and never reproduce it. Do not generate any watermark, text, logo, signature, UI, labels, "
+    "captions or extra characters; the service will add the configured watermark after generation."
+)
+
+_IDENTITY_LINE = (
+    "Preserve the character identity, eye color, eye shape, expression, facial mood, and clearly visible head "
+    "accessories or special features. Do not invent features that are not in the references and do not average the "
+    "character into a generic face."
+)
+_HAIR_FIDELITY_LINE = (
+    "Faithfully reproduce all visible hairstyle details: hair silhouette, bangs/fringe shape, side locks, ahoge, strand "
+    "grouping, layered clumps, parting, volume, length, asymmetry, hair accessories, and color blocks or highlights. "
+    "Do not simplify, invent, or replace visible hairstyle details."
+)
+_NO_IMPOSED_HAIRSTYLE_LINE = (
+    "Do not impose a specific hairstyle such as twin tails, long hair, short hair, bangs, or hair-length restoration "
+    "unless it is clearly visible in the references or explicitly requested by the user."
+)
+_FRONT_EARS_LINE = (
+    "Keep the character's characteristic ears (elf/pointed ears, animal ears, or horn-like head appendages) exactly as "
+    "designed: same shape, size, and position. In the front view both ears must be visible and symmetric; if the "
+    "reference only shows one side, mirror it to complete the other side. Never remove, hide behind hair, merge, or "
+    "crop the ears"
+)
+_SHELL_EARS_LINE = _FRONT_EARS_LINE + ", even when a finished-product style reference shows a shell without ears."
+_FRONT_EARS_LINE += "."
+
 FINAL_KIGURUMI_FRONT_VIEW_PROMPT = [
-    "You are generating one final front-view product-photo-style animegao kigurumi head shell design preview from the uploaded character reference image(s).",
+    "You are generating one final front-view studio photograph of a finished, physical animegao kigurumi head shell "
+    "with its wig, translated from the character design.",
     "",
-    "Use the uploaded character image(s) as the primary identity reference. Preserve the character identity, eye color, eye shape, expression, facial mood, and clearly visible head accessories or special features.",
-    "Faithfully reproduce all visible hairstyle details from the character reference image(s): hair silhouette, bangs/fringe shape, side locks, strand grouping, layered clumps, parting, volume, length, asymmetry, hair accessories, and color blocks or highlights. Do not simplify, invent, or replace visible hairstyle details.",
-    "Do not impose a specific hairstyle such as twin tails, long hair, short hair, bangs, or hair-length restoration unless it is clearly visible in the references or explicitly requested by the user.",
-    "The head must face the camera straight on in a true symmetric front view: the face is centered, both eyes sit at exactly the same height mirrored across the face centerline, and the nose and mouth sit on that centerline. If a reference shows the head at an angle, straighten it into a full frontal pose; never copy a three-quarter, turned, or tilted angle from the references.",
-    "Keep the character's characteristic ears (elf/pointed ears, animal ears, or horn-like head appendages) exactly as designed: same shape, size, and position. In the front view both ears must be visible and symmetric; if the reference only shows one side, mirror it to complete the other side. Never remove, hide behind hair, merge, or crop the ears, even when a finished-product style reference shows a shell without ears.",
+    "Use the uploaded character image(s) as the primary identity reference. " + _IDENTITY_LINE,
+    "If the design source is a clean flat 2D design, treat it as the authoritative design to translate into the "
+    "physical product, not as an image to redraw: keep its proportions, eyes, expression, hair and accessories.",
+    _HAIR_FIDELITY_LINE,
+    _NO_IMPOSED_HAIRSTYLE_LINE,
+    HEAD_POSE,
+    _SHELL_EARS_LINE,
     FRONT_PRODUCT_STYLE_LINE,
     "",
-    "The result must be one finished physical animegao kigurumi head shell front view on a clean white studio background.",
+    HEAD_SHELL_LOOK,
+    HEAD_SHELL_PRESENTATION,
+    "Composition: the whole head shell, the full wig silhouette and both ears are inside the frame, centred, with clear "
+    "margins; head and wig only, no body.",
     "Generate the front-view image at 800x1100 resolution as a vertical portrait image.",
     "",
     "Kigurumi head requirements:",
-    "- hard smooth face shell with a fixed expression",
-    "- simplified weak nose and simple mouth",
-    "- animegao kigurumi large eyes with shell eye openings, eyeliner, lashes, and printed or painted iris details",
-    "- no realistic human skin texture, no obvious lip gloss, no realistic human eyes",
+    "- smooth hand-painted shell with a fixed expression and subtle sculpted relief, no realistic human skin texture",
+    "- simple small nose and mouth painted on the shell, no obvious lip gloss",
+    "- large anime eyes as glossy clear-domed lens eyes in sculpted sockets with printed or painted irises, eyeliner "
+    "and lashes; never realistic human eyes and never flat drawn eyes",
     "- wig mounted on the head shell, with realistic fiber texture and a hairstyle derived from the references or user notes",
     "- long loose hair must remain continuous and natural; do not create holes, missing chunks, or cutouts in the hair silhouette",
-    "- physical display presentation suitable for maker communication and final preview",
     "- the characteristic ears or horn-like appendages stay present, matched, and symmetric",
     "",
-    "Remove or ignore any watermark visible in reference images. Do not generate any watermark, text, logo, UI, labels, captions, or extra characters; the service will add the configured watermark after generation.",
+    WATERMARK_LINE,
     "Output only one front-view design image.",
     "",
     "Also return edit landmarks for this exact generated head shell in manifest.json as pure JSON normalized image coordinates from 0 to 1.",
@@ -69,79 +153,99 @@ FINAL_KIGURUMI_FRONT_VIEW_PROMPT = [
     "Place chin on the center of the chin tip.",
 ]
 
+_FOUR_VIEW_LAYOUT_LINE = (
+    "Layout: one horizontal sheet showing the SAME head from four directions, side by side in a single row, left to "
+    "right: (1) front, facing the camera straight on; (2) front three-quarter, turned about 45 degrees to the "
+    "character's left, so the face is still clearly visible; (3) side profile, turned 90 degrees; (4) back, turned 180 "
+    "degrees, the back of the head and hair with no face visible. Within each view the head is upright, with no tilt, "
+    "roll or nod; only the turn differs. The four heads are the same size and scale, evenly spaced, aligned on one "
+    "common horizontal baseline, centred vertically, with clear margins around each and no overlap or cropping."
+)
+_FOUR_VIEW_CLEAN_LINE = (
+    "Draw no text, labels, arrows, grid lines, panel borders or extra heads, and do not output four separate images."
+)
+
 FINAL_KIGURUMI_TURNAROUND_PROMPT = [
-    "You are generating one final four-view product-photo-style animegao kigurumi head shell turnaround preview.",
+    "You are generating one final four-view studio photograph sheet of a finished, physical animegao kigurumi head shell.",
     "",
-    "Use the uploaded edited front-view design as the locked design reference. The four-view result must strictly preserve the approved front-view design: same character identity, same face style, same eyes, same expression, same visible head accessories, and same overall proportions. Do not redesign, simplify, beautify, reinterpret, or change the character.",
-    "Faithfully carry over all visible hairstyle details from the approved front-view design into every generated view: hair silhouette, bangs/fringe shape, side locks, strand grouping, layered clumps, parting, volume, length, asymmetry, hair accessories, and color blocks or highlights. Do not simplify, invent, or replace visible hairstyle details.",
-    "Do not impose or add a specific hairstyle such as twin tails, long hair, short hair, or bangs unless it is visible in the approved front-view design or explicitly requested by the user.",
+    "Use the uploaded edited front-view design as the locked design reference. The four-view result must strictly "
+    "preserve the approved front-view design: same character identity, same face, same eyes, same expression, same "
+    "visible head accessories, same materials and same overall proportions in all four heads. Do not redesign, "
+    "simplify, beautify, reinterpret, or change the character.",
+    "Faithfully carry over all visible hairstyle details from the approved front-view design into every generated "
+    "view: hair silhouette, bangs/fringe shape, side locks, ahoge, strand grouping, layered clumps, parting, volume, "
+    "length, asymmetry, hair accessories, and color blocks or highlights. Where the sides or the back are not shown "
+    "anywhere, infer them conservatively from the front and the visible hair; do not invent new accessories or a "
+    "different hairstyle.",
+    _NO_IMPOSED_HAIRSTYLE_LINE,
     TURNAROUND_PRODUCT_STYLE_LINE,
     "",
-    "The result must be a single white-background product photo sheet showing the finished physical kigurumi head shell in four views: front, three-quarter/front-side, side, and back.",
+    _FOUR_VIEW_LAYOUT_LINE,
+    "One shared plain white seamless backdrop and the same lighting direction across all four heads.",
+    HEAD_SHELL_LOOK,
+    HEAD_SHELL_PRESENTATION,
     "Generate the four-view turnaround image at 3000x2000 resolution.",
     "",
     "Kigurumi turnaround requirements:",
-    "- finished physical animegao kigurumi head shell product preview",
-    "- clean white studio background",
-    "- four separate views in one image, evenly spaced and aligned",
-    "- physical shell surface, wig fiber texture, maker-preview realism",
     "- long loose hair must stay continuous across all views without holes, missing chunks, or cutouts",
     "- the characteristic ears or horn-like appendages stay present, matched, and consistent in every view",
     "- consistent approved design across every view",
+    "- " + _FOUR_VIEW_CLEAN_LINE,
     "",
-    "Remove or ignore any watermark visible in reference images. Do not generate any watermark, text, logo, UI, labels, captions, or extra characters; the service will add the configured watermark after generation.",
+    WATERMARK_LINE,
     "Output only one four-view turnaround image.",
 ]
 
 
 _CHARACTER_SHEET_COMMON = [
-    "This is stage 1 of the kigurumi workflow: a clean 2D character design sheet. It is NOT the physical head shell yet; "
-    "the user will edit and approve this design, and the head shell will be generated from it later.",
-    "Draw in a clean anime illustration style with flat, readable colors and clear line art, on a plain white background.",
-    "Faithfully reproduce all visible hairstyle details from the references: hair silhouette, bangs/fringe shape, side locks, "
-    "strand grouping, layered clumps, parting, volume, length, asymmetry, hair accessories, and color blocks or highlights. "
-    "Do not simplify, invent, or replace visible hairstyle details.",
-    "Do not impose a specific hairstyle such as twin tails, long hair, short hair, bangs, or hair-length restoration unless "
-    "it is clearly visible in the references or explicitly requested by the user.",
-    "Keep the face neutral and readable for kigurumi production: large anime eyes, simple small nose and mouth, symmetric "
-    "features, the character's own eye color and expression.",
-    "Only the head, hair, ears, and head accessories matter. Show at most the neck and the top of the shoulders; no body, "
-    "outfit, hands, props, or background scenery.",
-    "Do not render a physical product: no shell material, no wig fiber photo texture, no studio product photography, no "
-    "realistic human skin.",
+    "This is stage 1 of the kigurumi workflow: a clean 2D character design sheet of the head. It is NOT the physical "
+    "head shell yet; the user will edit and approve this design, and the head shell will be generated from it later.",
+    "The user's reference images are the source of truth. Reproduce the character faithfully: head and face "
+    "proportions, eye shape, iris colour and highlights, eyebrows, expression and temperament, hair colour and length, "
+    "every distinctive hair structure, ear shape, size, placement and colour, and the drawing style of the source. "
+    "Do not invent features that are not in the references and do not average the character into a generic face.",
+    _HAIR_FIDELITY_LINE,
+    _NO_IMPOSED_HAIRSTYLE_LINE,
+    "Remove everything that would interfere with building a head shell: background, body, clothing, props, hands, "
+    "text, effects, and anything covering the head such as hoods, hats, veils or masks. Rebuild the hair and head shape "
+    "those items hide so that it is consistent with the visible hair; infer hidden hair structure conservatively. Keep "
+    "only the small accessories that belong to the character identity (hairpins, ribbons, earrings, small ornaments), "
+    "placed where they sit on the head.",
+    "Medium: keep the source rendering. For illustrated sources draw a flat 2D illustration with clean lines. Do not "
+    "turn it into a realistic, 3D, doll, figure or cosplay image, do not moe-ify the face, and do not add 3D depth or "
+    "realistic shading.",
+    "Background: plain pure white with even lighting, no shadow, no frame, no labels.",
+    "Do not render a physical product: no kigurumi shell, foam, seams, wig fibres, studio photograph or realistic human skin.",
 ]
 
 CHARACTER_FRONT_VIEW_PROMPT = [
     "You are drawing one front-view 2D character design of the character's head from the uploaded reference image(s).",
     "",
-    "Use the uploaded character image(s) as the identity reference. Preserve the character identity, eye color, eye shape, "
-    "expression, and clearly visible head accessories or special features.",
+    "Use the uploaded character image(s) as the identity reference. " + _IDENTITY_LINE,
     *_CHARACTER_SHEET_COMMON,
     "",
-    "The head must face the viewer straight on (true front view, not three-quarter), centered, eyes level, with the whole "
-    "hairstyle visible inside the frame. If a reference shows the head at an angle, straighten it into a full frontal "
-    "pose instead of copying the angle.",
-    "Keep the character's characteristic ears (elf/pointed ears, animal ears, or horn-like head appendages) exactly as "
-    "designed: same shape, size, and position. Both ears must be visible and symmetric in the front view; if the "
-    "reference only shows one side, mirror it to complete the other side. Never remove, hide behind hair, merge, or "
-    "crop the ears.",
+    "Composition: front-facing, centred, the whole head including the full hair silhouette and ears visible; head and "
+    "hair only (at most a short neck stub), no shoulders or body.",
+    HEAD_POSE,
+    _FRONT_EARS_LINE,
     "Generate the front-view image at 800x1100 resolution as a vertical portrait image.",
     "",
-    "Do not draw any watermark, text, logo, UI, labels, captions, or extra characters.",
+    WATERMARK_LINE,
     "Output only one front-view design image.",
 ]
 
 CHARACTER_REVISION_PROMPT = [
     "You are revising one front-view 2D character design of the character's head.",
     "",
-    "The primary attached image is the current design draft. Keep it as close as possible: same character, face, eyes, "
-    "expression, hairstyle, colors, framing, and drawing style. Apply only the changes the user asks for or that the "
-    "annotations drawn on the draft point out, then remove those annotation marks.",
+    "The primary attached image is the current design draft and is authoritative, including any manual edits. Keep it "
+    "as close as possible: same character, face, eyes, expression, hairstyle, colors, framing, and drawing style. Apply "
+    "only the changes the user asks for or that the annotations drawn on the draft point out, then remove those "
+    "annotation marks.",
     *_CHARACTER_SHEET_COMMON,
     "",
     "Generate the front-view image at 800x1100 resolution as a vertical portrait image.",
     "",
-    "Do not draw any watermark, text, logo, UI, labels, captions, or extra characters.",
+    WATERMARK_LINE,
     "Output only one front-view design image.",
 ]
 
@@ -154,13 +258,14 @@ CHARACTER_TURNAROUND_PROMPT = [
     "image does not show, such as the back of the hair.",
     *_CHARACTER_SHEET_COMMON,
     "",
-    "Place the four views side by side, evenly spaced, aligned at the same eye height and the same scale, on one white sheet. "
+    _FOUR_VIEW_LAYOUT_LINE,
     "Every view must show the same design; the back view must show a plausible continuation of the visible hairstyle.",
     "If the character has characteristic ears (elf/pointed ears, animal ears, or horn-like head appendages), keep them "
     "visible, matched, and consistent in every view; never let hair or a view angle remove or hide them.",
+    _FOUR_VIEW_CLEAN_LINE,
     "Generate the four-view turnaround image at 3000x2000 resolution.",
     "",
-    "Do not draw any watermark, text, logo, UI, labels, captions, or extra characters.",
+    WATERMARK_LINE,
     "Output only one four-view design image.",
 ]
 
