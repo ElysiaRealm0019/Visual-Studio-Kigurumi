@@ -203,14 +203,49 @@ export function sendMessage(
   return request(`/conversations/${id}/messages`, conversationSchema, { body: form, method: "POST" });
 }
 
-/** Subscribe to live agent events after `afterSeq`. Returns an unsubscribe function. */
-export function subscribeToEvents(id: string, afterSeq: number, onEvent: (event: AgentEvent) => void) {
-  const source = new EventSource(`${API_BASE}/conversations/${id}/events?after=${afterSeq}`);
-  source.addEventListener("agent", (message) => {
-    const parsed = agentEventSchema.safeParse(JSON.parse((message as MessageEvent<string>).data));
-    if (parsed.success) onEvent(parsed.data as AgentEvent);
-  });
-  return () => source.close();
+const SSE_RETRY_MS = 3000;
+
+/**
+ * Subscribe to live agent events after `getAfterSeq()`. Returns an unsubscribe function.
+ *
+ * EventSource retries a dropped connection by itself, but gives up for good when a retry gets an error response
+ * (e.g. while the backend restarts). Then the page would never see the end of a run, so reopen it here and call
+ * `onReconnect` to catch up on anything missed in between.
+ */
+export function subscribeToEvents(
+  id: string,
+  getAfterSeq: () => number,
+  onEvent: (event: AgentEvent) => void,
+  onReconnect: () => void = () => undefined,
+) {
+  let source: EventSource | null = null;
+  let retry: ReturnType<typeof setTimeout> | null = null;
+  let closed = false;
+  let opened = false;
+
+  const open = () => {
+    source = new EventSource(`${API_BASE}/conversations/${id}/events?after=${getAfterSeq()}`);
+    source.addEventListener("agent", (message) => {
+      const parsed = agentEventSchema.safeParse(JSON.parse((message as MessageEvent<string>).data));
+      if (parsed.success) onEvent(parsed.data as AgentEvent);
+    });
+    source.addEventListener("open", () => {
+      if (opened) onReconnect();
+      opened = true;
+    });
+    source.addEventListener("error", () => {
+      if (closed || source?.readyState !== EventSource.CLOSED) return;
+      retry = setTimeout(() => {
+        if (!closed) open();
+      }, SSE_RETRY_MS);
+    });
+  };
+  open();
+  return () => {
+    closed = true;
+    if (retry) clearTimeout(retry);
+    source?.close();
+  };
 }
 
 /** Apply a new event to the event list: patches update their target in place, others append. */
