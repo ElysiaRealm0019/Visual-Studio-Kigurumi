@@ -1,8 +1,12 @@
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Literal
 
 from app.generation.detail_analysis import DetailAnalysisProviderRequest, DetailAnalysisProviderResult
 from app.generation.usage import TokenUsage
+
+# Live tool progress callback: (progress 0-100, phase text, **extra event fields).
+ReferenceProgress = Callable[..., Awaitable[None]]
 
 FRONT_OUTPUT_WIDTH = 800
 FRONT_OUTPUT_HEIGHT = 1100
@@ -66,6 +70,7 @@ class ImageGenerationProvider:
     async def analyze_reference_details(
         self,
         request: DetailAnalysisProviderRequest,
+        progress: ReferenceProgress | None = None,
     ) -> DetailAnalysisProviderResult:
         raise NotImplementedError
 

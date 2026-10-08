@@ -1,10 +1,12 @@
 import json
 import logging
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from PIL import Image, UnidentifiedImageError
 
 from app.core import chat_api
+from app.core.chat_api import ReasoningCallback
 from app.core.config import get_settings
 from app.core.paths import resolve_repo_path
 from app.generation.backends.analysis import (
@@ -22,6 +24,10 @@ from app.generation.detail_analysis import (
 )
 
 logger = logging.getLogger("uvicorn.error")
+
+# Progress is only announced every ~500 estimated reasoning tokens: every event patch rewrites the whole
+# conversation file, so the stream must not tick per delta.
+REASONING_MILESTONE_TOKENS = 500
 
 
 def resolve_analysis_endpoint(settings: Any) -> tuple[str, str, str]:
@@ -51,10 +57,19 @@ class OpenAICompatibleLLMBackend(ImageGenerationProvider):
     async def analyze_reference_details(
         self,
         request: DetailAnalysisProviderRequest,
+        progress: Callable[[int, str], Awaitable[None]] | None = None,
     ) -> DetailAnalysisProviderResult:
         images = _encode_reference_images(request.reference_keys)
+        last_milestone = 0
 
-        safety_text = await complete_with_images(_build_reference_safety_prompt(request), images)
+        async def on_reasoning(estimated_tokens: int) -> None:
+            nonlocal last_milestone
+            if progress is None or estimated_tokens < last_milestone + REASONING_MILESTONE_TOKENS:
+                return
+            last_milestone = estimated_tokens
+            await progress(10, "analyzing", reasoning_tokens=estimated_tokens)
+
+        safety_text = await complete_with_images(_build_reference_safety_prompt(request), images, on_reasoning)
         try:
             safety_result = parse_reference_safety_json(_extract_json(safety_text))
         except (json.JSONDecodeError, ValueError) as exc:
@@ -63,7 +78,7 @@ class OpenAICompatibleLLMBackend(ImageGenerationProvider):
             reason = "reference_adult_explicit" if safety_result.reason == "adult_explicit" else "reference_unusable"
             raise ReferenceRejectedError(reason, safety_result.message or reason)
 
-        analysis_text = await complete_with_images(_build_detail_analysis_prompt(request), images)
+        analysis_text = await complete_with_images(_build_detail_analysis_prompt(request), images, on_reasoning)
         try:
             return parse_detail_analysis_json(_extract_json(analysis_text))
         except (json.JSONDecodeError, ValueError) as exc:
@@ -92,7 +107,11 @@ def _encode_reference_images(reference_keys: list[str]) -> list[str]:
     return encoded
 
 
-async def complete_with_images(prompt: str, images: list[str]) -> str:
+async def complete_with_images(
+    prompt: str,
+    images: list[str],
+    on_reasoning: ReasoningCallback | None = None,
+) -> str:
     settings = get_settings()
     base_url, api_key, model = resolve_analysis_endpoint(settings)
     if not base_url or not model:
@@ -101,12 +120,13 @@ async def complete_with_images(prompt: str, images: list[str]) -> str:
     content += [{"type": "image_url", "image_url": {"url": image}} for image in images]
     payload: dict[str, Any] = {"model": model, "messages": [{"role": "user", "content": content}]}
     try:
-        result = await chat_api.post_chat_completion(
+        result = await chat_api.stream_chat_completion(
             base_url,
             api_key,
             payload,
             extra_body=analysis_extra_body(settings),
             timeout=float(settings.codex_detail_analysis_timeout_seconds),
+            on_reasoning=on_reasoning,
         )
     except chat_api.ChatAPIError as exc:
         raise RuntimeError(f"Analysis LLM {exc}") from exc

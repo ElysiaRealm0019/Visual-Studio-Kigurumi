@@ -1,5 +1,5 @@
 from app.generation.backends.common import _default_front_landmarks, _output_dimensions_for_mode
-from app.generation.backends.types import ImageGenerationProvider, ProviderOutput
+from app.generation.backends.types import ImageGenerationProvider, ProviderOutput, ReferenceProgress
 from app.generation.detail_analysis import (
     DetailAnalysisProviderCrop,
     DetailAnalysisProviderRequest,
@@ -36,6 +36,7 @@ class FixtureImageProvider(ImageGenerationProvider):
     async def analyze_reference_details(
         self,
         request: DetailAnalysisProviderRequest,
+        progress: ReferenceProgress | None = None,
     ) -> DetailAnalysisProviderResult:
         source_key = request.reference_keys[0] if request.reference_keys else "front:references/fixture/front.webp"
         return DetailAnalysisProviderResult(

@@ -124,7 +124,7 @@ class HttpImageBackend(ImageGenerationProvider):
         raise NotImplementedError
 
     # --- shared pipeline -----------------------------------------------------------------------------------
-    async def analyze_reference_details(self, request):
+    async def analyze_reference_details(self, request, progress=None):
         raise RuntimeError(f"{self.display_name} does not analyze references; configure LLM_PROVIDER")
 
     async def generate(self, job_id: str, prompt_payload: dict) -> list[ProviderOutput]:

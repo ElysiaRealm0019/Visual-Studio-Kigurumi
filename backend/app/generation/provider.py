@@ -16,6 +16,7 @@ from app.generation.backends.types import (
     ImageGenerationProvider,
     ProviderOutput,
     ProviderUsage,
+    ReferenceProgress,
     ReferenceRejectedError,
     ReferenceSafetyResult,
 )
@@ -90,8 +91,9 @@ class CompositeProvider(ImageGenerationProvider):
     async def analyze_reference_details(
         self,
         request: DetailAnalysisProviderRequest,
+        progress: ReferenceProgress | None = None,
     ) -> DetailAnalysisProviderResult:
-        return await self.llm.analyze_reference_details(request)
+        return await self.llm.analyze_reference_details(request, progress=progress)
 
     async def generate(self, job_id: str, prompt_payload: dict) -> list[ProviderOutput]:
         return await self.image.generate(job_id, prompt_payload)

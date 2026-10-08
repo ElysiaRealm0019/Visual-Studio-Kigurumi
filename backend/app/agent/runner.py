@@ -188,8 +188,8 @@ class AgentRunner:
         )
         seq = event["seq"]
 
-        async def progress(value: int, phase: str) -> None:
-            await conversation_store.replace_event(conversation, seq, progress=value, phase=phase)
+        async def progress(value: int, phase: str, **extra: Any) -> None:
+            await conversation_store.replace_event(conversation, seq, progress=value, phase=phase, **extra)
 
         context = ToolContext(
             conversation=conversation,

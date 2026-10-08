@@ -415,7 +415,11 @@ async def test_openai_compatible_request_shape(monkeypatch):
         seen["url"] = str(request.url)
         seen["auth"] = request.headers.get("authorization")
         seen["body"] = json.loads(request.content)
-        return httpx.Response(200, json={"choices": [{"message": {"content": "好的", "tool_calls": []}}]})
+        return httpx.Response(
+            200,
+            text='data: {"choices": [{"delta": {"content": "好的"}}]}\n\ndata: [DONE]\n\n',
+            headers={"content-type": "text/event-stream"},
+        )
 
     real_client = httpx.AsyncClient
     monkeypatch.setattr(
@@ -435,6 +439,7 @@ async def test_openai_compatible_request_shape(monkeypatch):
     assert seen["auth"] == "Bearer ark-test-key"
     body = seen["body"]
     assert body["model"] == "doubao-seed-2-0-pro"
+    assert body["stream"] is True
     assert body["thinking"] == {"type": "disabled"}
     assert body["messages"][0] == {"role": "system", "content": "SYS"}
     assert "name" not in body["messages"][2]

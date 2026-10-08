@@ -986,7 +986,7 @@ async def test_codex_bridge_provider_delegates_detail_analysis_to_codex_cli(monk
     captured_request: provider_module.DetailAnalysisProviderRequest | None = None
 
     class FakeCodexProvider:
-        async def analyze_reference_details(self, request):
+        async def analyze_reference_details(self, request, progress=None):
             nonlocal captured_request
             captured_request = request
             return provider_module.DetailAnalysisProviderResult(

@@ -22,6 +22,13 @@ DETAIL_RESULT = {
 }
 
 
+@pytest.fixture(autouse=True)
+def reset_rejections():
+    chat_api.forget_rejected_extra_body()
+    yield
+    chat_api.forget_rejected_extra_body()
+
+
 @pytest.fixture
 def analysis_env(tmp_path: Path, monkeypatch):
     reference_file = tmp_path / "references" / "upload-1" / "front.png"
@@ -38,12 +45,20 @@ def analysis_env(tmp_path: Path, monkeypatch):
     get_settings.cache_clear()
 
 
-def install_responses(monkeypatch, replies: list[str]) -> list[httpx.Request]:
+def sse_reply(text: str, reasoning: list[str] = ()) -> httpx.Response:
+    deltas = [{"choices": [{"delta": {"reasoning_content": chunk}}]} for chunk in reasoning]
+    deltas.append({"choices": [{"delta": {"content": text}}]})
+    lines = [f"data: {json.dumps(delta)}" for delta in deltas] + ["data: [DONE]", ""]
+    return httpx.Response(200, text="\n\n".join(lines), headers={"content-type": "text/event-stream"})
+
+
+def install_responses(monkeypatch, replies: list) -> list[httpx.Request]:
     requests: list[httpx.Request] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
         requests.append(request)
-        return httpx.Response(200, json={"choices": [{"message": {"content": replies[len(requests) - 1]}}]})
+        reply = replies[len(requests) - 1]
+        return reply if isinstance(reply, httpx.Response) else sse_reply(reply)
 
     real_client = httpx.AsyncClient
     monkeypatch.setattr(
@@ -75,6 +90,7 @@ async def test_runs_safety_then_analysis_with_images(analysis_env, monkeypatch):
         assert request.headers["authorization"] == "Bearer agent-key"
         body = json.loads(request.content)
         assert body["model"] == "agent-model"
+        assert body["stream"] is True
         assert body["thinking"] == {"type": "disabled"}
         content = body["messages"][0]["content"]
         assert content[0]["type"] == "text"
@@ -96,6 +112,25 @@ async def test_rejected_reference_stops_before_analysis(analysis_env, monkeypatc
 
     assert error.value.reason == "reference_adult_explicit"
     assert len(requests) == 1
+
+
+async def test_reasoning_milestones_reach_the_progress_callback(analysis_env, monkeypatch):
+    install_responses(
+        monkeypatch,
+        [
+            '{"allowed": true, "reason": "ok", "message": ""}',
+            sse_reply(json.dumps(DETAIL_RESULT), reasoning=["x" * 1100]),
+        ],
+    )
+    updates: list[tuple] = []
+
+    async def progress(value: int, phase: str, **extra) -> None:
+        updates.append((value, phase, extra))
+
+    await openai_compatible.OpenAICompatibleLLMBackend().analyze_reference_details(make_request(), progress=progress)
+
+    # 1100 reasoning chars ≈ 550 estimated tokens: exactly one milestone past the 500-token line.
+    assert updates == [(10, "analyzing", {"reasoning_tokens": 550})]
 
 
 async def test_http_error_is_reported(analysis_env, monkeypatch):

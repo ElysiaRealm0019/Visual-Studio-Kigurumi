@@ -47,6 +47,7 @@ from app.generation.backends.types import (
     ImageGenerationProvider,
     ProviderOutput,
     ProviderUsage,
+    ReferenceProgress,
     ReferenceRejectedError,
 )
 from app.generation.detail_analysis import (
@@ -91,6 +92,7 @@ class CodexImageProvider(ImageGenerationProvider):
     async def analyze_reference_details(
         self,
         request: DetailAnalysisProviderRequest,
+        progress: ReferenceProgress | None = None,
     ) -> DetailAnalysisProviderResult:
         settings = get_settings()
         safe_session = _safe_path_segment(request.character_session_id)
@@ -402,8 +404,9 @@ class CodexBridgeImageProvider(ImageGenerationProvider):
     async def analyze_reference_details(
         self,
         request: DetailAnalysisProviderRequest,
+        progress: ReferenceProgress | None = None,
     ) -> DetailAnalysisProviderResult:
-        return await CodexImageProvider().analyze_reference_details(request)
+        return await CodexImageProvider().analyze_reference_details(request, progress=progress)
 
     async def generate(self, job_id: str, prompt_payload: dict) -> list[ProviderOutput]:
         outputs: list[ProviderOutput] = []

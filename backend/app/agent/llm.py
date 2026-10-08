@@ -110,7 +110,7 @@ class OpenAICompatibleLLM:
             payload["tools"] = [tool_payload(tool) for tool in tools]
             payload["tool_choice"] = "auto"
         try:
-            result = await chat_api.post_chat_completion(
+            result = await chat_api.stream_chat_completion(
                 base_url,
                 api_key,
                 payload,

@@ -17,7 +17,7 @@ from app.generation.backends.analysis import (
     parse_reference_safety_json,
 )
 from app.generation.backends.common import _resolve_uploaded_reference_path, _safe_path_segment
-from app.generation.backends.types import ImageGenerationProvider, ReferenceRejectedError
+from app.generation.backends.types import ImageGenerationProvider, ReferenceProgress, ReferenceRejectedError
 from app.generation.detail_analysis import (
     DetailAnalysisProviderRequest,
     DetailAnalysisProviderResult,
@@ -64,6 +64,7 @@ class ClaudeCodeLLMBackend(ImageGenerationProvider):
     async def analyze_reference_details(
         self,
         request: DetailAnalysisProviderRequest,
+        progress: ReferenceProgress | None = None,
     ) -> DetailAnalysisProviderResult:
         settings = get_settings()
         safe_analysis_id = _safe_path_segment(request.analysis_id)

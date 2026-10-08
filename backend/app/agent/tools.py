@@ -211,7 +211,8 @@ class ToolError(Exception):
 @dataclass
 class ToolContext:
     conversation: Conversation
-    progress: Callable[[int, str], Awaitable[None]]
+    # `progress(value, phase, **extra)` patches the tool event; extra fields (e.g. reasoning_tokens) are merged in.
+    progress: Callable[..., Awaitable[None]]
     cancelled: Callable[[], bool]
 
 
@@ -245,7 +246,8 @@ async def _analyze_references(arguments: dict[str, Any], context: ToolContext) -
                     for reference in state.references
                     if reference.note
                 ],
-            )
+            ),
+            progress=context.progress,
         )
     except ReferenceRejectedError as exc:
         state.analysis = None

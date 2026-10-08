@@ -81,7 +81,7 @@ class RecordingLLM(ImageGenerationProvider):
     def __init__(self) -> None:
         self.requests: list[DetailAnalysisProviderRequest] = []
 
-    async def analyze_reference_details(self, request):
+    async def analyze_reference_details(self, request, progress=None):
         self.requests.append(request)
         return DetailAnalysisProviderResult(features=[], crops=[])
 
