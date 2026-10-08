@@ -14,6 +14,13 @@ from pydantic import BaseModel, Field
 from app.agent.history import HistoryError, delete_reply, prepare_regenerate
 from app.agent.runner import agent_runner
 from app.agent.store import Conversation, ReferenceImage, conversation_store
+from app.agent.vkp import (
+    MAX_IMPORT_BYTES,
+    ProjectFileError,
+    build_project_file,
+    import_project_file,
+    project_file_download_name,
+)
 from app.agent.tools import (
     ToolContext,
     _generated_file_from_url,
@@ -334,6 +341,38 @@ async def download_version(conversation_id: str, image_id: str) -> StreamingResp
         media_type="image/png",
         headers={"Content-Disposition": f'attachment; filename="{image_id}.png"'},
     )
+
+
+@router.get("/conversations/{conversation_id}/export")
+async def export_project(conversation_id: str) -> StreamingResponse:
+    """Download the whole project as a .vkp bundle: conversation, versions, references and outputs."""
+    conversation = _require(conversation_id)
+    if agent_runner.is_running(conversation_id):
+        raise HTTPException(status_code=409, detail="conversation_running")
+    payload = build_project_file(conversation)
+    return StreamingResponse(
+        BytesIO(payload),
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="{project_file_download_name(conversation)}"',
+            "Content-Length": str(len(payload)),
+        },
+    )
+
+
+@router.post("/conversations/import", response_model=ConversationOut)
+async def import_project(file: UploadFile = File(...)) -> ConversationOut:
+    """Restore a .vkp bundle as a new project: a copy with a fresh id, the original stays untouched."""
+    if Path(file.filename or "").suffix.lower() != ".vkp":
+        raise HTTPException(status_code=400, detail="not_a_vkp_file")
+    data = await file.read()
+    if len(data) > MAX_IMPORT_BYTES:
+        raise HTTPException(status_code=400, detail="project_too_large")
+    try:
+        conversation = import_project_file(data)
+    except ProjectFileError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _out(conversation)
 
 
 @router.post("/conversations/{conversation_id}/versions", response_model=ConversationOut)

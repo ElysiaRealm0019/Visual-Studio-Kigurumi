@@ -117,6 +117,18 @@ export function createConversation(locale: string, title = "") {
   });
 }
 
+/** GET download of the whole project as a .vkp bundle; the backend names the attachment. */
+export function exportProjectUrl(id: string) {
+  return `${API_BASE}/conversations/${id}/export`;
+}
+
+/** Restore a .vkp bundle as a new project (a copy with a fresh id). */
+export function importProject(file: File) {
+  const form = new FormData();
+  form.append("file", file, file.name);
+  return request("/conversations/import", conversationSchema, { body: form, method: "POST" });
+}
+
 export function getConversation(id: string) {
   return request(`/conversations/${id}`, conversationSchema);
 }

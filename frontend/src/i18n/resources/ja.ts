@@ -79,6 +79,9 @@ const ja: TranslationResource = {
   workspace: {
     projects: "プロジェクト",
     newProject: "新規プロジェクト",
+    importProject: "プロジェクトをインポート",
+    importing: "インポート中…",
+    exportProject: ".vkp をエクスポート",
     projectNamePlaceholder: "プロジェクト名（例：黒ツインテールのヘッド）",
     create: "作成",
     cancel: "キャンセル",
@@ -196,6 +199,8 @@ const ja: TranslationResource = {
     errors: {
       generic: "エラーが発生しました：{{message}}",
       conversation_running: "前の処理がまだ実行中です。少々お待ちください。",
+      not_a_vkp_file: ".vkp プロジェクトファイルではありません。",
+      project_too_large: "プロジェクトファイルが大きすぎます（上限 200 MB）。",
       nothing_to_regenerate: "再生成できるメッセージがありません。",
       message_not_found: "この返信はもう存在しません。",
       too_many_references: "参考画像が多すぎます（1チャット最大8枚）。",

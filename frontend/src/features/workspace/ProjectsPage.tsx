@@ -1,6 +1,6 @@
-import { IconDots, IconFolderPlus, IconPencil, IconPhoto, IconTrash } from "@tabler/icons-react";
+import { IconDots, IconDownload, IconFolderPlus, IconPencil, IconPhoto, IconTrash, IconUpload } from "@tabler/icons-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { normalizeLocale } from "../../i18n/locales";
@@ -8,6 +8,8 @@ import { ConfirmDialog, PromptDialog } from "../../ui/IdeDialog";
 import {
   createConversation,
   deleteConversation,
+  exportProjectUrl,
+  importProject,
   listConversations,
   renameConversation,
   type ConversationSummary,
@@ -25,11 +27,28 @@ export function ProjectsPage() {
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<ConversationSummary | null>(null);
   const [renaming, setRenaming] = useState<ConversationSummary | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   async function create(name: string) {
     const project = await createConversation(normalizeLocale(i18n.language), name);
     await queryClient.invalidateQueries({ queryKey: ["projects"] });
     navigate(`/p/${project.id}`);
+  }
+
+  async function importVkp(file: File) {
+    setImporting(true);
+    setImportError(null);
+    try {
+      const project = await importProject(file);
+      await queryClient.invalidateQueries({ queryKey: ["projects"] });
+      navigate(`/p/${project.id}`);
+    } catch (error) {
+      setImportError(actionError(error));
+    } finally {
+      setImporting(false);
+    }
   }
 
   async function remove(project: ConversationSummary) {
@@ -64,11 +83,28 @@ export function ProjectsPage() {
         <div className="mb-6 flex items-center gap-3">
           <h1 className="text-xl font-semibold">{t("workspace.projects")}</h1>
           <span className="flex-1" />
+          <button className="ide-button" disabled={importing} onClick={() => fileInputRef.current?.click()} type="button">
+            <IconUpload size={15} />
+            {importing ? t("workspace.importing") : t("workspace.importProject")}
+          </button>
           <button className="ide-button ide-button-primary" onClick={() => setCreating(true)} type="button">
             <IconFolderPlus size={15} />
             {t("workspace.newProject")}
           </button>
+          <input
+            accept=".vkp"
+            className="hidden"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              event.target.value = "";
+              if (file) void importVkp(file);
+            }}
+            ref={fileInputRef}
+            type="file"
+          />
         </div>
+
+        {importError ? <p className="mb-4 text-xs text-[var(--ide-danger)]">{importError}</p> : null}
 
         {projects.data?.length === 0 ? (
           <div className="ide-welcome" style={{ padding: "12vh 0" }}>
@@ -120,6 +156,10 @@ export function ProjectsPage() {
                         <IconPencil size={14} />
                         {t("workspace.rename")}
                       </button>
+                      <a className="ide-tree-item" download href={exportProjectUrl(project.id)} onClick={() => setMenuFor(null)}>
+                        <IconDownload size={14} />
+                        {t("workspace.exportProject")}
+                      </a>
                       <button
                         className="ide-tree-item text-[var(--ide-danger)]"
                         onClick={() => {

@@ -77,6 +77,9 @@ const zhCN = {
   workspace: {
     projects: "项目",
     newProject: "新建项目",
+    importProject: "导入项目",
+    importing: "导入中…",
+    exportProject: "导出 .vkp",
     projectNamePlaceholder: "项目名称，例如：黑双马尾头壳",
     create: "创建",
     cancel: "取消",
@@ -194,6 +197,8 @@ const zhCN = {
     errors: {
       generic: "出错了：{{message}}",
       conversation_running: "上一步还在进行中，请稍等。",
+      not_a_vkp_file: "这不是 .vkp 工程文件。",
+      project_too_large: "工程文件太大（上限 200 MB）。",
       nothing_to_regenerate: "没有可以重新回答的消息。",
       message_not_found: "这条回复已经不存在了。",
       too_many_references: "参考图太多了（每个对话最多 8 张）。",

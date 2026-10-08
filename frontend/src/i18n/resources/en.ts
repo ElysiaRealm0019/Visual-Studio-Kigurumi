@@ -79,6 +79,9 @@ const en: TranslationResource = {
   workspace: {
     projects: "Projects",
     newProject: "New project",
+    importProject: "Import project",
+    importing: "Importing…",
+    exportProject: "Export .vkp",
     projectNamePlaceholder: "Project name, e.g. black twin-tail head",
     create: "Create",
     cancel: "Cancel",
@@ -196,6 +199,8 @@ const en: TranslationResource = {
     errors: {
       generic: "Something went wrong: {{message}}",
       conversation_running: "The previous step is still running, please wait.",
+      not_a_vkp_file: "That is not a .vkp project file.",
+      project_too_large: "The project file is too large (200 MB limit).",
       nothing_to_regenerate: "There is no message of yours to answer again.",
       message_not_found: "That reply no longer exists.",
       too_many_references: "Too many reference images (max 8 per chat).",

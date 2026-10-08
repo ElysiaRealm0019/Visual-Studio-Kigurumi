@@ -111,4 +111,40 @@ describe("ProjectsPage", () => {
     const patch = fetchMock.mock.calls.find(([, init]) => init?.method === "PATCH");
     expect(JSON.parse(String(patch?.[1]?.body))).toEqual({ title: "新名字" });
   });
+
+  it("offers the .vkp export in the project menu and an import button", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => json([project])));
+    renderPage();
+
+    expect(screen.getByRole("button", { name: "导入项目" })).toBeTruthy();
+    fireEvent.click(await screen.findByRole("button", { name: "项目操作" }));
+    const exportLink = await screen.findByRole("link", { name: "导出 .vkp" });
+    expect(exportLink.getAttribute("href")).toBe("/api/agent/conversations/p1/export");
+    expect(exportLink.getAttribute("download")).toBe("");
+  });
+
+  it("imports a .vkp file and opens the restored project", async () => {
+    const restored = {
+      id: "p2",
+      title: "导入的工程",
+      created_at: project.created_at,
+      locale: "zh-CN",
+      status: "idle",
+      running: false,
+      last_seq: 0,
+      events: [],
+      state: { references: [], images: [], current_front_id: null, approved_front_id: null },
+    };
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) =>
+      init?.method === "POST" && url === "/api/agent/conversations/import" ? json(restored) : json([project]),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const { container } = renderPage();
+
+    fireEvent.change(container.querySelector('input[type="file"][accept=".vkp"]')!, {
+      target: { files: [new File(["bundle"], "project.vkp", { type: "application/zip" })] },
+    });
+
+    await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => url === "/api/agent/conversations/import")).toBe(true));
+  });
 });
