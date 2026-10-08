@@ -1,16 +1,20 @@
-import { IconArrowLeft } from "@tabler/icons-react";
+import { IconAlertTriangle, IconArrowLeft, IconCircleCheck, IconCircleX, IconPlugConnected } from "@tabler/icons-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { LanguageSelector } from "../i18n/LanguageSelector";
+import { ConfirmDialog } from "../../ui/IdeDialog";
 import { ThemeToggle } from "../workspace/ThemeToggle";
 import {
   backendRequirement,
   getBackendSettings,
+  probeBackend,
   resetBackendSettings,
   updateBackendSettings,
   type BackendSettings,
+  type ProbeResult,
+  type ProbeRole,
 } from "./settingsApi";
 
 const settingsQueryKey = ["backend-settings"];
@@ -26,6 +30,7 @@ export function SettingsPage() {
   const [secrets, setSecrets] = useState<Record<string, string | null>>({});
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
+  const [confirmingReset, setConfirmingReset] = useState(false);
 
   useEffect(() => {
     if (settings.data) {
@@ -37,6 +42,7 @@ export function SettingsPage() {
   const data = settings.data;
   const changed = data ? Object.keys(form).filter((key) => form[key] !== data.values[key]) : [];
   const changedSecrets = Object.entries(secrets).filter(([, value]) => value === null || value.trim() !== "");
+  const unsaved = changed.length + changedSecrets.length > 0;
   const disabled = busy || !data?.writable;
 
   async function apply(action: () => Promise<BackendSettings>) {
@@ -62,7 +68,8 @@ export function SettingsPage() {
   }
 
   function reset() {
-    if (window.confirm(t("settings.confirmReset"))) void apply(resetBackendSettings);
+    setConfirmingReset(false);
+    void apply(resetBackendSettings);
   }
 
   const set = (key: string) => (value: string) => setForm((current) => ({ ...current, [key]: value }));
@@ -113,6 +120,17 @@ export function SettingsPage() {
                   <TextField disabled={disabled} label={t("settings.baseUrl")} onChange={set("agent_llm_base_url")} value={form.agent_llm_base_url} />
                   <TextField disabled={disabled} label={t("settings.model")} onChange={set("agent_llm_model")} value={form.agent_llm_model} />
                   {secretField("agent_llm_api_key", t("settings.agentKeyHint"))}
+                  <TextField
+                    disabled={disabled}
+                    hint={t("settings.extraBodyHint")}
+                    label={t("settings.extraBody")}
+                    onChange={set("agent_llm_extra_body")}
+                    placeholder="{}"
+                    value={form.agent_llm_extra_body}
+                  />
+                  {data.values.agent_llm_provider === "openai_compatible" ? (
+                    <ProbePanel disabled={!data.writable} role="agent" unsaved={unsaved} />
+                  ) : null}
                 </>
               )}
             </BackendSection>
@@ -143,6 +161,9 @@ export function SettingsPage() {
                   />
                   {secretField("analysis_llm_api_key", t("settings.analysisKeyHint"))}
                   <p className="text-xs text-[var(--ide-text-muted)]">{t("settings.visionRequired")}</p>
+                  {data.values.llm_provider === "openai_compatible" ? (
+                    <ProbePanel disabled={!data.writable} role="analysis" unsaved={unsaved} />
+                  ) : null}
                 </>
               ) : null}
             </BackendSection>
@@ -180,7 +201,7 @@ export function SettingsPage() {
               <button className="ide-button ide-button-primary" disabled={disabled || changed.length + changedSecrets.length === 0} onClick={save} type="button">
                 {t("settings.save")}
               </button>
-              <button className="ide-button" disabled={disabled || data.overridden.length === 0} onClick={reset} type="button">
+              <button className="ide-button" disabled={disabled || data.overridden.length === 0} onClick={() => setConfirmingReset(true)} type="button">
                 {t("settings.reset")}
               </button>
               {notice ? (
@@ -192,6 +213,15 @@ export function SettingsPage() {
           </div>
         ) : null}
       </main>
+      {confirmingReset ? (
+        <ConfirmDialog
+          confirmLabel={t("settings.reset")}
+          message={t("settings.confirmReset")}
+          onCancel={() => setConfirmingReset(false)}
+          onConfirm={reset}
+          title={t("settings.reset")}
+        />
+      ) : null}
     </div>
   );
 }
@@ -255,12 +285,14 @@ function TextField({
   label,
   value,
   placeholder,
+  hint,
   disabled,
   onChange,
 }: {
   label: string;
   value: string | undefined;
   placeholder?: string;
+  hint?: string;
   disabled: boolean;
   onChange: (value: string) => void;
 }) {
@@ -268,7 +300,73 @@ function TextField({
     <label className="flex flex-col gap-1 text-xs text-[var(--ide-text-muted)]">
       {label}
       <input className="ide-input text-sm" disabled={disabled} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} value={value ?? ""} />
+      {hint ? <span>{hint}</span> : null}
     </label>
+  );
+}
+
+const probeIcons = {
+  ok: <IconCircleCheck className="shrink-0 text-[var(--ide-success)]" size={14} />,
+  warn: <IconAlertTriangle className="shrink-0 text-[var(--ide-warning)]" size={14} />,
+  fail: <IconCircleX className="shrink-0 text-[var(--ide-danger)]" size={14} />,
+};
+
+/** Tests the saved settings of one LLM role with a real request and lists what works. */
+function ProbePanel({ role, unsaved, disabled }: { role: ProbeRole; unsaved: boolean; disabled: boolean }) {
+  const { t } = useTranslation();
+  const [running, setRunning] = useState(false);
+  const [result, setResult] = useState<ProbeResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function run() {
+    setRunning(true);
+    setError(null);
+    setResult(null);
+    try {
+      setResult(await probeBackend(role));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : String(caught));
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  function describe(check: ProbeResult["checks"][number]) {
+    if (check.id === "connection" && check.status === "fail") {
+      const [reason, ...rest] = check.detail.split(": ");
+      return t(`settings.probeReason.${reason}`, { defaultValue: check.detail, detail: rest.join(": ") });
+    }
+    return t(`settings.probeCheck.${check.id}.${check.status}`, { detail: check.detail });
+  }
+
+  return (
+    <div className="flex flex-col gap-2" data-testid={`probe-${role}`}>
+      <div className="flex items-center gap-2">
+        <button className="ide-button" disabled={disabled || running || unsaved} onClick={() => void run()} type="button">
+          <IconPlugConnected size={14} />
+          {running ? t("settings.probing") : t("settings.probe")}
+        </button>
+        <span className="text-xs text-[var(--ide-text-muted)]">
+          {unsaved ? t("settings.probeSaveFirst") : t("settings.probeHint")}
+        </span>
+      </div>
+      {error ? <p className="text-xs text-[var(--ide-danger)]">{error}</p> : null}
+      {result ? (
+        <div className="flex flex-col gap-1 rounded-md border border-[var(--ide-border)] p-2 text-xs" role="status">
+          <div className="font-semibold">
+            {result.ok
+              ? t("settings.probeOk", { model: result.model, ms: result.latency_ms ?? "-" })
+              : t("settings.probeFailed", { model: result.model || "-" })}
+          </div>
+          {result.checks.map((check) => (
+            <div className="flex items-start gap-1.5" key={check.id}>
+              {probeIcons[check.status]}
+              <span className="break-all">{describe(check)}</span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
   );
 }
 

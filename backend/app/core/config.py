@@ -115,6 +115,7 @@ EDITABLE_SETTINGS: dict[str, tuple[str, ...] | None] = {
     "agent_llm_provider": ("openai_compatible", "claude_code"),
     "agent_llm_base_url": None,
     "agent_llm_model": None,
+    "agent_llm_extra_body": None,
     "agent_claude_code_model": None,
     "llm_provider": ("openai_compatible", "codex", "claude_code", "fixture"),
     "analysis_llm_base_url": None,
@@ -149,6 +150,13 @@ def valid_setting(key: str, value: object) -> bool:
         return False
     if key in SECRET_SETTINGS and (not value.strip() or any(char.isspace() for char in value.strip())):
         return False
+    if key == "agent_llm_extra_body":
+        from app.core.chat_api import parse_extra_body
+
+        try:
+            parse_extra_body(value)
+        except ValueError:
+            return False
     allowed = EDITABLE_SETTINGS[key]
     return allowed is None or value in allowed
 

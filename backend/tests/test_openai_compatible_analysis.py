@@ -7,6 +7,7 @@ import httpx
 import pytest
 from PIL import Image
 
+from app.core import chat_api
 from app.core.config import get_settings
 from app.generation.backends import openai_compatible
 from app.generation.backends.types import ReferenceRejectedError
@@ -46,7 +47,7 @@ def install_responses(monkeypatch, replies: list[str]) -> list[httpx.Request]:
 
     real_client = httpx.AsyncClient
     monkeypatch.setattr(
-        openai_compatible.httpx,
+        chat_api.httpx,
         "AsyncClient",
         lambda **kwargs: real_client(transport=httpx.MockTransport(handler), **kwargs),
     )
@@ -100,7 +101,7 @@ async def test_rejected_reference_stops_before_analysis(analysis_env, monkeypatc
 async def test_http_error_is_reported(analysis_env, monkeypatch):
     real_client = httpx.AsyncClient
     monkeypatch.setattr(
-        openai_compatible.httpx,
+        chat_api.httpx,
         "AsyncClient",
         lambda **kwargs: real_client(
             transport=httpx.MockTransport(lambda request: httpx.Response(400, text="model does not support images")),

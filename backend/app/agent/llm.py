@@ -13,8 +13,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol
 
-import httpx
-
+from app.core import chat_api
 from app.core.config import get_settings
 from app.generation.backends.claude_code import run_claude_code
 
@@ -108,28 +107,26 @@ class OpenAICompatibleLLM:
             "messages": [{"role": "system", "content": system_prompt}, *map(_wire_message, messages)],
         }
         if tools:
-            payload["tools"] = [
-                {
-                    "type": "function",
-                    "function": {"name": tool.name, "description": tool.description, "parameters": tool.parameters},
-                }
-                for tool in tools
-            ]
+            payload["tools"] = [tool_payload(tool) for tool in tools]
             payload["tool_choice"] = "auto"
-        payload.update(parse_extra_body(settings.agent_llm_extra_body))
-        headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
         try:
-            async with httpx.AsyncClient(timeout=float(settings.agent_llm_timeout_seconds)) as client:
-                response = await client.post(f"{base_url}/chat/completions", json=payload, headers=headers)
-        except httpx.HTTPError as exc:
-            raise AgentLLMError(f"Agent LLM request failed: {exc.__class__.__name__}: {exc}") from exc
-        if response.status_code >= 400:
-            raise AgentLLMError(f"Agent LLM returned HTTP {response.status_code}: {response.text[:500]}")
-        try:
-            message = response.json()["choices"][0]["message"]
-        except (ValueError, KeyError, IndexError, TypeError) as exc:
-            raise AgentLLMError(f"Agent LLM returned an unexpected body: {response.text[:500]}") from exc
-        return parse_openai_message(message)
+            result = await chat_api.post_chat_completion(
+                base_url,
+                api_key,
+                payload,
+                extra_body=parse_extra_body(settings.agent_llm_extra_body),
+                timeout=float(settings.agent_llm_timeout_seconds),
+            )
+        except chat_api.ChatAPIError as exc:
+            raise AgentLLMError(f"Agent LLM {exc}") from exc
+        return parse_openai_message(result.message)
+
+
+def tool_payload(tool: ToolSpec) -> dict[str, Any]:
+    return {
+        "type": "function",
+        "function": {"name": tool.name, "description": tool.description, "parameters": tool.parameters},
+    }
 
 
 def resolve_agent_api_key(settings: Any) -> str:
@@ -143,16 +140,10 @@ def resolve_agent_api_key(settings: Any) -> str:
 
 
 def parse_extra_body(raw: str) -> dict[str, Any]:
-    if not raw.strip():
-        return {}
     try:
-        parsed = json.loads(raw)
-    except json.JSONDecodeError as exc:
-        raise AgentLLMError(f"AGENT_LLM_EXTRA_BODY is not valid JSON: {exc}") from exc
-    if not isinstance(parsed, dict):
-        raise AgentLLMError("AGENT_LLM_EXTRA_BODY must be a JSON object")
-    # Never let extra fields override the conversation itself.
-    return {key: value for key, value in parsed.items() if key not in {"model", "messages", "tools"}}
+        return chat_api.parse_extra_body(raw)
+    except ValueError as exc:
+        raise AgentLLMError(f"AGENT_LLM_EXTRA_BODY is not a valid JSON object: {exc}") from exc
 
 
 def _wire_message(message: dict[str, Any]) -> dict[str, Any]:

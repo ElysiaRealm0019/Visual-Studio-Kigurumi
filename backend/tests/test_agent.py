@@ -402,6 +402,7 @@ async def test_openai_compatible_request_shape(monkeypatch):
     import httpx
 
     from app.agent import llm as llm_module
+    from app.core import chat_api
     from app.agent.tools import TOOL_SPECS
     from app.core.config import get_settings
 
@@ -418,7 +419,7 @@ async def test_openai_compatible_request_shape(monkeypatch):
 
     real_client = httpx.AsyncClient
     monkeypatch.setattr(
-        llm_module.httpx, "AsyncClient", lambda **kwargs: real_client(transport=httpx.MockTransport(handler), **kwargs)
+        chat_api.httpx, "AsyncClient", lambda **kwargs: real_client(transport=httpx.MockTransport(handler), **kwargs)
     )
     turn = await llm_module.OpenAICompatibleLLM().complete(
         "SYS",

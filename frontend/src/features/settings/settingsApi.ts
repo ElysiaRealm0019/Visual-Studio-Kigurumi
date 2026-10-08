@@ -26,8 +26,19 @@ export function backendRequirement(settingKey: string, option: string): string |
   return commonRequirements[option];
 }
 
-async function request(init?: RequestInit): Promise<BackendSettings> {
-  const response = await fetch("/api/settings", init);
+export const probeResultSchema = z.object({
+  ok: z.boolean(),
+  model: z.string(),
+  base_url: z.string(),
+  latency_ms: z.number().nullable().default(null),
+  checks: z.array(z.object({ id: z.string(), status: z.enum(["ok", "warn", "fail"]), detail: z.string().default("") })),
+});
+
+export type ProbeResult = z.infer<typeof probeResultSchema>;
+export type ProbeRole = "agent" | "analysis";
+
+async function send(path: string, init?: RequestInit): Promise<unknown> {
+  const response = await fetch(`/api/settings${path}`, init);
   if (!response.ok) {
     let detail = response.statusText;
     try {
@@ -38,7 +49,16 @@ async function request(init?: RequestInit): Promise<BackendSettings> {
     }
     throw new Error(detail || `HTTP ${response.status}`);
   }
-  return backendSettingsSchema.parse(await response.json());
+  return response.json();
+}
+
+async function request(init?: RequestInit): Promise<BackendSettings> {
+  return backendSettingsSchema.parse(await send("", init));
+}
+
+/** Sends one small test request with the saved settings (costs a few tokens). */
+export async function probeBackend(role: ProbeRole): Promise<ProbeResult> {
+  return probeResultSchema.parse(await send(`/probe/${role}`, { method: "POST" }));
 }
 
 export function getBackendSettings() {

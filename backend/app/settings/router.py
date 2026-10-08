@@ -24,6 +24,7 @@ from app.core.config import (
 )
 from app.generation.backends.openai_compatible import resolve_analysis_endpoint
 from app.generation.provider import resolve_backend_names
+from app.settings.probe import ProbeOut, probe_agent, probe_analysis
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 
@@ -124,6 +125,26 @@ async def update_settings(request: SettingsUpdate) -> SettingsOut:
     os.replace(temporary, path)
     get_settings.cache_clear()
     return _describe(get_settings())
+
+
+@router.post("/probe/{role}", response_model=ProbeOut)
+async def probe_backend(role: str) -> ProbeOut:
+    """Send one small test request with the saved settings (costs a few tokens)."""
+    settings = get_settings()
+    if not _writable(settings):
+        raise HTTPException(status_code=403, detail="settings_read_only_in_production")
+    if role == "agent" and settings.agent_llm_provider == "openai_compatible":
+        return await probe_agent(settings)
+    if role == "analysis" and _analysis_provider(settings) == "openai_compatible":
+        return await probe_analysis(settings)
+    raise HTTPException(status_code=400, detail="probe_unsupported")
+
+
+def _analysis_provider(settings: Settings) -> str:
+    try:
+        return resolve_backend_names(settings)[0]
+    except ValueError:
+        return ""
 
 
 @router.delete("", response_model=SettingsOut)

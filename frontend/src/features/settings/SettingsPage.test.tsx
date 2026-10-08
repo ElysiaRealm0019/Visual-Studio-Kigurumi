@@ -12,6 +12,7 @@ const initial: BackendSettings = {
     agent_llm_provider: "openai_compatible",
     agent_llm_base_url: "https://example.test/v1",
     agent_llm_model: "chat-model",
+    agent_llm_extra_body: '{"thinking": {"type": "disabled"}}',
     agent_claude_code_model: "",
     llm_provider: "codex",
     analysis_llm_base_url: "",
@@ -126,6 +127,59 @@ describe("SettingsPage", () => {
     expect(screen.getByPlaceholderText("留空沿用对话助手：chat-model")).toBeTruthy();
     expect(screen.getByText("需要填写 API Key（或沿用对话助手的 Key）")).toBeTruthy();
     expect(screen.getByText("模型必须支持图片输入（多模态），否则分析会失败。")).toBeTruthy();
+  });
+
+  it("tests the saved chat assistant and explains each check", async () => {
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url === "/api/settings/probe/agent" && init?.method === "POST") {
+        return new Response(
+          JSON.stringify({
+            ok: true,
+            model: "glm-5",
+            base_url: "https://example.test/v1",
+            latency_ms: 812,
+            checks: [
+              { id: "connection", status: "ok", detail: "" },
+              { id: "extra_body", status: "warn", detail: "thinking" },
+              { id: "tools", status: "ok", detail: "" },
+            ],
+          }),
+        );
+      }
+      return new Response(JSON.stringify(initial));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    renderPage();
+
+    const button = await screen.findByRole("button", { name: "测试连接" });
+    fireEvent.change(screen.getByDisplayValue("chat-model"), { target: { value: "other" } });
+    expect(button).toHaveProperty("disabled", true);
+    expect(screen.getByText("有未保存的修改，先保存再测试。")).toBeTruthy();
+    fireEvent.change(screen.getByDisplayValue("other"), { target: { value: "chat-model" } });
+    fireEvent.click(button);
+
+    await screen.findByText("glm-5 可用 · 812 ms");
+    expect(screen.getByText("模型不支持额外参数 thinking，已自动去掉。建议清空“额外请求参数”。")).toBeTruthy();
+    expect(screen.getByText("支持工具调用")).toBeTruthy();
+  });
+
+  it("explains a failed connection", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        url === "/api/settings/probe/agent"
+          ? new Response(
+              JSON.stringify({ ok: false, model: "glm-5", base_url: "x", latency_ms: null, checks: [{ id: "connection", status: "fail", detail: "auth: HTTP 401: bad key" }] }),
+            )
+          : new Response(JSON.stringify(initial)),
+      ),
+    );
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: "测试连接" }));
+
+    await screen.findByText("glm-5 不可用");
+    expect(screen.getByText("Key 无效或没有权限（HTTP 401: bad key）")).toBeTruthy();
   });
 
   it("warns when the selected backend is not configured and disables editing when read-only", async () => {

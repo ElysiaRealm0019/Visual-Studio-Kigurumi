@@ -2,9 +2,9 @@ import json
 import logging
 from typing import Any
 
-import httpx
 from PIL import Image, UnidentifiedImageError
 
+from app.core import chat_api
 from app.core.config import get_settings
 from app.core.paths import resolve_repo_path
 from app.generation.backends.analysis import (
@@ -100,31 +100,25 @@ async def complete_with_images(prompt: str, images: list[str]) -> str:
     content: list[dict[str, Any]] = [{"type": "text", "text": prompt}]
     content += [{"type": "image_url", "image_url": {"url": image}} for image in images]
     payload: dict[str, Any] = {"model": model, "messages": [{"role": "user", "content": content}]}
-    payload.update(_extra_body(settings.agent_llm_extra_body))
-    headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
     try:
-        async with httpx.AsyncClient(timeout=float(settings.codex_detail_analysis_timeout_seconds)) as client:
-            response = await client.post(f"{base_url}/chat/completions", json=payload, headers=headers)
-    except httpx.HTTPError as exc:
-        raise RuntimeError(f"Analysis LLM request failed: {exc.__class__.__name__}: {exc}") from exc
-    if response.status_code >= 400:
-        raise RuntimeError(f"Analysis LLM returned HTTP {response.status_code}: {response.text[:500]}")
-    try:
-        text = response.json()["choices"][0]["message"]["content"]
-    except (ValueError, KeyError, IndexError, TypeError) as exc:
-        raise RuntimeError(f"Analysis LLM returned an unexpected body: {response.text[:500]}") from exc
-    if isinstance(text, list):  # some APIs return content parts
-        text = "".join(str(part.get("text", "")) for part in text if isinstance(part, dict))
-    return str(text or "")
+        result = await chat_api.post_chat_completion(
+            base_url,
+            api_key,
+            payload,
+            extra_body=analysis_extra_body(settings),
+            timeout=float(settings.codex_detail_analysis_timeout_seconds),
+        )
+    except chat_api.ChatAPIError as exc:
+        raise RuntimeError(f"Analysis LLM {exc}") from exc
+    return chat_api.message_text(result.message)
 
 
-def _extra_body(raw: str) -> dict[str, Any]:
+def analysis_extra_body(settings: Any) -> dict[str, Any]:
     try:
-        parsed = json.loads(raw) if raw.strip() else {}
-    except json.JSONDecodeError:
+        return chat_api.parse_extra_body(settings.agent_llm_extra_body)
+    except ValueError:
         logger.warning("Ignoring invalid AGENT_LLM_EXTRA_BODY for analysis")
         return {}
-    return parsed if isinstance(parsed, dict) else {}
 
 
 def _extract_json(text: str) -> str:
