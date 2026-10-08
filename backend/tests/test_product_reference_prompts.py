@@ -128,6 +128,10 @@ def test_head_shell_prompts_match_the_control_references():
         assert "neither side of the face may fall into heavy shadow" in prompt
         assert "eggshell-matte paint" in prompt
         assert "airbrushed blush" in prompt
+        # Wig fibre reads as grouped clumps with a satin sheen, not glossy separate strands.
+        assert "satin sheen, never wet-look or waxy gloss" in prompt
+        assert "never from sparse ribbon-like strands" in prompt
+        assert "never hatch marks, stroke lines or drawn-on anime blush" in prompt
     bridge_prompt = codex._build_codex_candidate_prompt({**PAYLOAD, "generation_mode": "front_design"}, 1, "matching")
     assert "the face stays fully visible" in bridge_prompt
     assert "never carved into the shell" in bridge_prompt
