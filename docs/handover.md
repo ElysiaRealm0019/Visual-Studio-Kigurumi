@@ -216,3 +216,48 @@ jsdom 无法出像素，本轮用真实管线做了人眼比对：
 - `APP_ENV=production` 时只读（PUT/DELETE 返回 403）；`fixture` 选项只在允许测试样例时出现。
 - 测试：`tests/conftest.py` 的 autouse fixture 把 `RUNTIME_SETTINGS_PATH` 指到临时目录，避免本机保存的设置影响测试。
 - 参考图分析新增 `LLM_PROVIDER=openai_compatible`（`backend/app/generation/backends/openai_compatible.py`）：安全检查和细节分析各发一次 `/chat/completions`，参考图缩到 `ANALYSIS_LLM_MAX_IMAGE_SIDE`（默认 1536）后以 base64 `image_url` 附上，模型必须支持图片输入。`ANALYSIS_LLM_BASE_URL/API_KEY/MODEL` 留空时沿用对话助手的地址、Key、模型（地址等于方舟地址时也会沿用 `ARK_API_KEY`），请求体合并 `AGENT_LLM_EXTRA_BODY`。尚未用真实参考图跑过，豆包 seed 2.0 pro 是否稳定输出要求的 JSON 需要实测。
+- OpenAI 兼容请求统一走 `backend/app/core/chat_api.py`（对话助手和参考图分析共用）。`AGENT_LLM_EXTRA_BODY`（默认关闭豆包深度思考）是厂商专属字段：返回 400 且错误里提到其中某个字段时，去掉额外字段重发一次，并在内存里记住该"地址+模型"，之后直接不带（重启或测试连接时清空）。实测 GLM-5.3-flash 会拒绝 `thinking.type=disabled`。
+- 设置页"额外请求参数（JSON）"可编辑（必须是 JSON 对象或留空）。"测试连接"（`POST /api/settings/probe/{agent|analysis}`，`backend/app/settings/probe.py`）用已保存的设置各发一个小请求：对话助手检查连接、额外参数、工具调用（要求模型调用 `ping` 工具）；分析检查连接、额外参数、看图（发一张红色方块问颜色）。失败按 401/403、404、连不上、不支持图片分类提示。生产环境禁用。
+- 页面里的确认/输入改用应用内弹窗（`frontend/src/ui/IdeDialog.tsx`），因为部分内嵌浏览器会静默屏蔽 `window.confirm`/`prompt`，导致删除、重命名项目没反应。
+
+
+## 14. 头壳生成：参考图顺序与 prompt 结构（2026-10-08）
+
+- 问题：头壳正视图基本是 2D 设计稿加了点立体感，不像实物头壳。
+- 原因对照 V2（`app/conversation/stages.py`、`style_references.py`）：
+  - V2 先放用户的图，应用自带的风格照放最后，并用一段文字说明"最后的图是应用加的，只参考材质和布光"。我们原来把成品照放第一张，而 codex 拿不到文件名，prompt 里写的"商成品参考图.png"无从对应。
+  - V2 的阶段说明在前、用户数据在后；我们原来把一长串细节锁定（十字瞳孔、发丝等描述画面的词）放在任务说明前面，模型照着重画插画。
+- 改动：
+  - `_existing_codex_image_paths` 和 `tools/codex_bridge.py`：用户图在前，成品照在后。
+  - `_reference_instruction_for_mode`（头壳阶段）按位置说明各张图；成品照里的支架、水印等忽略（`STYLE_PHOTO_IGNORE`）。
+  - codex prompt 顺序改为：图片说明 → 阶段说明（实物化、Look、Presentation）→ 约束 → 设计事实（细节锁定，标题改为"保留设计，用实物材质呈现"）→ 用户备注。
+  - 新增 `PHYSICAL_TRANSLATION_LINE`：逐项说明画面元素变成什么实物（壳、镜片眼、假发、饰品）。
+  - `job_store.py` 的约束和标题不再说 "design preview"，改为"实物头壳棚拍照片"。
+- 待办：`ref/product-reference.png` 带支架和闲鱼水印（已由第 16 节的裁剪版替代）。
+
+## 15. 对话卡"正在思考"、回复的重新生成/删除（2026-10-08）
+
+- 卡住原因：`EventSource` 断线后会自己重连，但重连时收到错误响应（例如后端重启期间 Vite 代理返回 500/502）就会永久关闭，页面再也收不到"运行结束"，只能手动刷新。
+- 修复：
+  - `subscribeToEvents`：连接被浏览器放弃后 3 秒重新打开，从最后收到的 seq 继续，重连成功后补拉一次快照。
+  - `useConversation`：运行中每 8 秒拉一次快照兜底。快照的 `last_seq` 比页面已有的旧时丢弃，避免慢请求把运行状态改回"进行中"。
+- 助手回复下方的按钮：
+  - 删除（每条回复都有）：`DELETE /api/agent/conversations/{id}/messages/{seq}`。事件不删除，只标 `deleted`，所以 seq 不会被重复使用。模型上下文里的对应消息会去掉；如果这条消息带工具调用，只清空文字，保持调用和结果成对。
+  - 重新生成（只在最后一条回复上）：`POST /api/agent/conversations/{id}/regenerate`。模型上下文退回到最后一条用户消息，隐藏这一轮的回复和错误，然后重新运行。已生成的图片保留。
+  - 后端逻辑在 `backend/app/agent/history.py`。
+
+## 16. 头壳正视图的写实程度（2026-10-08）
+
+- 对比实验（脚本 `runtime/_abtest*.py`，结果和提示词在 `runtime/abtest-ark/`）：
+  - Codex（gpt-image）：不论提示词怎么调、成品照怎么换，都会照抄 2D 设计稿的画法。
+  - 方舟（Seedream）：明显更像实物。
+  - 以成品照为底图改成角色（编辑模式）：最像实拍，但脸会往真人那边偏；加了约束以后，又会往"照片里那个角色"的脸型和表情偏。
+  - 设计稿在前、成品照只作质感参考（B）：最贴近设计稿的风格，用户选了这个。
+- 默认用 B。编辑模式保留为开关 `HEAD_SHELL_EDIT_STYLE_PHOTO`（默认 false），由 `prompting.edits_style_photo()` 判断，只作用于 `front_design`：
+  - 方舟和 SiliconFlow：成品照按出图比例补边后作为 Image 1（`style_photo_base`），设计稿作为 Image 2。
+  - Codex 直连：成品照在前，提示词换成 `FINAL_KIGURUMI_FRONT_EDIT_PROMPT`。
+  - Codex bridge 不支持编辑模式。
+- 提示词的写实只做到材质这一层：
+  - `ANIME_FACE_LINE`：脸是"把设计稿的动漫脸做成实物"——眼睛的大小和位置按原画，鼻子只是一个小点，嘴是一条画上去的线；不要嘴唇、鼻孔、颧骨，不能像真人。
+  - `HEAD_SHELL_LOOK`：去掉鼻梁、脸颊、嘴唇的雕塑起伏；壳面改为全哑光，只有镜片眼有光泽。
+- 成品照：本地 `.env` 已改为裁剪版 `ref/product-reference-head.png`（只保留头部和假发，去掉支架和水印）。
