@@ -111,3 +111,14 @@ def test_head_shell_front_edits_the_style_photo_only_on_the_direct_codex_path(mo
     # Revisions start from an existing head shell, never from the style photo.
     revision = codex._build_codex_prompt({**PAYLOAD, "generation_mode": "front_revision"}, "matching", True)
     assert "STYLE PHOTO" not in revision
+
+
+def test_head_shell_prompts_keep_the_face_clear_of_hair():
+    for mode in ["front_design", "front_revision", "turnaround"]:
+        prompt = codex._build_codex_prompt({**PAYLOAD, "generation_mode": mode})
+        # Hair must never spill onto the face (strands used to drape over the eyes and cheeks).
+        assert "the fringe ends just above the brows" in prompt
+        assert "never in front of the face" in prompt
+        assert "spilling onto the shell or the face" in prompt
+    bridge_prompt = codex._build_codex_candidate_prompt({**PAYLOAD, "generation_mode": "front_design"}, 1, "matching")
+    assert "the face stays fully visible" in bridge_prompt

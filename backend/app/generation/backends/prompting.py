@@ -76,9 +76,11 @@ HEAD_SHELL_LOOK = (
     "never flat drawn eyes. Brows, lashes, blush and the mouth are matte paint sitting on the surface. The wig is "
     "heat-resistant synthetic fibre with a pronounced silky sheen: individual strands are visible, bright specular "
     "highlights run along the strands in soft bands that curve with the hair, the roots are darker and the layers "
-    "underneath fall into shadow, there is natural volume, fine flyaways at the edges and a believable parting where the "
+    "underneath fall into shadow, there is natural volume and a believable parting where the "
     "wig meets the shell; braids show the woven strand structure with a highlight on each ridge; the fringe casts a soft "
-    "shadow on the forehead. Colours stay true to the character, rendered with real-world tonal range, soft contact "
+    "shadow on the forehead. The wig is styled to show the face: the fringe ends just above the brows, no strand "
+    "hangs over or crosses the forehead, the eyes or the cheeks, and flyaway strands stay inside the hairstyle "
+    "silhouette instead of spilling onto the shell or the face. Colours stay true to the character, rendered with real-world tonal range, soft contact "
     "shading between hair and face, and fine surface detail everywhere."
 )
 
@@ -88,9 +90,11 @@ HEAD_SHELL_PRESENTATION = (
     "No mount, mannequin, bust, table, floor, shelf or any other surface touches or supports it, and there is no "
     "floor or contact shadow beneath it (at most a faint soft shadow far behind it on the backdrop). The shell is a "
     "hollow head: below the face it simply ends at its natural jaw and opening edge, with no neck stub and no base. "
-    "The wig hangs freely under gravity: loose hair, side locks, braids, twin tails and ponytails fall straight down with "
+    "The wig hangs freely under gravity: loose hair, braids, twin tails and ponytails fall straight down with "
     "natural weight, pass beyond the bottom of the shell through open air, and never rest on, bend against or pile up on "
-    "any surface; long braids end in the air with their tips pointing down."
+    "any surface; long braids end in the air with their tips pointing down. The fringe and the side locks stay off the "
+    "face: the fringe ends just above the brows, the side locks frame the head at the sides without crossing the "
+    "cheeks or the eyes, and long hair falls beside or behind the shell, never in front of the face."
 )
 
 WATERMARK_LINE = (
@@ -172,6 +176,8 @@ FINAL_KIGURUMI_FRONT_VIEW_PROMPT = [
     "- large anime eyes as glossy clear-domed lens eyes in sculpted sockets with printed or painted irises, eyeliner "
     "and lashes; never realistic human eyes and never flat drawn eyes",
     "- wig mounted on the head shell, with realistic fiber texture and a hairstyle derived from the references or user notes",
+    "- the face stays fully visible: the fringe ends just above the brows, the side locks frame the head at the "
+    "sides, and no strand hangs over or crosses the forehead, the eyes or the cheeks",
     "- long loose hair must remain continuous and natural; do not create holes, missing chunks, or cutouts in the hair silhouette",
     "- the characteristic ears or horn-like appendages stay present, matched, and symmetric",
     "",
