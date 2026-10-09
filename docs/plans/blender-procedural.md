@@ -40,7 +40,7 @@ V.S.K 目前的产出止步于 2D 设计稿和头壳效果图。本计划引入 
 
 - 固定 **Blender 5.1**（几何节点输入走 5.1 的 `node_tree.interface` API；不兼容 3.x/4.x 的旧接口，脚本与文档均按 5.1 编写）。
 - 建模全部用**纯 Python 脚本程序化构建**（骨架网格 + 几何节点 + 修改器），不依赖仓库里的二进制 `.blend` 模板——脚本和参数都可进 git，任何人 `blender -b -P` 即可复现。
-- `BLENDER_PATH` 作为后端设置（默认 `blender`，走 PATH；本机安装可用相对/绝对路径覆盖）。
+- `BLENDER_PATH` 作为后端设置（默认 `blender`，走 PATH；本机安装可用路径覆盖）。
 
 ## 4. 参数注册表（Schema）
 
@@ -48,14 +48,14 @@ V.S.K 目前的产出止步于 2D 设计稿和头壳效果图。本计划引入 
 
 ```json
 {
-  "key": "eye.hole_diameter_mm",
+  "key": "eye.hole_width_mm",
   "group": "eyes",
   "type": "float",
   "min": 30, "max": 90,
-  "default": 55,
+  "default": 66,
   "unit": "mm",
   "step": 0.5,
-  "description": "眼部开孔直径（镜片孔），双眼同径",
+  "description": "单眼开孔宽（椭圆）",
   "sources": ["landmark", "design", "manual"],
   "affects": ["geometry"]
 }
@@ -63,40 +63,32 @@ V.S.K 目前的产出止步于 2D 设计稿和头壳效果图。本计划引入 
 
 `sources` 标注该参数的推荐取值来源：`landmark`（从编辑器眼部标注直接换算）、`design`（由分析特征/设计图估算，Agent 负责）、`manual`（用户手调）。`affects` 区分改几何还是只改材质/贴图（影响是否需要重建几何，纯材质改动预览更快）。
 
-### 4.1 参数清单（v1）
+### 4.1 默认尺寸推导（按实测身体数据）
+
+输入（2026-10-09 实测）：**身高 1900mm、头围 640mm、肩宽 450mm；裸头宽实测 180mm、头高（下巴到头顶）实测 235mm**。穿戴约束：假发在壳体外每侧厚 2–3cm（取 25mm）；壳内左右海绵垫 2–4cm（取 30mm/侧，特指左右）；顶部垫层偏厚（取 35mm）；壳底沿离下巴约 1cm（10mm）。
+
+| 量 | 推导 | 结果 |
+| --- | --- | --- |
+| 裸头深 | 头围 640 与实测头宽 180 反推（椭圆周长拟合） | ≈ 226mm |
+| 壳外宽 | 180 + 左右海绵 30×2 + 壁厚 2.5×2 | **245mm** |
+| 壳外高 | 头高 235 + 顶部垫层 35 + 壁厚 2.5 + 底沿延伸 10 | **283mm** |
+| 壳外深 | 226 + 后脑海绵 25 + 壁厚 2.5 + 面部固有空间 8 | **262mm** |
+| 眼中心离壳底沿 | 底沿间隙 10 + 头高/2 117.5 | **128mm** |
+| 瞳距 | 真人 ≈63 按 animegao 比例放大 | **88mm** |
+| 肩宽校验 | (壳外宽 245 + 假发 25×2) / 肩宽 450 = 295/450 | **≈ 1:1.53** ✓ 标准 animegao 大头比例 |
+
+肩宽不合适的调节旋钮（按优先级）：减发量 / 换薄假发（每侧 20mm 时 1:1.60）/ 左右海绵取 20mm 下限；**壳外宽不能压破内腔下限**（裸头 180 + 左右海绵 40）。
+
+### 4.2 参数清单（v1，默认值即上表推导结果）
 
 长度单位一律毫米（真实打印尺度），角度用度。分组即 UI 面板的折叠分组。
 
-**A0. 拟合输入（fit）——手动填写，派生 A 组默认值**
-
-默认值取自 2026-10-09 的实测穿戴需求：身高 1900 / 头围 640 / 肩宽 450。
-
-| key | 类型/范围 | 默认 | 说明 |
-| --- | --- | --- | --- |
-| `fit.stature_mm` | int 1500–2100 | 1900 | 身高（比例参考） |
-| `fit.head_circumference_mm` | float 520–680 | 640 | 头围（实测，决定壳体内腔） |
-| `fit.shoulder_width_mm` | float 350–600 | 450 | 肩宽（成品比例校验用） |
-| `fit.wig_thickness_per_side_mm` | float 0–40 | 25 | 假发在壳体外侧每侧的蓬松厚度（2–3cm 取中值，比例报告用） |
-| `fit.pad_side_mm` | float 20–40 | 30 | 左右海绵垫单侧厚度（**特指左右，2–4cm**，压缩余量在内） |
-| `fit.pad_top_mm` | float 20–50 | 35 | 顶部垫层厚度（**上侧偏厚**，比左右厚） |
-| `fit.pad_back_mm` | float 15–40 | 25 | 后脑海绵垫厚度 |
-| `fit.chin_gap_mm` | float 5–20 | 10 | 壳底沿到下巴尖的距离（**约 1cm**，下巴不顶壳、留呼吸余量） |
-
-拟合派生（写入预设生成逻辑，公式固定，便于复核；头宽/头高用 2026-10-09 实测值，不用估算）：
-
-- **头宽实测 180mm**（椭圆推算 640/π 只得 177，以实测为准）；头深按 640 头围 + 实测宽反推 ≈ **226mm**。
-- 外壳面宽 = 裸头宽 180 + 2×`fit.pad_side_mm` 30 + 2×`structure.wall_thickness_mm` 2.5 ≈ **245mm**。
-- 外壳深 = 裸头深 226 + `fit.pad_back_mm` 25 + 壁厚 2.5 + 面部固有空间 8 ≈ **262mm**。
-- 壳外高（底沿到外顶）= 头高实测 **235**（下巴到头顶，不用身高/7.7 估的 247）+ `fit.pad_top_mm` 35 + 壁厚 2.5 + `fit.chin_gap_mm` 10 ≈ **283mm**。
-- 眼中心离壳底沿 ≈ `fit.chin_gap_mm` 10 + 头高/2 117.5 ≈ **128mm**（真实眼位在头高中点，landmark 换算会覆盖此默认）。
-- 颈部开口必须能让整个头**斜向穿入**：按头围相对常规 57cm 的比例放大经验值 → 640mm 头围取 ≈180mm（椭圆形开口或后铰链板是备选工艺，v1 先用圆直径参数）。
-
-**A. 头壳基础形（geometry，默认值由 A0 派生）**
+**A. 头壳基础形（geometry）**
 
 | key | 类型/范围 | 默认 | 说明 | 来源 |
 | --- | --- | --- | --- | --- |
-| `base.face_width_mm` | float 210–280 | 245 | 脸部最宽处（颧骨间距，外壳面） | fit+design |
-| `base.face_height_mm` | float 250–320 | 283 | 壳底沿到壳外顶（含顶部垫层与壁厚） | fit+design |
+| `base.face_width_mm` | float 210–280 | 245 | 脸部最宽处（颧骨间距，外壳面） | fit |
+| `base.face_height_mm` | float 250–320 | 283 | 壳底沿到壳外顶 | fit |
 | `base.head_depth_mm` | float 230–300 | 262 | 前后深度（外壳面） | fit |
 | `base.profile_forehead` | float 0–1 | 0.5 | 额头饱满度（截面控制点） | design |
 | `base.profile_cheek` | float 0–1 | 0.5 | 脸颊肉感 | design |
@@ -104,8 +96,7 @@ V.S.K 目前的产出止步于 2D 设计稿和头壳效果图。本计划引入 
 | `base.profile_chin` | float 0–1 | 0.5 | 下巴长度/尖圆 | design |
 | `base.relief_depth_mm` | float 0–8 | 3 | 五官浮雕最大深度（animegao 要浅） | design |
 | `base.cross_section_roundness` | float 0–1 | 0.6 | 横截面由扁到圆 | manual |
-
-> **假发厚度提醒**：假发会在壳体外侧每侧加厚 2–3cm（`fit.wig_thickness_per_side_mm`），成品头宽 ≈ `face_width` 245 + 2×25 ≈ **295mm**。对 450mm 肩宽约 **1:1.53**（标准 animegao 大头比例，见 §5 拟合报告的允许区间）；要更收敛只能减发量/换薄假发或取 `fit.pad_side_mm` 下限 20，**不能把 `face_width` 压到拟合下限以下**（内腔必须容纳裸头 180 + 左右各 2–4cm 海绵）。预览建议提供半透明"假发占位壳"（offset +`fit.wig_thickness_per_side_mm`），用于判断真实成品比例。
+| `base.chin_gap_mm` | float 5–20 | 10 | 壳底沿到下巴尖的距离 | fit |
 
 **B. 眼部（geometry）**
 
@@ -129,10 +120,8 @@ V.S.K 目前的产出止步于 2D 设计稿和头壳效果图。本计划引入 
 | `nose.tip_height_mm` | float 0–6 | 1.5 | 鼻尖凸起（animegao 只有极小鼻尖） | design |
 | `nose.width_mm` | float 4–15 | 7 | 鼻尖宽度 | design |
 | `mouth.width_mm` | float 20–60 | 34 | 嘴线宽度 | design |
-| `mouth.carve_depth_mm` | float 0–1.5 | 0.3 | 嘴线刻槽深（0 = 纯贴图上色，推荐默认 0） | design |
+| `mouth.carve_depth_mm` | float 0–1.5 | 0 | 嘴线刻槽深（0 = 纯贴图上色，与提示词"嘴是平面彩绘"一致） | design |
 | `mouth.smile_curve_deg` | float −20–20 | 5 | 嘴角上扬角度 | design |
-
-> 提示词侧已把嘴定义为"平面彩绘"，3D 侧对应 `carve_depth_mm` 默认 0、由贴图画嘴线；刻槽只作为可选工艺。
 
 **D. 耳朵（geometry，附加体）**
 
@@ -144,18 +133,23 @@ V.S.K 目前的产出止步于 2D 设计稿和头壳效果图。本计划引入 
 | `ears.tilt_deg` | float −30–30 | 0 | 外撇角度 | design |
 | `ears.thickness_mm` | float 2–6 | 3 | 耳片厚度 | manual |
 
-**E. 结构与打印（geometry）**
+**E. 内衬与结构（geometry）**
 
 | key | 类型/范围 | 默认 | 说明 | 来源 |
 | --- | --- | --- | --- | --- |
+| `fit.pad_side_mm` | float 20–40 | 30 | 左右海绵垫单侧厚度（2–4cm） | fit |
+| `fit.pad_top_mm` | float 20–50 | 35 | 顶部垫层厚度（偏厚） | fit |
+| `fit.pad_back_mm` | float 15–40 | 25 | 后脑海绵垫厚度 | fit |
 | `structure.wall_thickness_mm` | float 1.5–5 | 2.5 | 壳壁厚 | manual |
-| `structure.neck_opening_mm` | float 120–220 | 180 | 颈部开口直径（需斜向穿入整个头，按头围换算） | manual |
+| `structure.neck_opening_mm` | float 120–220 | 180 | 底部开口直径（斜向穿入整个头） | manual |
 | `structure.edge_band_mm` | float 0–20 | 8 | 壳沿收边带宽 | manual |
 | `structure.split` | enum single/face+back | single | 是否分件（面壳+后壳） | manual |
 | `structure.split_height_mm` | float 0–120 | 60 | 分件线高度（split 时生效） | manual |
 | `structure.reg_pins` | int 0–8 | 4 | 分件定位销数量 | manual |
 | `structure.drain_holes` | int 0–10 | 4 | 排水/树脂孔数量 | manual |
 | `structure.remesh_mm` | float 0.5–4 | 1.5 | 重拓扑体素尺寸（文件大小/打印精度） | manual |
+
+> 改 `fit.pad_*` / `base.chin_gap_mm` 会改变内腔与外形，属于几何重建；4.1 的推导仅用于生成默认值，运行时不做联动换算——面板上各参数独立可调。
 
 **F. 外观与贴图（appearance，改材质不重建几何）**
 
@@ -170,7 +164,7 @@ V.S.K 目前的产出止步于 2D 设计稿和头壳效果图。本计划引入 
 
 `output.views`（默认 `front,three_quarter,side`）、`output.render_px`（默认 1280）、`output.export_formats`（默认 `glb,stl`）。
 
-### 4.2 参数快照与版本
+### 4.3 参数快照与版本
 
 一次建模 = 一份**完整参数快照**（`{schema_version, params, source: "manual"|"agent", note}`）。快照与 2D 编辑器的 recipe 同构：存进项目、可回滚、可导出。Agent 产出的不是"改了什么命令"而是"新快照 = 旧快照 + diff"，diff 以便在聊天里展示"Agent 想改哪几个值"，用户确认后落快照。
 
@@ -178,7 +172,7 @@ V.S.K 目前的产出止步于 2D 设计稿和头壳效果图。本计划引入 
 
 ```
 blender -b -P blender/build_shell.py -- \
-  --params out/params.json \        # 4.1 的快照（含 schema_version）
+  --params out/params.json \        # 4.3 的快照（含 schema_version）
   --design ref/design-front.png \   # 贴图/比例参考（可多张）
   --out out/                        # 产物目录
 ```
@@ -186,12 +180,10 @@ blender -b -P blender/build_shell.py -- \
 脚本职责（全部确定性，无随机、无 AI）：
 
 1. 校验 `schema_version` 与参数范围（超界夹取并写入警告清单）。
-2. 构建/更新几何：基础形（放样截面 → 壳体）→ 眼孔/鼻/嘴（布尔与浮雕）→ 耳朵附加体 → 壁厚/开口/分件/重拓扑。
+2. 构建/更新几何：基础形（放样截面 → 壳体）→ 眼孔/鼻/嘴（布尔与浮雕）→ 耳朵附加体 → 内衬余量/壁厚/开口/分件/重拓扑。
 3. 材质与贴图：设计稿圆柱投影、嘴线贴图、预览粗糙度。
 4. 按输出设置渲染各视图 PNG，导出 GLB / STL。
-5. **拟合与比例报告**（写进 `result.json`，UI 摘要展示）：内围直径 vs 头围+海绵垫的余量（左右余量应为正、顶部按偏厚垫层校验、底沿离下巴按 `fit.chin_gap_mm` 校验）；成品头宽（含假发）:肩宽 比值；全头高:身高 比值。任一比值超出允许区间（头宽:肩宽 > 1:1.45 或 < 1:2.2）时给黄色警告——按 1900/640/450 + 实测头宽 180 + 默认垫厚计算的 1:1.53 落在区间内，作为基准不报警。
-6. 可选 `--fit-ring`：输出一个 10mm 高的椭圆试戴环 STL（内沿 = 目标内腔、外沿 = 内衬面）。**首件建议先打环实测**（套上假发能穿入且不晃），确认 `fit.*` 输入无误后再打整壳——这是最便宜的纠错手段。
-7. 写 `out/result.json`：实际生效的参数（含夹取警告）、拟合报告、输出文件清单、耗时、Blender 版本——后端据此回报给 UI。
+5. 写 `out/result.json`：实际生效的参数（含夹取警告）、输出文件清单、耗时、Blender 版本——后端据此回报给 UI。
 
 **目录布局**：
 
@@ -209,7 +201,7 @@ backend/app/blender/
 ## 6. 与现有管线的集成点
 
 - **任务**：新的 job 类型 `blender_build`，走现有 queue/job_store（进度：`构建几何 40% → 贴图 70% → 渲染 90%`），支持取消（杀子进程）。
-- **产物**：渲染 PNG 走现有图片展示链路（进聊天/画布，`source: "blender"`，不加水印可选）；GLB/STL 与试戴环 STL 进 `/api/generated` 旁的下载端点（`.stl/.glb` 要加进扩展名白名单）。
+- **产物**：渲染 PNG 走现有图片展示链路（进聊天/画布，`source: "blender"`，不加水印可选）；GLB/STL 进 `/api/generated` 旁的下载端点（`.stl/.glb` 要加进扩展名白名单）。
 - **确认流**：Agent 填参/微调产出 diff → 复用现有"生成前确认"机制（`AGENT_MAX_GENERATIONS_PER_TURN` 同思路限频）。
 - **参数快照**：作为 `DesignImage.source="blender"` 的兄弟概念挂在项目状态上（或独立 `state.blender_snapshots[]`，实施时定）；预览图可从快照"打开在 Blender 参数面板"再编辑。
 - **前端**：参数面板复用 2D 编辑器的滑块架构（`schema.json` → 自动生成控件），放一个新 activity 项「3D」；预览渲染 + 下载按钮 + 快照历史。
