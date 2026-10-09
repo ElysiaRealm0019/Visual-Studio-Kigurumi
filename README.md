@@ -83,6 +83,13 @@ ARK_API_KEY=你的-agent-plan-key
 - Key 以明文保存在本机，`runtime/` 已加入 gitignore。
 - `APP_ENV=production` 时设置页只读。
 
+### 提示词热加载
+
+所有提示词（生图各阶段的描述、参考图分析与安全检查、各模式生成约束、对话助手的系统提示词）内置在代码里，同时支持稀疏覆盖：编辑 `runtime/prompts.json`（可用 `PROMPTS_FILE` 改路径），只写要改的键，其余键沿用内置默认值。保存文件即在下一次生成时生效，不用重启服务；删掉某个键或留空即恢复默认。
+
+- 每个键的默认值和当前值可以在 `GET /api/settings/prompts` 里查（带 `PROMPTS_FILE` 覆盖与否的标记），也可以对照 `backend/app/prompts/registry.py`。
+- 值是字符串；`constraints.*` 五个键是字符串数组。文件写坏（非法 JSON、类型不对）只会记一条警告并整体回退默认，不会影响生成。
+
 ### 各后端说明
 
 - **火山方舟**：需要 Agent Plan 专属 Key，其他方舟 Key 不能用。

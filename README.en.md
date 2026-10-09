@@ -83,6 +83,19 @@ Empty analysis and assistant keys fall back to the Ark key when they use the Ark
 - Keys are stored in plain text on this machine. `runtime/` is gitignored.
 - With `APP_ENV=production` the settings page is read-only.
 
+### Hot-reloadable prompts
+
+All prompt texts (the per-stage image prompts, the reference-analysis and safety prompts, the per-mode generation
+constraints, and the chat assistant's system prompt) have in-code defaults and support sparse overrides: edit
+`runtime/prompts.json` (path configurable via `PROMPTS_FILE`) and only write the keys you want to change - every
+other key keeps its built-in default. Saving the file takes effect on the next generation, no restart needed;
+deleting a key or emptying it reverts to the default.
+
+- The built-in default and current value of every key are listed by `GET /api/settings/prompts` (including an
+  overridden flag); the full key list lives in `backend/app/prompts/registry.py`.
+- Values are strings; the five `constraints.*` keys are arrays of strings. A broken file (invalid JSON, wrong
+  types) only logs a warning and falls back to the defaults entirely - generation keeps working.
+
 ### Backend notes
 
 - **Volcengine Ark**: needs the Agent Plan dedicated key; other Ark keys do not work.

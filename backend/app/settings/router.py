@@ -24,6 +24,7 @@ from app.core.config import (
 )
 from app.generation.backends.openai_compatible import resolve_analysis_endpoint
 from app.generation.provider import resolve_backend_names
+from app.prompts.registry import prompt_inventory
 from app.settings.probe import ProbeOut, probe_agent, probe_analysis
 
 router = APIRouter(prefix="/settings", tags=["settings"])
@@ -102,6 +103,12 @@ def _describe(settings: Settings) -> SettingsOut:
 @router.get("", response_model=SettingsOut)
 async def read_settings() -> SettingsOut:
     return _describe(get_settings())
+
+
+@router.get("/prompts")
+async def list_prompts() -> dict[str, Any]:
+    """Read-only inventory of the hot-reloadable prompt keys (built-in defaults vs. PROMPTS_FILE overrides)."""
+    return prompt_inventory()
 
 
 @router.put("", response_model=SettingsOut)

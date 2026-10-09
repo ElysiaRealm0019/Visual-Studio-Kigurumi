@@ -109,3 +109,20 @@ def test_stage_lists_stay_lazy_through_the_registry_constants(prompts_env):
     assert "photorealistic studio product photograph" in prompting.HEAD_SHELL_LOOK
     assert callable(prompting._final_front_view_prompt)
     assert callable(prompting.CHARACTER_STAGE_PROMPTS["character_front"])
+
+
+async def test_settings_prompts_inventory_endpoint(prompts_env, async_client):
+    response = await async_client.get("/api/settings/prompts")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["head_shell_look"]["overridden"] is False
+    assert body["head_shell_look"]["default"] == prompting.HEAD_SHELL_LOOK
+    assert body["agent.system_prompt"]["value"] == runner_module.SYSTEM_PROMPT
+    assert body["constraints.front_design"]["kind"] == "list"
+
+    write(prompts_env, {"head_shell_look": "Look: OVERRIDDEN FOR INVENTORY."})
+    body = (await async_client.get("/api/settings/prompts")).json()
+    assert body["head_shell_look"]["overridden"] is True
+    assert body["head_shell_look"]["value"] == "Look: OVERRIDDEN FOR INVENTORY."
+    assert body["head_shell_look"]["default"] == prompting.HEAD_SHELL_LOOK
