@@ -154,4 +154,36 @@ describe("ChatTimeline", () => {
     );
     expect(screen.getByText("已思考约 1050 tokens")).toBeTruthy();
   });
+
+  it("offers a retry after a failed turn and drops it once a new message arrives", () => {
+    const onRegenerate = vi.fn();
+    const failedTurn: AgentEvent[] = [
+      { seq: 1, type: "user_message", text: "帮我生成正面图" },
+      { seq: 2, type: "error", message: "Agent LLM HTTP 500: boom" },
+    ];
+    const { rerender } = render(
+      <ChatTimeline
+        conversation={conversation()}
+        events={failedTurn}
+        onApprove={vi.fn()}
+        onOpenImage={vi.fn()}
+        onRegenerate={onRegenerate}
+        running={false}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "重试" }));
+    expect(onRegenerate).toHaveBeenCalledOnce();
+
+    rerender(
+      <ChatTimeline
+        conversation={conversation()}
+        events={[...failedTurn, { seq: 3, type: "user_message", text: "再来一次" }]}
+        onApprove={vi.fn()}
+        onOpenImage={vi.fn()}
+        onRegenerate={onRegenerate}
+        running={false}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: "重试" })).toBeNull();
+  });
 });

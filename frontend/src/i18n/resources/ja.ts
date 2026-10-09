@@ -153,6 +153,7 @@ const ja: TranslationResource = {
     dropHint: "ドロップして参考画像を追加",
     thinking: "考え中…",
     regenerate: "再生成",
+    retry: "再試行",
     deleteMessage: "返信を削除",
     confirmDeleteMessage: "この返信を削除しますか？アシスタントの文脈からも消えます。生成済みの画像は残ります。",
     you: "あなた",

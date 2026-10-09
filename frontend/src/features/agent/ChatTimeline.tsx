@@ -64,6 +64,9 @@ export function ChatTimeline({
   const lastEvent = events[events.length - 1];
   const lastReplySeq = events.filter((event) => event.type === "assistant_message").at(-1)?.seq;
   const waitingForModel = running && (lastEvent?.type === "user_message" || lastEvent?.type === "run_state");
+  // The last turn failed when an error event sits after the last user message; retrying re-runs that turn.
+  const lastUserSeq = events.filter((event) => event.type === "user_message").at(-1)?.seq ?? 0;
+  const turnFailed = events.some((event) => event.type === "error" && event.seq > lastUserSeq);
 
   return (
     <ol className="flex flex-col gap-3" aria-live="polite">
@@ -145,6 +148,14 @@ export function ChatTimeline({
             return null;
         }
       })}
+      {turnFailed && !running && onRegenerate ? (
+        <li className="ml-8">
+          <button className="ide-button" onClick={onRegenerate} type="button">
+            <IconRefresh size={14} />
+            {t("agent.retry")}
+          </button>
+        </li>
+      ) : null}
       {waitingForModel ? <ThinkingIndicator startedAt={lastEvent?.created_at as string | undefined} /> : null}
     </ol>
   );

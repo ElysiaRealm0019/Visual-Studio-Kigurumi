@@ -151,6 +151,7 @@ const zhCN = {
     dropHint: "松开以添加参考图",
     thinking: "正在思考…",
     regenerate: "重新生成",
+    retry: "重试",
     deleteMessage: "删除回复",
     confirmDeleteMessage: "删除这条回复？它也会从助手的上下文里去掉，已生成的图片会保留。",
     you: "你",

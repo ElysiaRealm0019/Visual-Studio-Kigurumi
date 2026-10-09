@@ -153,6 +153,7 @@ const en: TranslationResource = {
     dropHint: "Drop to add reference images",
     thinking: "Thinking…",
     regenerate: "Regenerate",
+    retry: "Retry",
     deleteMessage: "Delete reply",
     confirmDeleteMessage: "Delete this reply? It is also removed from the assistant's context. Generated images are kept.",
     you: "You",
