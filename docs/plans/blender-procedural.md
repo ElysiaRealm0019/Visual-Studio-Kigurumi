@@ -74,6 +74,7 @@ V.S.K 目前的产出止步于 2D 设计稿和头壳效果图。本计划引入 
 | `fit.stature_mm` | int 1500–2100 | 1900 | 身高（比例参考） |
 | `fit.head_circumference_mm` | float 520–680 | 640 | 头围（实测，决定壳体内腔） |
 | `fit.shoulder_width_mm` | float 350–600 | 450 | 肩宽（成品比例校验用） |
+| `fit.wig_thickness_per_side_mm` | float 0–40 | 25 | 假发在壳体外侧每侧的蓬松厚度（2–3cm 取中值，比例报告用） |
 | `fit.padding_mm` | float 5–20 | 10 | 壳内衬垫单侧厚度 |
 
 拟合派生（写入预设生成逻辑，公式固定，便于复核）：
@@ -97,7 +98,7 @@ V.S.K 目前的产出止步于 2D 设计稿和头壳效果图。本计划引入 
 | `base.relief_depth_mm` | float 0–8 | 3 | 五官浮雕最大深度（animegao 要浅） | design |
 | `base.cross_section_roundness` | float 0–1 | 0.6 | 横截面由扁到圆 | manual |
 
-> **假发厚度提醒**：假发会在壳体外侧每侧加厚 2–3cm，成品头宽 ≈ `face_width` + 2×(25mm) ≈ 250mm。对 450mm 肩宽约 **1:1.8**（偏 Q 版）；要更收敛只能减发量/换薄假发，**不能把 `face_width` 压到拟合下限以下**（内腔必须容纳裸头 + 内衬）。预览建议提供半透明"假发占位壳"（offset +25mm），用于判断真实成品比例。
+> **假发厚度提醒**：假发会在壳体外侧每侧加厚 2–3cm（`fit.wig_thickness_per_side_mm`），成品头宽 ≈ `face_width` + 2×25 ≈ 250mm。对 450mm 肩宽约 **1:1.8**（偏 Q 版）；要更收敛只能减发量/换薄假发，**不能把 `face_width` 压到拟合下限以下**（内腔必须容纳裸头 + 内衬）。预览建议提供半透明"假发占位壳"（offset +`fit.wig_thickness_per_side_mm`），用于判断真实成品比例。
 
 **B. 眼部（geometry）**
 
@@ -181,7 +182,9 @@ blender -b -P blender/build_shell.py -- \
 2. 构建/更新几何：基础形（放样截面 → 壳体）→ 眼孔/鼻/嘴（布尔与浮雕）→ 耳朵附加体 → 壁厚/开口/分件/重拓扑。
 3. 材质与贴图：设计稿圆柱投影、嘴线贴图、预览粗糙度。
 4. 按输出设置渲染各视图 PNG，导出 GLB / STL。
-5. 写 `out/result.json`：实际生效的参数（含夹取警告）、输出文件清单、耗时、Blender 版本——后端据此回报给 UI。
+5. **拟合与比例报告**（写进 `result.json`，UI 摘要展示）：内围直径 vs 头围+内衬的余量；成品头宽（含假发）:肩宽 比值；全头高:身高 比值。任一比值超出美学区间（头宽:肩宽 > 1:1.6 或 < 1:2.2）时给黄色警告。
+6. 可选 `--fit-ring`：输出一个 10mm 高的椭圆试戴环 STL（内沿 = 目标内腔、外沿 = 内衬面）。**首件建议先打环实测**（套上假发能穿入且不晃），确认 `fit.*` 输入无误后再打整壳——这是最便宜的纠错手段。
+7. 写 `out/result.json`：实际生效的参数（含夹取警告）、拟合报告、输出文件清单、耗时、Blender 版本——后端据此回报给 UI。
 
 **目录布局**：
 
@@ -199,7 +202,7 @@ backend/app/blender/
 ## 6. 与现有管线的集成点
 
 - **任务**：新的 job 类型 `blender_build`，走现有 queue/job_store（进度：`构建几何 40% → 贴图 70% → 渲染 90%`），支持取消（杀子进程）。
-- **产物**：渲染 PNG 走现有图片展示链路（进聊天/画布，`source: "blender"`，不加水印可选）；GLB/STL 进 `/api/generated` 旁的下载端点（`.stl/.glb` 要加进扩展名白名单）。
+- **产物**：渲染 PNG 走现有图片展示链路（进聊天/画布，`source: "blender"`，不加水印可选）；GLB/STL 与试戴环 STL 进 `/api/generated` 旁的下载端点（`.stl/.glb` 要加进扩展名白名单）。
 - **确认流**：Agent 填参/微调产出 diff → 复用现有"生成前确认"机制（`AGENT_MAX_GENERATIONS_PER_TURN` 同思路限频）。
 - **参数快照**：作为 `DesignImage.source="blender"` 的兄弟概念挂在项目状态上（或独立 `state.blender_snapshots[]`，实施时定）；预览图可从快照"打开在 Blender 参数面板"再编辑。
 - **前端**：参数面板复用 2D 编辑器的滑块架构（`schema.json` → 自动生成控件），放一个新 activity 项「3D」；预览渲染 + 下载按钮 + 快照历史。
