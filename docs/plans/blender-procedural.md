@@ -38,9 +38,9 @@ V.S.K 目前的产出止步于 2D 设计稿和头壳效果图。本计划引入 
 
 **版本与形态约束**：
 
-- 固定 **Blender 4.2 LTS**（几何节点输入 API 在 4.x 用 `node_tree.interface`，与 3.x 的 `node_tree.inputs` 不兼容，文档与代码都按 4.x 写）。
+- 固定 **Blender 5.1**（几何节点输入走 5.1 的 `node_tree.interface` API；不兼容 3.x/4.x 的旧接口，脚本与文档均按 5.1 编写）。
 - 建模全部用**纯 Python 脚本程序化构建**（骨架网格 + 几何节点 + 修改器），不依赖仓库里的二进制 `.blend` 模板——脚本和参数都可进 git，任何人 `blender -b -P` 即可复现。
-- `BLENDER_PATH` 作为后端设置（默认 `blender`，走 PATH；本机安装可用绝对路径覆盖）。
+- `BLENDER_PATH` 作为后端设置（默认 `blender`，走 PATH；本机安装可用相对/绝对路径覆盖）。
 
 ## 4. 参数注册表（Schema）
 
@@ -67,19 +67,37 @@ V.S.K 目前的产出止步于 2D 设计稿和头壳效果图。本计划引入 
 
 长度单位一律毫米（真实打印尺度），角度用度。分组即 UI 面板的折叠分组。
 
-**A. 头壳基础形（geometry）**
+**A0. 拟合输入（fit）——手动填写，派生 A 组默认值**
+
+| key | 类型/范围 | 默认 | 说明 |
+| --- | --- | --- | --- |
+| `fit.stature_mm` | int 1500–2100 | 1900 | 身高（比例参考） |
+| `fit.head_circumference_mm` | float 520–680 | 640 | 头围（实测，决定壳体内腔） |
+| `fit.shoulder_width_mm` | float 350–600 | 450 | 肩宽（成品比例校验用） |
+| `fit.padding_mm` | float 5–20 | 10 | 壳内衬垫单侧厚度 |
+
+拟合派生（写入预设生成逻辑，公式固定，便于复核）：
+
+- 赤道直径 = 头围 / π；按头宽:头深 ≈ 1:1.29 的椭圆拟合 → **头宽 ≈ 177mm、头深 ≈ 228mm**（640mm 头围时）。
+- 外壳面 = 裸头 + 2×`fit.padding_mm` + 2×`structure.wall_thickness_mm`。
+- 脸高（下巴到壳沿）≈ 身高 / 7.7 + 顶部余量 10mm。
+- 颈部开口必须能让整个头**斜向穿入**：按头围相对常规 57cm 的比例放大经验值 → 640mm 头围取 ≈180mm（椭圆形开口或后铰链板是备选工艺，v1 先用圆直径参数）。
+
+**A. 头壳基础形（geometry，默认值由 A0 派生）**
 
 | key | 类型/范围 | 默认 | 说明 | 来源 |
 | --- | --- | --- | --- | --- |
-| `base.face_width_mm` | float 140–220 | 175 | 脸部最宽处（颧骨间距） | design |
-| `base.face_height_mm` | float 180–280 | 230 | 下巴到头顶壳沿 | design |
-| `base.head_depth_mm` | float 180–280 | 230 | 前后深度 | design |
+| `base.face_width_mm` | float 160–240 | 200 | 脸部最宽处（颧骨间距，外壳面） | fit+design |
+| `base.face_height_mm` | float 200–300 | 260 | 下巴到头顶壳沿 | fit+design |
+| `base.head_depth_mm` | float 200–300 | 250 | 前后深度（外壳面） | fit |
 | `base.profile_forehead` | float 0–1 | 0.5 | 额头饱满度（截面控制点） | design |
 | `base.profile_cheek` | float 0–1 | 0.5 | 脸颊肉感 | design |
 | `base.profile_jaw` | float 0–1 | 0.5 | 下颌宽度收束 | design |
 | `base.profile_chin` | float 0–1 | 0.5 | 下巴长度/尖圆 | design |
 | `base.relief_depth_mm` | float 0–8 | 3 | 五官浮雕最大深度（animegao 要浅） | design |
 | `base.cross_section_roundness` | float 0–1 | 0.6 | 横截面由扁到圆 | manual |
+
+> **假发厚度提醒**：假发会在壳体外侧每侧加厚 2–3cm，成品头宽 ≈ `face_width` + 2×(25mm) ≈ 250mm。对 450mm 肩宽约 **1:1.8**（偏 Q 版）；要更收敛只能减发量/换薄假发，**不能把 `face_width` 压到拟合下限以下**（内腔必须容纳裸头 + 内衬）。预览建议提供半透明"假发占位壳"（offset +25mm），用于判断真实成品比例。
 
 **B. 眼部（geometry）**
 
@@ -123,7 +141,7 @@ V.S.K 目前的产出止步于 2D 设计稿和头壳效果图。本计划引入 
 | key | 类型/范围 | 默认 | 说明 | 来源 |
 | --- | --- | --- | --- | --- |
 | `structure.wall_thickness_mm` | float 1.5–5 | 2.5 | 壳壁厚 | manual |
-| `structure.neck_opening_mm` | float 90–160 | 120 | 颈部开口直径 | manual |
+| `structure.neck_opening_mm` | float 120–220 | 180 | 颈部开口直径（需斜向穿入整个头，按头围换算） | manual |
 | `structure.edge_band_mm` | float 0–20 | 8 | 壳沿收边带宽 | manual |
 | `structure.split` | enum single/face+back | single | 是否分件（面壳+后壳） | manual |
 | `structure.split_height_mm` | float 0–120 | 60 | 分件线高度（split 时生效） | manual |
