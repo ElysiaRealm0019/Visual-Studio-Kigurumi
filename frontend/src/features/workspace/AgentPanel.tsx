@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import type { AgentEvent, Conversation } from "../agent/agentApi";
 import { ChatTimeline } from "../agent/ChatTimeline";
 import { Composer } from "../agent/Composer";
+import { DEFAULT_AGENT_WIDTH } from "./agentWidth";
 
 type AgentPanelProps = {
   conversation: Conversation | null;
@@ -11,6 +12,7 @@ type AgentPanelProps = {
   running: boolean;
   pendingFiles: File[];
   sendError: string | null;
+  width: number;
   onFilesChange: (files: File[]) => void;
   onSend: (text: string, files: File[]) => Promise<boolean>;
   onApprove: (imageId: string) => void;
@@ -27,6 +29,7 @@ export function AgentPanel({
   running,
   pendingFiles,
   sendError,
+  width,
   onFilesChange,
   onSend,
   onApprove,
@@ -45,7 +48,12 @@ export function AgentPanel({
   }, [events, running]);
 
   return (
-    <aside className="ide-agent" aria-label={t("workspace.agent")}>
+    // The stylesheet keeps narrow-screen defaults, so the inline width only applies once the user drags.
+    <aside
+      className="ide-agent"
+      aria-label={t("workspace.agent")}
+      style={width !== DEFAULT_AGENT_WIDTH ? { width } : undefined}
+    >
       <div className="ide-panel-header">
         <IconSparkles size={13} />
         {t("workspace.agent")}

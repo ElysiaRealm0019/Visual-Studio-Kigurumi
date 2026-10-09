@@ -581,6 +581,32 @@
 }
 
 /* Agent panel */
+.ide-agent-resizer {
+  cursor: col-resize;
+  flex-shrink: 0;
+  position: relative;
+  touch-action: none;
+  width: 6px;
+  z-index: 5;
+}
+
+.ide-agent-resizer::before {
+  content: "";
+  inset: 0;
+  position: absolute;
+  transition: background 120ms ease;
+}
+
+.ide-agent-resizer:hover::before,
+.ide-agent-resizer.dragging::before {
+  background: var(--ide-accent);
+}
+
+body.agent-resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+
 .ide-agent {
   background: var(--ide-panel);
   border-left: 1px solid var(--ide-border);

@@ -47,6 +47,12 @@ import { SettingsLink } from "../settings/SettingsLink";
 import { ConfirmDialog } from "../../ui/IdeDialog";
 import { ThemeToggle } from "./ThemeToggle";
 import { AgentPanel } from "./AgentPanel";
+import {
+  AGENT_WIDTH_STORAGE_KEY,
+  clampAgentWidth,
+  DEFAULT_AGENT_WIDTH,
+  readStoredAgentWidth,
+} from "./agentWidth";
 import { useEditorDrafts } from "./useEditorDrafts";
 import { ExplorerPanel } from "./ExplorerPanel";
 
@@ -54,6 +60,36 @@ type Activity = "explorer" | EditorTool;
 
 const TURNAROUND_TOOLS: EditorTool[] = ["annotation", "liquify", "local-generate"];
 const AGENT_OPEN_KEY = "kigcraft.agentPanel.v1";
+
+/** Draggable splitter west of the agent panel; double-click resets the width. */
+function AgentResizeHandle({ onWidthChange }: { onWidthChange: (width: number) => void }) {
+  const [dragging, setDragging] = useState(false);
+
+  useEffect(() => {
+    document.body.classList.toggle("agent-resizing", dragging);
+    return () => document.body.classList.remove("agent-resizing");
+  }, [dragging]);
+
+  return (
+    <div
+      aria-orientation="vertical"
+      className={`ide-agent-resizer${dragging ? " dragging" : ""}`}
+      onDoubleClick={() => onWidthChange(DEFAULT_AGENT_WIDTH)}
+      onPointerDown={(event) => {
+        event.currentTarget.setPointerCapture(event.pointerId);
+        setDragging(true);
+      }}
+      onPointerMove={(event) => {
+        if (dragging) onWidthChange(clampAgentWidth(window.innerWidth - event.clientX, window.innerWidth));
+      }}
+      onPointerUp={(event) => {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+        setDragging(false);
+      }}
+      role="separator"
+    />
+  );
+}
 
 export function WorkspacePage() {
   const { t } = useTranslation();
@@ -64,6 +100,7 @@ export function WorkspacePage() {
   const [activity, setActivity] = useState<Activity>("explorer");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [agentOpen, setAgentOpen] = useState(() => window.localStorage.getItem(AGENT_OPEN_KEY) !== "0");
+  const [agentWidth, setAgentWidth] = useState(() => readStoredAgentWidth(window.innerWidth));
   const [editorTool, setEditorTool] = useState<EditorTool>("annotation");
   const [openTabs, setOpenTabs] = useState<string[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
@@ -87,6 +124,7 @@ export function WorkspacePage() {
   const drafts = useEditorDrafts(projectId, activeTabId);
 
   useEffect(() => window.localStorage.setItem(AGENT_OPEN_KEY, agentOpen ? "1" : "0"), [agentOpen]);
+  useEffect(() => window.localStorage.setItem(AGENT_WIDTH_STORAGE_KEY, String(agentWidth)), [agentWidth]);
 
   useEffect(() => {
     if (!toast) return;
@@ -500,24 +538,28 @@ export function WorkspacePage() {
         </section>
 
         {agentOpen ? (
-          <AgentPanel
-            conversation={conversation}
-            events={events}
-            onApprove={(imageId) => {
-              const action = approveActionFor(images.find((image) => image.id === imageId)?.role);
-              if (action) void sendChat("", [], { action, imageId });
-            }}
-            onDeleteMessage={setDeletingReply}
-            onFilesChange={setPendingFiles}
-            onOpenImage={setLightboxUrl}
-            onRegenerate={() => void regenerate()}
-            onOpenVersion={(id) => openVersion(id)}
-            onSend={(text, files) => sendChat(text, files)}
-            onStop={() => projectId && void cancelRun(projectId)}
-            pendingFiles={pendingFiles}
-            running={running}
-            sendError={sendError}
-          />
+          <>
+            <AgentResizeHandle onWidthChange={setAgentWidth} />
+            <AgentPanel
+              conversation={conversation}
+              events={events}
+              onApprove={(imageId) => {
+                const action = approveActionFor(images.find((image) => image.id === imageId)?.role);
+                if (action) void sendChat("", [], { action, imageId });
+              }}
+              onDeleteMessage={setDeletingReply}
+              onFilesChange={setPendingFiles}
+              onOpenImage={setLightboxUrl}
+              onRegenerate={() => void regenerate()}
+              onOpenVersion={(id) => openVersion(id)}
+              onSend={(text, files) => sendChat(text, files)}
+              onStop={() => projectId && void cancelRun(projectId)}
+              pendingFiles={pendingFiles}
+              running={running}
+              sendError={sendError}
+              width={agentWidth}
+            />
+          </>
         ) : null}
       </div>
 
