@@ -59,6 +59,7 @@ from app.generation.local_edit import composite_local_edit
 from app.generation.modes import AI_OUTPUT_LANDMARKS_ENABLED, normalize_generation_mode
 from app.generation.usage import TokenUsage, extract_token_usage_from_codex_events, parse_token_usage
 from app.images.watermark import apply_kigcraft_watermark
+from app.prompts.overrides import get_prompt_text as _prompt
 from app.prompts.safety import sanitize_user_text
 
 logger = logging.getLogger("uvicorn.error")
@@ -78,6 +79,14 @@ IMAGE_GENERATION_TOOL_REQUIREMENT = (
     "Do not create, draw, render, approximate, or trace the output using Python, PIL, SVG, "
     "canvas, CSS, vector shapes, screenshots, drawing library code, or any other manual/code-based method."
 )
+
+
+def _image_generation_tool_requirement() -> str:
+    return _prompt("codex.tool_requirement", IMAGE_GENERATION_TOOL_REQUIREMENT)
+
+
+def _tool_output_collection_note() -> str:
+    return _prompt("codex.tool_output_note", TOOL_OUTPUT_COLLECTION_NOTE)
 
 class CodexImageProvider(ImageGenerationProvider):
     name = "codex"
@@ -469,8 +478,8 @@ def _build_codex_prompt(
     return "\n".join(
         [
             _title_for_mode(generation_mode),
-            IMAGE_GENERATION_TOOL_REQUIREMENT,
-            TOOL_OUTPUT_COLLECTION_NOTE,
+            _image_generation_tool_requirement(),
+            _tool_output_collection_note(),
             "",
             *_codex_prompt_body(prompt_payload, generation_mode, product_reference, edit_style_photo),
             "",
@@ -494,7 +503,7 @@ def _build_codex_candidate_prompt(
     return "\n".join(
         [
             _title_for_mode(generation_mode),
-            IMAGE_GENERATION_TOOL_REQUIREMENT,
+            _image_generation_tool_requirement(),
             "",
             *_codex_prompt_body(prompt_payload, generation_mode, product_reference, False),
             "",
@@ -546,8 +555,8 @@ def _build_codex_local_revision_prompt(prompt_payload: dict[str, Any], output_in
     return "\n".join(
         [
             "You are editing one existing V.S.K front-view image locally.",
-            IMAGE_GENERATION_TOOL_REQUIREMENT,
-            TOOL_OUTPUT_COLLECTION_NOTE,
+            _image_generation_tool_requirement(),
+            _tool_output_collection_note(),
             "",
             "You must use the image generation tool edit/mask capability.",
             "Use base.png as the first input image.",

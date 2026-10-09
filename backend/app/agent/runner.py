@@ -12,6 +12,7 @@ from app.agent.store import Conversation, conversation_store
 from app.agent.tools import GENERATION_TOOLS, TOOL_SPECS, ToolContext, ToolError, run_tool
 from app.core.config import get_settings
 from app.core.paths import resolve_repo_path
+from app.prompts.overrides import get_prompt_text
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -222,10 +223,17 @@ class AgentRunner:
 
 
 def build_system_prompt(conversation: Conversation) -> str:
-    return SYSTEM_PROMPT.format(
-        language=LOCALE_NAMES.get(conversation.locale, "the user's language"),
-        state=json.dumps(_state_summary(conversation), ensure_ascii=False, indent=1),
-    )
+    template = get_prompt_text("agent.system_prompt", SYSTEM_PROMPT)
+    values = {
+        "language": LOCALE_NAMES.get(conversation.locale, "the user's language"),
+        "state": json.dumps(_state_summary(conversation), ensure_ascii=False, indent=1),
+    }
+    try:
+        return template.format(**values)
+    except (KeyError, IndexError, ValueError) as exc:
+        # An edited template with a broken placeholder must never take the chat down.
+        logger.warning("agent.system_prompt override is not a usable template (%s); using the built-in default", exc)
+        return SYSTEM_PROMPT.format(**values)
 
 
 def _state_summary(conversation: Conversation) -> dict[str, Any]:

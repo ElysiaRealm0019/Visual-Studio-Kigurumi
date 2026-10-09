@@ -1,6 +1,8 @@
+from collections.abc import Callable
 from typing import Any, Literal
 
 from app.generation.modes import AI_OUTPUT_LANDMARKS_ENABLED
+from app.prompts.overrides import get_prompt_text as _prompt
 from app.prompts.safety import sanitize_user_text
 
 # Which finished-product reference image is actually attached for the current mode:
@@ -12,34 +14,58 @@ STYLE_PHOTO_IGNORE = (
     "Ignore any support pole, mannequin, props, background objects, captions or watermark text in a style photo; the "
     "presentation rules below decide how the head is shown."
 )
-FRONT_PRODUCT_STYLE_LINE = (
+FRONT_PRODUCT_STYLE_LINE_BASE = (
     "Use the attached finished-product reference image only as the target physical product style reference: "
     "white studio background, finished kigurumi head shell material, wig fiber realism, clean product framing, "
-    "and product-photo lighting. " + STYLE_PHOTO_IGNORE
+    "and product-photo lighting."
 )
-TURNAROUND_PRODUCT_STYLE_LINE = (
+TURNAROUND_PRODUCT_STYLE_LINE_BASE = (
     "Use the attached four-view finished-product reference image only as the layout and physical product style "
-    "reference: four evenly spaced views, white studio background, finished shell surface, and wig fiber realism. "
-    + STYLE_PHOTO_IGNORE
+    "reference: four evenly spaced views, white studio background, finished shell surface, and wig fiber realism."
 )
-PRODUCT_STYLE_LINE_REPLACEMENTS: dict[tuple[str, str], str] = {
-    ("front", "none"): (
-        "No finished-product reference image is attached. Achieve the physical product look from these written "
-        "requirements only: white studio background, finished kigurumi head shell material, wig fiber realism, "
-        "clean product framing, and product-photo lighting."
-    ),
-    ("turnaround", "front_style_only"): (
-        "The attached finished-product photo is only a physical product style reference: white studio background, "
-        "finished shell surface, wig fiber realism, and lighting. It shows a single front view of a different "
-        "character, so do not copy its character, its single-view framing, or its composition. Build the four-view "
-        "layout only from the written requirements: four evenly spaced views in one image. " + STYLE_PHOTO_IGNORE
-    ),
-    ("turnaround", "none"): (
-        "No finished-product reference image is attached. Build the four-view layout and the physical product look "
-        "from the written requirements only: four evenly spaced views, white studio background, finished shell "
-        "surface, and wig fiber realism."
-    ),
-}
+_FRONT_NONE_STYLE_LINE_BASE = (
+    "No finished-product reference image is attached. Achieve the physical product look from these written "
+    "requirements only: white studio background, finished kigurumi head shell material, wig fiber realism, "
+    "clean product framing, and product-photo lighting."
+)
+_TURNAROUND_FRONT_STYLE_ONLY_BASE = (
+    "The attached finished-product photo is only a physical product style reference: white studio background, "
+    "finished shell surface, wig fiber realism, and lighting. It shows a single front view of a different "
+    "character, so do not copy its character, its single-view framing, or its composition. Build the four-view "
+    "layout only from the written requirements: four evenly spaced views in one image."
+)
+_TURNAROUND_NONE_STYLE_LINE_BASE = (
+    "No finished-product reference image is attached. Build the four-view layout and the physical product look "
+    "from the written requirements only: four evenly spaced views, white studio background, finished shell "
+    "surface, and wig fiber realism."
+)
+
+
+def _style_photo_ignore() -> str:
+    return _prompt("style_photo_ignore", STYLE_PHOTO_IGNORE)
+
+
+def _front_product_style_line() -> str:
+    return _prompt("front_product_style_line", FRONT_PRODUCT_STYLE_LINE_BASE + " " + _style_photo_ignore())
+
+
+def _turnaround_product_style_line() -> str:
+    return _prompt("turnaround_product_style_line", TURNAROUND_PRODUCT_STYLE_LINE_BASE + " " + _style_photo_ignore())
+
+
+def _style_line_replacements() -> dict[tuple[str, str], str]:
+    return {
+        ("front", "none"): _prompt(
+            "style_line_replacement.front.none", _FRONT_NONE_STYLE_LINE_BASE
+        ),
+        ("turnaround", "front_style_only"): _prompt(
+            "style_line_replacement.turnaround.front_style_only",
+            _TURNAROUND_FRONT_STYLE_ONLY_BASE + " " + _style_photo_ignore(),
+        ),
+        ("turnaround", "none"): _prompt(
+            "style_line_replacement.turnaround.none", _TURNAROUND_NONE_STYLE_LINE_BASE
+        ),
+    }
 
 # Shared wording adapted from the upstream KigCraft V2 stage briefs (app/conversation/stages.py, GPL-3.0-or-later).
 
@@ -159,26 +185,81 @@ ANIME_FACE_LINE = (
     "or a realistic 3D render."
 )
 
-_SHELL_EARS_LINE = _FRONT_EARS_LINE + ", even when a finished-product style reference shows a shell without ears."
-_FRONT_EARS_LINE += "."
+# Leaf accessors: every tunable line resolves through the prompts override file at call time, so editing
+# runtime/prompts.json takes effect without a restart. The constants above are the in-code defaults.
 
-FINAL_KIGURUMI_FRONT_VIEW_PROMPT = [
+def _head_pose() -> str:
+    return _prompt("head_pose", HEAD_POSE)
+
+
+def _watermark_line() -> str:
+    return _prompt("watermark_line", WATERMARK_LINE)
+
+
+def _identity_line() -> str:
+    return _prompt("identity_line", _IDENTITY_LINE)
+
+
+def _hair_fidelity_line() -> str:
+    return _prompt("hair_fidelity_line", _HAIR_FIDELITY_LINE)
+
+
+def _no_imposed_hairstyle_line() -> str:
+    return _prompt("no_imposed_hairstyle_line", _NO_IMPOSED_HAIRSTYLE_LINE)
+
+
+def _front_ears_line() -> str:
+    return _prompt("front_ears_line", _FRONT_EARS_LINE + ".")
+
+
+def _shell_ears_line() -> str:
+    return _prompt(
+        "shell_ears_line",
+        _FRONT_EARS_LINE + ", even when a finished-product style reference shows a shell without ears.",
+    )
+
+
+def _physical_translation_line() -> str:
+    return _prompt("physical_translation_line", PHYSICAL_TRANSLATION_LINE)
+
+
+def _anime_face_line() -> str:
+    return _prompt("anime_face_line", ANIME_FACE_LINE)
+
+
+def _head_shell_look() -> str:
+    return _prompt("head_shell_look", HEAD_SHELL_LOOK)
+
+
+def _head_shell_presentation() -> str:
+    return _prompt("head_shell_presentation", HEAD_SHELL_PRESENTATION)
+
+
+def _four_view_layout_line() -> str:
+    return _prompt("four_view_layout_line", _FOUR_VIEW_LAYOUT_LINE)
+
+
+def _four_view_clean_line() -> str:
+    return _prompt("four_view_clean_line", _FOUR_VIEW_CLEAN_LINE)
+
+def _final_front_view_prompt() -> list[str]:
+    return [
     "You are generating one final front-view studio photograph of a finished, physical animegao kigurumi head shell "
     "with its wig, translated from the character design.",
     "",
-    "Use the uploaded character image(s) as the primary identity reference. " + _IDENTITY_LINE,
+    "Use the uploaded character image(s) as the primary identity reference. " + _identity_line(),
     "If the design source is a clean flat 2D design, treat it as the authoritative design to translate into the "
     "physical product, not as an image to redraw: keep its proportions, eyes, expression, hair and accessories.",
-    PHYSICAL_TRANSLATION_LINE,
-    ANIME_FACE_LINE,
-    _HAIR_FIDELITY_LINE,
-    _NO_IMPOSED_HAIRSTYLE_LINE,
-    HEAD_POSE,
-    _SHELL_EARS_LINE,
-    FRONT_PRODUCT_STYLE_LINE,
+    _physical_translation_line(),
+    _anime_face_line(),
+    _hair_fidelity_line(),
+    _no_imposed_hairstyle_line(),
+    _head_pose(),
+    _shell_ears_line(),
+    _front_product_style_line(),
     "",
-    HEAD_SHELL_LOOK,
-    HEAD_SHELL_PRESENTATION,
+    _head_shell_look(),
+    _head_shell_presentation(),
     "Composition: the whole head shell, the full wig silhouette and both ears are inside the frame, centred, with clear "
     "margins; head and wig only, no body.",
     "Generate the front-view image at 800x1100 resolution as a vertical portrait image.",
@@ -196,7 +277,7 @@ FINAL_KIGURUMI_FRONT_VIEW_PROMPT = [
     "- long loose hair must remain continuous and natural; do not create holes, missing chunks, or cutouts in the hair silhouette",
     "- the characteristic ears or horn-like appendages stay present, matched, and symmetric",
     "",
-    WATERMARK_LINE,
+    _watermark_line(),
     "Output only one front-view head shell photograph.",
     "",
     "Also return edit landmarks for this exact generated head shell in manifest.json as pure JSON normalized image coordinates from 0 to 1.",
@@ -209,7 +290,8 @@ FINAL_KIGURUMI_FRONT_VIEW_PROMPT = [
 # Default head-shell front when a finished-product photo is available: edit that photo into the character instead of
 # drawing from the 2D design. Image models copy the rendering of whatever they start from, so starting from a real
 # photographed shell is what keeps the result looking physical (tested 2026-10-08, see docs/handover.md section 16).
-FINAL_KIGURUMI_FRONT_EDIT_PROMPT = [
+def _final_front_edit_prompt() -> list[str]:
+    return [
     "You are producing one front-view studio photograph of a finished, physical animegao kigurumi head shell by "
     "editing the style photo into the user's character.",
     "",
@@ -224,25 +306,25 @@ FINAL_KIGURUMI_FRONT_EDIT_PROMPT = [
     "ears; add the design's head accessories as real resin, metal or fabric parts. Nothing of the photo's character "
     "may remain. The photo's face is only a starting point for the materials: reshape the face and eyes to the "
     "design's anime proportions.",
-    PHYSICAL_TRANSLATION_LINE,
-    ANIME_FACE_LINE,
-    _IDENTITY_LINE,
-    _HAIR_FIDELITY_LINE,
-    _NO_IMPOSED_HAIRSTYLE_LINE,
-    HEAD_POSE,
-    _SHELL_EARS_LINE,
+    _physical_translation_line(),
+    _anime_face_line(),
+    _identity_line(),
+    _hair_fidelity_line(),
+    _no_imposed_hairstyle_line(),
+    _head_pose(),
+    _shell_ears_line(),
     "Remove the stand, pole, ring and any other support from the photo. Do not show the shell's bottom opening or a "
     "neck tube: the face ends at the chin and the wig falls freely below it.",
     "",
-    HEAD_SHELL_LOOK,
-    HEAD_SHELL_PRESENTATION,
+    _head_shell_look(),
+    _head_shell_presentation(),
     "Composition: the whole head shell, the full wig silhouette and both ears are inside the frame, centred, with clear "
     "margins; head and wig only, no body.",
     "Generate the front-view image at 800x1100 resolution as a vertical portrait image.",
     "",
-    WATERMARK_LINE,
+    _watermark_line(),
     "Output only one front-view head shell photograph.",
-    *FINAL_KIGURUMI_FRONT_VIEW_PROMPT[-6:],  # blank line + landmark instructions
+    *_final_front_view_prompt()[-6:],  # blank line + landmark instructions
 ]
 
 _FOUR_VIEW_LAYOUT_LINE = (
@@ -257,49 +339,51 @@ _FOUR_VIEW_CLEAN_LINE = (
     "Draw no text, labels, arrows, grid lines, panel borders or extra heads, and do not output four separate images."
 )
 
-FINAL_KIGURUMI_TURNAROUND_PROMPT = [
+def _final_turnaround_prompt() -> list[str]:
+    return [
     "You are generating one final four-view studio photograph sheet of a finished, physical animegao kigurumi head shell.",
     "",
     "Use the uploaded edited front-view design as the locked design reference. The four-view result must strictly "
     "preserve the approved front-view design: same character identity, same face, same eyes, same expression, same "
     "visible head accessories, same materials and same overall proportions in all four heads. Do not redesign, "
     "simplify, beautify, reinterpret, or change the character.",
-    PHYSICAL_TRANSLATION_LINE,
-    ANIME_FACE_LINE,
+    _physical_translation_line(),
+    _anime_face_line(),
     "Faithfully carry over all visible hairstyle details from the approved front-view design into every generated "
     "view: hair silhouette, bangs/fringe shape, side locks, ahoge, strand grouping, layered clumps, parting, volume, "
     "length, asymmetry, hair accessories, and color blocks or highlights. Where the sides or the back are not shown "
     "anywhere, infer them conservatively from the front and the visible hair; do not invent new accessories or a "
     "different hairstyle.",
-    _NO_IMPOSED_HAIRSTYLE_LINE,
-    TURNAROUND_PRODUCT_STYLE_LINE,
+    _no_imposed_hairstyle_line(),
+    _turnaround_product_style_line(),
     "",
-    _FOUR_VIEW_LAYOUT_LINE,
+    _four_view_layout_line(),
     "One shared plain white seamless backdrop and the same lighting direction across all four heads.",
-    HEAD_SHELL_LOOK,
-    HEAD_SHELL_PRESENTATION,
+    _head_shell_look(),
+    _head_shell_presentation(),
     "Generate the four-view turnaround image at 3000x2000 resolution.",
     "",
     "Kigurumi turnaround requirements:",
     "- long loose hair must stay continuous across all views without holes, missing chunks, or cutouts",
     "- the characteristic ears or horn-like appendages stay present, matched, and consistent in every view",
     "- consistent approved design across every view",
-    "- " + _FOUR_VIEW_CLEAN_LINE,
+    "- " + _four_view_clean_line(),
     "",
-    WATERMARK_LINE,
+    _watermark_line(),
     "Output only one four-view turnaround image.",
 ]
 
 
-_CHARACTER_SHEET_COMMON = [
+def _character_sheet_common() -> list[str]:
+    return [
     "This is stage 1 of the kigurumi workflow: a clean 2D character design sheet of the head. It is NOT the physical "
     "head shell yet; the user will edit and approve this design, and the head shell will be generated from it later.",
     "The user's reference images are the source of truth. Reproduce the character faithfully: head and face "
     "proportions, eye shape, iris colour and highlights, eyebrows, expression and temperament, hair colour and length, "
     "every distinctive hair structure, ear shape, size, placement and colour, and the drawing style of the source. "
     "Do not invent features that are not in the references and do not average the character into a generic face.",
-    _HAIR_FIDELITY_LINE,
-    _NO_IMPOSED_HAIRSTYLE_LINE,
+    _hair_fidelity_line(),
+    _no_imposed_hairstyle_line(),
     "Remove everything that would interfere with building a head shell: background, body, clothing, props, hands, "
     "text, effects, and anything covering the head such as hoods, hats, veils or masks. Rebuild the hair and head shape "
     "those items hide so that it is consistent with the visible hair; infer hidden hair structure conservatively. Keep "
@@ -312,61 +396,64 @@ _CHARACTER_SHEET_COMMON = [
     "Do not render a physical product: no kigurumi shell, foam, seams, wig fibres, studio photograph or realistic human skin.",
 ]
 
-CHARACTER_FRONT_VIEW_PROMPT = [
+def _character_front_view_prompt() -> list[str]:
+    return [
     "You are drawing one front-view 2D character design of the character's head from the uploaded reference image(s).",
     "",
-    "Use the uploaded character image(s) as the identity reference. " + _IDENTITY_LINE,
-    *_CHARACTER_SHEET_COMMON,
+    "Use the uploaded character image(s) as the identity reference. " + _identity_line(),
+    *_character_sheet_common(),
     "",
     "Composition: front-facing, centred, the whole head including the full hair silhouette and ears visible; head and "
     "hair only (at most a short neck stub), no shoulders or body.",
-    HEAD_POSE,
-    _FRONT_EARS_LINE,
+    _head_pose(),
+    _front_ears_line(),
     "Generate the front-view image at 800x1100 resolution as a vertical portrait image.",
     "",
-    WATERMARK_LINE,
+    _watermark_line(),
     "Output only one front-view design image.",
 ]
 
-CHARACTER_REVISION_PROMPT = [
+def _character_revision_prompt() -> list[str]:
+    return [
     "You are revising one front-view 2D character design of the character's head.",
     "",
     "The primary attached image is the current design draft and is authoritative, including any manual edits. Keep it "
     "as close as possible: same character, face, eyes, expression, hairstyle, colors, framing, and drawing style. Apply "
     "only the changes the user asks for or that the annotations drawn on the draft point out, then remove those "
     "annotation marks.",
-    *_CHARACTER_SHEET_COMMON,
+    *_character_sheet_common(),
     "",
     "Generate the front-view image at 800x1100 resolution as a vertical portrait image.",
     "",
-    WATERMARK_LINE,
+    _watermark_line(),
     "Output only one front-view design image.",
 ]
 
-CHARACTER_TURNAROUND_PROMPT = [
+def _character_turnaround_prompt() -> list[str]:
+    return [
     "You are drawing one 2D character design turnaround sheet of the character's head: front, three-quarter/front-side, "
     "side, and back views in one image.",
     "",
     "Use the primary attached image as the identity and design source. If it is already a four-view sheet, keep its layout "
     "and design and apply only the requested changes. Use any other attached images only to clarify details the primary "
     "image does not show, such as the back of the hair.",
-    *_CHARACTER_SHEET_COMMON,
+    *_character_sheet_common(),
     "",
-    _FOUR_VIEW_LAYOUT_LINE,
+    _four_view_layout_line(),
     "Every view must show the same design; the back view must show a plausible continuation of the visible hairstyle.",
     "If the character has characteristic ears (elf/pointed ears, animal ears, or horn-like head appendages), keep them "
     "visible, matched, and consistent in every view; never let hair or a view angle remove or hide them.",
-    _FOUR_VIEW_CLEAN_LINE,
+    _four_view_clean_line(),
     "Generate the four-view turnaround image at 3000x2000 resolution.",
     "",
-    WATERMARK_LINE,
+    _watermark_line(),
     "Output only one four-view design image.",
 ]
 
-CHARACTER_STAGE_PROMPTS = {
-    "character_front": CHARACTER_FRONT_VIEW_PROMPT,
-    "character_revision": CHARACTER_REVISION_PROMPT,
-    "character_turnaround": CHARACTER_TURNAROUND_PROMPT,
+CHARACTER_STAGE_PROMPTS: dict[str, Callable[[], list[str]]] = {
+    "character_front": _character_front_view_prompt,
+    "character_revision": _character_revision_prompt,
+    "character_turnaround": _character_turnaround_prompt,
 }
 
 
@@ -450,16 +537,18 @@ def _stage_prompt_for_mode(
     generation_mode: str, product_reference: ProductReferenceKind = "matching", edit_style_photo: bool = False
 ) -> list[str]:
     if generation_mode in CHARACTER_STAGE_PROMPTS:
-        return CHARACTER_STAGE_PROMPTS[generation_mode]
+        return CHARACTER_STAGE_PROMPTS[generation_mode]()
     if edit_style_photo and edits_style_photo(generation_mode, product_reference):
-        return FINAL_KIGURUMI_FRONT_EDIT_PROMPT if AI_OUTPUT_LANDMARKS_ENABLED else FINAL_KIGURUMI_FRONT_EDIT_PROMPT[:-5]
+        edit_prompt = _final_front_edit_prompt()
+        return edit_prompt if AI_OUTPUT_LANDMARKS_ENABLED else edit_prompt[:-5]
     if generation_mode == "turnaround":
-        lines = FINAL_KIGURUMI_TURNAROUND_PROMPT
-        style_line, view = TURNAROUND_PRODUCT_STYLE_LINE, "turnaround"
+        lines = _final_turnaround_prompt()
+        style_line, view = _turnaround_product_style_line(), "turnaround"
     else:
-        lines = FINAL_KIGURUMI_FRONT_VIEW_PROMPT if AI_OUTPUT_LANDMARKS_ENABLED else FINAL_KIGURUMI_FRONT_VIEW_PROMPT[:-5]
-        style_line, view = FRONT_PRODUCT_STYLE_LINE, "front"
-    replacement = PRODUCT_STYLE_LINE_REPLACEMENTS.get((view, product_reference))
+        front_prompt = _final_front_view_prompt()
+        lines = front_prompt if AI_OUTPUT_LANDMARKS_ENABLED else front_prompt[:-5]
+        style_line, view = _front_product_style_line(), "front"
+    replacement = _style_line_replacements().get((view, product_reference))
     if replacement is None:
         return lines
     return [replacement if line == style_line else line for line in lines]

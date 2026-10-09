@@ -106,6 +106,8 @@ class Settings(BaseSettings):
     generation_create_rate_limit_max_requests: int = 3
     watermark_text: str = "V.S.K AI generated"
     watermark_domain_text: str = "V.S.K"
+    # Sparse prompt overrides (any subset of the registry keys); re-read on change, no restart needed.
+    prompts_file: str = "runtime/prompts.json"
     # Values changed on the settings page; they override .env until reset.
     runtime_settings_path: str = "runtime/settings-overrides.json"
 
