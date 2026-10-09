@@ -69,28 +69,35 @@ V.S.K 目前的产出止步于 2D 设计稿和头壳效果图。本计划引入 
 
 **A0. 拟合输入（fit）——手动填写，派生 A 组默认值**
 
+默认值取自 2026-10-09 的实测穿戴需求：身高 1900 / 头围 640 / 肩宽 450。
+
 | key | 类型/范围 | 默认 | 说明 |
 | --- | --- | --- | --- |
 | `fit.stature_mm` | int 1500–2100 | 1900 | 身高（比例参考） |
 | `fit.head_circumference_mm` | float 520–680 | 640 | 头围（实测，决定壳体内腔） |
 | `fit.shoulder_width_mm` | float 350–600 | 450 | 肩宽（成品比例校验用） |
 | `fit.wig_thickness_per_side_mm` | float 0–40 | 25 | 假发在壳体外侧每侧的蓬松厚度（2–3cm 取中值，比例报告用） |
-| `fit.padding_mm` | float 5–20 | 10 | 壳内衬垫单侧厚度 |
+| `fit.pad_side_mm` | float 20–40 | 30 | 左右海绵垫单侧厚度（**特指左右，2–4cm**，压缩余量在内） |
+| `fit.pad_top_mm` | float 20–50 | 35 | 顶部垫层厚度（**上侧偏厚**，比左右厚） |
+| `fit.pad_back_mm` | float 15–40 | 25 | 后脑海绵垫厚度 |
+| `fit.chin_gap_mm` | float 5–20 | 10 | 壳底沿到下巴尖的距离（**约 1cm**，下巴不顶壳、留呼吸余量） |
 
-拟合派生（写入预设生成逻辑，公式固定，便于复核）：
+拟合派生（写入预设生成逻辑，公式固定，便于复核；头宽/头高用 2026-10-09 实测值，不用估算）：
 
-- 赤道直径 = 头围 / π；按头宽:头深 ≈ 1:1.29 的椭圆拟合 → **头宽 ≈ 177mm、头深 ≈ 228mm**（640mm 头围时）。
-- 外壳面 = 裸头 + 2×`fit.padding_mm` + 2×`structure.wall_thickness_mm`。
-- 脸高（下巴到壳沿）≈ 身高 / 7.7 + 顶部余量 10mm。
+- **头宽实测 180mm**（椭圆推算 640/π 只得 177，以实测为准）；头深按 640 头围 + 实测宽反推 ≈ **226mm**。
+- 外壳面宽 = 裸头宽 180 + 2×`fit.pad_side_mm` 30 + 2×`structure.wall_thickness_mm` 2.5 ≈ **245mm**。
+- 外壳深 = 裸头深 226 + `fit.pad_back_mm` 25 + 壁厚 2.5 + 面部固有空间 8 ≈ **262mm**。
+- 壳外高（底沿到外顶）= 头高实测 **235**（下巴到头顶，不用身高/7.7 估的 247）+ `fit.pad_top_mm` 35 + 壁厚 2.5 + `fit.chin_gap_mm` 10 ≈ **283mm**。
+- 眼中心离壳底沿 ≈ `fit.chin_gap_mm` 10 + 头高/2 117.5 ≈ **128mm**（真实眼位在头高中点，landmark 换算会覆盖此默认）。
 - 颈部开口必须能让整个头**斜向穿入**：按头围相对常规 57cm 的比例放大经验值 → 640mm 头围取 ≈180mm（椭圆形开口或后铰链板是备选工艺，v1 先用圆直径参数）。
 
 **A. 头壳基础形（geometry，默认值由 A0 派生）**
 
 | key | 类型/范围 | 默认 | 说明 | 来源 |
 | --- | --- | --- | --- | --- |
-| `base.face_width_mm` | float 160–240 | 200 | 脸部最宽处（颧骨间距，外壳面） | fit+design |
-| `base.face_height_mm` | float 200–300 | 260 | 下巴到头顶壳沿 | fit+design |
-| `base.head_depth_mm` | float 200–300 | 250 | 前后深度（外壳面） | fit |
+| `base.face_width_mm` | float 210–280 | 245 | 脸部最宽处（颧骨间距，外壳面） | fit+design |
+| `base.face_height_mm` | float 250–320 | 283 | 壳底沿到壳外顶（含顶部垫层与壁厚） | fit+design |
+| `base.head_depth_mm` | float 230–300 | 262 | 前后深度（外壳面） | fit |
 | `base.profile_forehead` | float 0–1 | 0.5 | 额头饱满度（截面控制点） | design |
 | `base.profile_cheek` | float 0–1 | 0.5 | 脸颊肉感 | design |
 | `base.profile_jaw` | float 0–1 | 0.5 | 下颌宽度收束 | design |
@@ -98,16 +105,16 @@ V.S.K 目前的产出止步于 2D 设计稿和头壳效果图。本计划引入 
 | `base.relief_depth_mm` | float 0–8 | 3 | 五官浮雕最大深度（animegao 要浅） | design |
 | `base.cross_section_roundness` | float 0–1 | 0.6 | 横截面由扁到圆 | manual |
 
-> **假发厚度提醒**：假发会在壳体外侧每侧加厚 2–3cm（`fit.wig_thickness_per_side_mm`），成品头宽 ≈ `face_width` + 2×25 ≈ 250mm。对 450mm 肩宽约 **1:1.8**（偏 Q 版）；要更收敛只能减发量/换薄假发，**不能把 `face_width` 压到拟合下限以下**（内腔必须容纳裸头 + 内衬）。预览建议提供半透明"假发占位壳"（offset +`fit.wig_thickness_per_side_mm`），用于判断真实成品比例。
+> **假发厚度提醒**：假发会在壳体外侧每侧加厚 2–3cm（`fit.wig_thickness_per_side_mm`），成品头宽 ≈ `face_width` 245 + 2×25 ≈ **295mm**。对 450mm 肩宽约 **1:1.53**（标准 animegao 大头比例，见 §5 拟合报告的允许区间）；要更收敛只能减发量/换薄假发或取 `fit.pad_side_mm` 下限 20，**不能把 `face_width` 压到拟合下限以下**（内腔必须容纳裸头 180 + 左右各 2–4cm 海绵）。预览建议提供半透明"假发占位壳"（offset +`fit.wig_thickness_per_side_mm`），用于判断真实成品比例。
 
 **B. 眼部（geometry）**
 
 | key | 类型/范围 | 默认 | 说明 | 来源 |
 | --- | --- | --- | --- | --- |
-| `eye.hole_width_mm` | float 30–80 | 52 | 单眼开孔宽（椭圆） | landmark |
-| `eye.hole_height_mm` | float 25–70 | 48 | 单眼开孔高 | landmark |
-| `eye.interpupillary_mm` | float 50–110 | 78 | 瞳距 | landmark |
-| `eye.center_height_mm` | float 60–140 | 105 | 眼中心离下巴距离 | landmark |
+| `eye.hole_width_mm` | float 30–90 | 66 | 单眼开孔宽（椭圆） | landmark |
+| `eye.hole_height_mm` | float 25–80 | 58 | 单眼开孔高 | landmark |
+| `eye.interpupillary_mm` | float 60–130 | 88 | 瞳距 | landmark |
+| `eye.center_height_mm` | float 80–170 | 128 | 眼中心离壳底沿的距离 | landmark |
 | `eye.tilt_deg` | float −15–15 | 0 | 眼轴倾角（吊梢/垂眼） | landmark |
 | `eye.socket_depth_mm` | float 0–15 | 8 | 眼窝凹进深度 | manual |
 | `eye.socket_taper` | float 0–1 | 0.4 | 孔沿向内收的锥度 | manual |
@@ -182,7 +189,7 @@ blender -b -P blender/build_shell.py -- \
 2. 构建/更新几何：基础形（放样截面 → 壳体）→ 眼孔/鼻/嘴（布尔与浮雕）→ 耳朵附加体 → 壁厚/开口/分件/重拓扑。
 3. 材质与贴图：设计稿圆柱投影、嘴线贴图、预览粗糙度。
 4. 按输出设置渲染各视图 PNG，导出 GLB / STL。
-5. **拟合与比例报告**（写进 `result.json`，UI 摘要展示）：内围直径 vs 头围+内衬的余量；成品头宽（含假发）:肩宽 比值；全头高:身高 比值。任一比值超出美学区间（头宽:肩宽 > 1:1.6 或 < 1:2.2）时给黄色警告。
+5. **拟合与比例报告**（写进 `result.json`，UI 摘要展示）：内围直径 vs 头围+海绵垫的余量（左右余量应为正、顶部按偏厚垫层校验、底沿离下巴按 `fit.chin_gap_mm` 校验）；成品头宽（含假发）:肩宽 比值；全头高:身高 比值。任一比值超出允许区间（头宽:肩宽 > 1:1.45 或 < 1:2.2）时给黄色警告——按 1900/640/450 + 实测头宽 180 + 默认垫厚计算的 1:1.53 落在区间内，作为基准不报警。
 6. 可选 `--fit-ring`：输出一个 10mm 高的椭圆试戴环 STL（内沿 = 目标内腔、外沿 = 内衬面）。**首件建议先打环实测**（套上假发能穿入且不晃），确认 `fit.*` 输入无误后再打整壳——这是最便宜的纠错手段。
 7. 写 `out/result.json`：实际生效的参数（含夹取警告）、拟合报告、输出文件清单、耗时、Blender 版本——后端据此回报给 UI。
 
