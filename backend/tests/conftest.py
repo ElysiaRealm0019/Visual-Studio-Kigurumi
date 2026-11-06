@@ -29,7 +29,6 @@ def test_app(monkeypatch: pytest.MonkeyPatch, tmp_path) -> FastAPI:
     monkeypatch.setenv("REFERENCE_UPLOAD_DIR", str(tmp_path / "references"))
     monkeypatch.setenv("CODEX_WORKSPACE_DIR", str(tmp_path / "codex"))
     monkeypatch.setenv("CODEX_OUTPUT_DIR", str(tmp_path / "generated"))
-    monkeypatch.setenv("MOCK_OUTPUT_DIR", str(tmp_path / "mock-outputs"))
     monkeypatch.setenv("GENERATION_AUDIT_DB_PATH", str(tmp_path / "generation_audit.sqlite3"))
     get_settings.cache_clear()
     clear_audit_state()

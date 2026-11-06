@@ -40,7 +40,7 @@ V.S.K 是基于 [KigCraft](https://kigcraft.com)（原作者 SeaRabbit / 海兔�
 
 ## 快速开始（Windows，不用 Docker）
 
-本地开发不需要 Docker：任务在 API 进程里运行，状态存在 SQLite，输出写到 `runtime/`。
+本地开发不需要 Docker，一个 FastAPI API 进程加一个前端就够了：生成任务在 API 进程内排队执行，任务与审计记录写入 SQLite，图片和产物写到 `runtime/` 目录，不需要额外的数据库、缓存或对象存储服务。
 
 ```powershell
 Copy-Item .env.example .env
@@ -105,6 +105,10 @@ ARK_API_KEY=你的-agent-plan-key
   - Claude 不能生图，只能用于两个 LLM 角色。
 - 所有生成图都会加上 V.S.K 自己的"AI 生成"水印，平台水印已关闭。
 
+### 3D 头壳构建（可选）
+
+设置 `BLENDER_PATH` 和 `BLENDER_SHELL_BLEND`（基座 `.blend` 文件）后，`/blender` 页面可以按角色尺寸导出头壳网格。构建由 API 进程启动无头 Blender 子进程完成，输出写到 `runtime/blender/`，随时可以取消。Docker 镜像里没有安装 Blender，容器部署时让 `BLENDER_SHELL_BLEND` 保持为空，该页面会显示不可用及原因。
+
 ### 成品参考图（可选）
 
 仓库不附带成品照片。如果想约束头壳成品的风格（背景、头壳材质、假发质感、光线），把你自己的 PNG 放到 `ref/` 目录（已加入 gitignore）：
@@ -119,11 +123,11 @@ ARK_API_KEY=你的-agent-plan-key
 ## Docker
 
 ```powershell
-Copy-Item .env.example .env   # 先把所有 change-me-* 换成你自己的值
+Copy-Item .env.example .env   # 填好要用的后端与 Key，并把占位密钥换成自己的
 docker compose up --build
 ```
 
-前端在 <http://localhost:15173>，API 在 <http://localhost:18000/health>。
+`docker compose` 只启动 `api` 与 `frontend` 两个容器；前端容器的 nginx 把 `/api` 反向代理到 `api:8000`。前端在 <http://localhost:15173>，API 在 <http://localhost:18000/health>。
 
 如果要用命令行后端，需要挂载已登录的配置目录：
 
@@ -136,9 +140,10 @@ docker compose up --build
 
 - `APP_ENV=production`
 - `ALLOW_FIXTURE_GENERATION=false`
-- `POSTGRES_PASSWORD`、`MINIO_ROOT_PASSWORD`、`JWT_SECRET`、`ADMIN_AUDIT_PASSWORD` 用强密码
+- `ADMIN_AUDIT_PASSWORD` 用强密码
 - `CORS_ALLOWED_ORIGINS`
 - 你用的后端和对应的 Key
+- 需要从外部直接访问时设置 `API_BIND_HOST`、`FRONTEND_BIND_HOST`（默认只绑定 `127.0.0.1`），或者把服务放到反向代理后面
 
 然后部署当前提交：
 
@@ -146,7 +151,7 @@ docker compose up --build
 .\scripts\deploy-ssh.ps1 -KeyPath "$env:USERPROFILE\.ssh\id_ed25519" -SshTarget "deploy@example.com" -RemoteAppDir "/opt/vsk"
 ```
 
-脚本会上传 `git archive`，检查生产环境没有开启测试样例生成，然后重建容器。
+脚本会上传 `git archive`，检查生产环境没有开启测试样例生成，然后重建 `api` 与 `frontend` 容器。任务数据和产物都保存在服务器上的 `runtime/` 目录，备份它就能保留历史。
 
 不要提交 `.env` 和 `runtime/settings-overrides.json`，两者都可能含有 Key。
 
