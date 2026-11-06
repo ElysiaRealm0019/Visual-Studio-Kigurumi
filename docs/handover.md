@@ -261,3 +261,29 @@ jsdom 无法出像素，本轮用真实管线做了人眼比对：
   - `ANIME_FACE_LINE`：脸是"把设计稿的动漫脸做成实物"——眼睛的大小和位置按原画，鼻子只是一个小点，嘴是一条画上去的线；不要嘴唇、鼻孔、颧骨，不能像真人。
   - `HEAD_SHELL_LOOK`：去掉鼻梁、脸颊、嘴唇的雕塑起伏；壳面改为全哑光，只有镜片眼有光泽。
 - 成品照：本地 `.env` 已改为裁剪版 `ref/product-reference-head.png`（只保留头部和假发，去掉支架和水印）。
+
+## 17. 左右眼不平时自动修正（2026-10-09）
+
+用户反馈：参考图左右眼不平（一只偏高/偏低/偏大），生成的设计稿和头壳也照抄了这种不对称。原实现只有 `HEAD_POSE` 里一句埋在长段落中的水平要求，`constraints.*` 完全没提眼睛，而 `_IDENTITY_LINE` 这类"忠实还原"指令又会压过它。现在分两层处理，**A 层要求模型别画歪，B 层在模型画歪时确定性地把像素改回来**。
+
+### 17.1 A 层：提示词与硬约束
+
+- `prompting.py` 新增 `EYE_SYMMETRY_LINE` + `_eye_symmetry_line()`（键 `eye_symmetry_line`，可被 `runtime/prompts.json` 覆盖）：两眼必须在同一水平线、等高、等大、镜像；参考图/草稿/设计稿上的不平**不得照抄**，要保持角色自己的眼型/颜色/虹膜/睫毛重建为对称一对；**对称优先于照抄参考图的眼位**。
+- 6 个阶段提示词函数各插入这一行：`character_front`、`character_revision`、`character_turnaround`、`front_design`（含 style-photo 编辑变体）、`turnaround`。
+- `job_store.py` 的 5 个约束列表（`front_design` / `front_revision` / `character_front` / `character_turnaround` / `turnaround`）各加一条 Non-negotiable 英文约束，措辞与 `EYE_SYMMETRY_LINE` 一致（列表 key 未变）。
+- `analysis.py` 的细节分析提示词：参考图的眼睛不平视为**无意的**，不得当作要锁定的特征；`eyes` feature 必须声明两眼生成时等高、等大、镜像。
+- `registry.py` 同时登记 `PROMPT_FIELDS` 与 `_prompting_defaults()`（只加前者会让 `GET /api/settings/prompts` 500）。
+
+### 17.2 B 层：生成后的确定性几何修正（前端，不花额度）
+
+- 新模块 `frontend/src/features/editor/deformation/eyeSymmetry.ts`：归一化坐标的纯几何。`analyzeEyeSymmetry(landmarks, confidence)` 判断是否需要修正（默认阈值：高度差 > 0.6% 图高、偏心 > 15% 眼距、两眼区域面积差 > 20%），返回计划：镜像轴取 chin / 嘴心 / 下颌中点的均值（落在两眼之间才采信，否则退回双眼中点）、共同高度取两眼均值、master 眼取"检测置信度更高"或"区域更大"的那只。`drawEyeSymmetry()` 把 master 眼的补丁**镜像**贴到另一侧（补丁边缘用椭圆羽化，尺寸不超过到中线的 92%，两片不会重叠），所以结果严格镜像对称，且用的是角色自己的眼睛像素（风格保留，不做两眼平均，避免重影）。
+- 新模块 `frontend/src/features/workspace/eyeSymmetryCorrection.ts`：加载版本原图 → HRNet 关键点（`requireSingleFace=true`，拟合太差就放弃，绝不瞎改）→ 分析 → 合成 → PNG blob。四视图只修**最左格**（ROI 取图像左侧 26%）。超过 19MB 的 PNG 直接放弃（版本接口上限 20MB）。
+- 检测器新增 ROI 参数 `detectAnimeLandmarks(image, signal, requireSingleFace, regionOfInterest)`；`animeLandmarkMapping.ts` 新增 `eyeLandmarkConfidences()`（每只眼轮廓点的平均热图分数）。
+- `WorkspacePage`：新版本出现且 agent 回合已结束时（`running=false`）自动跑一次。只处理 `source === "agent"` 的 `design / design_turnaround / front / turnaround`（**用户手动保存的不动**；修正过的版本本身已对称，且 source 为 `auto_symmetry`，天然收敛，不会反复修正）。页面打开时已存在的版本一律跳过。修正成功后经 `POST /conversations/{id}/versions` 存成派生版本（`source="auto_symmetry"`，`parent=原版本`），因此 `current_design_id` / `current_front_id` 会指向它，下一阶段和编辑器都拿到修正后的像素；同时弹 toast、状态栏显示"正在自动修正左右眼…"，修正期间点确认会提示等一下（避免下一阶段又照抄不平的眼睛）。
+- 后端 `POST /conversations/{id}/versions` 新增可选表单字段 `source`（仅 `manual` / `auto_symmetry`，其它 400 `unknown_version_source`），并给 auto_symmetry 单独写一条 `[app action] ...` 的 LLM 消息；`DesignImage.source` 注释与前端 zod 枚举同步。
+- 已知边界：修正只在前端打开时发生（关掉页面就不会补）；四视图只修正视那一格，其余三格靠 A 层；没有"关闭自动修正"的开关，若不想要，删掉/覆盖 `eye_symmetry_line` 只能影响 A 层，B 层需要改代码。
+
+### 17.3 测试
+
+- 后端：`pytest` 293 passed（新增 14 个 prompt/约束/覆盖用例 + 2 个 versions 接口用例）。
+- 前端：`npx tsc --noEmit` 通过；`vitest run` 31 个文件 / 382 个用例全部通过，其中新增 `eyeSymmetry.test.ts`（11）、`eyeSymmetryCorrection.test.ts`（7）、`WorkspacePage.test.tsx`（3，覆盖"新生成的歪眼会被修正并存成 auto_symmetry 版本 / 已对称不动 / 手动保存不动且下一个生成版本仍会被修正"）。

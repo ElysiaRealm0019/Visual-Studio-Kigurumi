@@ -137,6 +137,27 @@ function createFallbackFaceBox(imageWidth: number, imageHeight: number): { box: 
   };
 }
 
+/** The centred fallback crop, placed inside a region of interest (a four-view sheet is four heads in one image). */
+function createFallbackFaceBoxInRegion(region: FaceBox): { box: FaceBox; score: number } {
+  const fallback = createFallbackFaceBox(Math.max(1, region.width), Math.max(1, region.height));
+  return {
+    box: { ...fallback.box, x: fallback.box.x + region.x, y: fallback.box.y + region.y },
+    score: fallback.score,
+  };
+}
+
+/** True when a detected face box belongs to the given region, judged by where its centre falls. */
+function isBoxInsideRegion(box: FaceBox, region: FaceBox) {
+  const centerX = box.x + box.width / 2;
+  const centerY = box.y + box.height / 2;
+  return (
+    centerX >= region.x &&
+    centerX <= region.x + region.width &&
+    centerY >= region.y &&
+    centerY <= region.y + region.height
+  );
+}
+
 async function getFaceDetector() {
   faceDetectorPromise ??= (async () => {
     const vision = await FilesetResolver.forVisionTasks(mediaPipeWasmUrl);
@@ -243,8 +264,13 @@ function preprocessCrop(image: HTMLImageElement, box: FaceBox, ort: OrtModule) {
   return new ort.Tensor("float32", input, [1, 3, modelSize, modelSize]);
 }
 
-export function detectAnimeLandmarks(image: HTMLImageElement, signal?: AbortSignal, requireSingleFace = false): Promise<AnimeLandmarkDetection | null> {
-  return detectAnimeLandmarksWithModel(image, hrnetModelUrl, signal, requireSingleFace);
+export function detectAnimeLandmarks(
+  image: HTMLImageElement,
+  signal?: AbortSignal,
+  requireSingleFace = false,
+  regionOfInterest?: FaceBox,
+): Promise<AnimeLandmarkDetection | null> {
+  return detectAnimeLandmarksWithModel(image, hrnetModelUrl, signal, requireSingleFace, regionOfInterest);
 }
 
 export async function detectAnimeFaceBox(image: HTMLImageElement): Promise<AnimeFaceBoxDetection | null> {
@@ -275,6 +301,7 @@ export async function detectAnimeLandmarksWithModel(
   modelUrl = hrnetModelUrl,
   signal?: AbortSignal,
   requireSingleFace = false,
+  regionOfInterest?: FaceBox,
 ): Promise<AnimeLandmarkDetection | null> {
   const startedAt = performance.now();
   const { height, width } = getImageSize(image);
@@ -298,6 +325,12 @@ export async function detectAnimeLandmarksWithModel(
   } catch (error: unknown) {
     console.warn("Anime face detector failed, using centered landmark crop", error);
   }
+  // A region of interest pins the detection to one head: a four-view sheet holds four, and only its front view
+  // belongs to the front-eye correction.
+  if (regionOfInterest) ranked = ranked.filter((entry) => isBoxInsideRegion(entry.box, regionOfInterest));
+  const fallbackBox = regionOfInterest
+    ? createFallbackFaceBoxInRegion(regionOfInterest)
+    : createFallbackFaceBox(width, height);
   const { session: hrnetSession } = hrnetRuntime;
 
   async function fit(entry: { box: FaceBox; score: number }) {
@@ -318,7 +351,7 @@ export async function detectAnimeLandmarksWithModel(
   let chosen: NonNullable<Awaited<ReturnType<typeof fit>>> | null = null;
   let candidates: AnimeLandmarkDebugInfo["candidates"];
   if (!requireSingleFace) {
-    chosen = await fit(ranked[0] ?? createFallbackFaceBox(width, height));
+    chosen = await fit(ranked[0] ?? fallbackBox);
   } else {
     const attempts: NonNullable<Awaited<ReturnType<typeof fit>>>[] = [];
     for (const entry of distinctFaceBoxes(ranked)) {

@@ -31,6 +31,7 @@ You can ask for changes in chat at any step, or edit the image yourself and save
   - local regeneration of a masked area.
   - Saving creates a new version (Ctrl+S).
 - **Local drafts**: unsaved edits are kept per version in the browser (IndexedDB) and restored when you switch back or reload.
+- **Automatic eye symmetry**: when the reference or a draft has uneven eyes (one higher, lower or larger), every generation stage is told to build one mirrored, level pair instead; once an image is generated, the app also measures the eye landmarks in the browser and deterministically corrects the pixels into a derived version (its source reads "Auto symmetry"), which the next stage and the editor then use. That pass costs no image generation and never rewrites a version you saved by hand.
 - **Settings page** (`/settings`):
   - choose the chat assistant LLM, the reference-analysis LLM and the image backend;
   - fill in API keys, endpoints and model names without editing `.env`.
@@ -95,6 +96,8 @@ deleting a key or emptying it reverts to the default.
   overridden flag); the full key list lives in `backend/app/prompts/registry.py`.
 - Values are strings; the five `constraints.*` keys are arrays of strings. A broken file (invalid JSON, wrong
   types) only logs a warning and falls back to the defaults entirely - generation keeps working.
+- The eye-symmetry rule is `eye_symmetry_line`; each stage also repeats it as a non-negotiable entry inside its
+  `constraints.*` list.
 
 ### Backend notes
 

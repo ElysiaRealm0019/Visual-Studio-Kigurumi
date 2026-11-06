@@ -45,6 +45,8 @@ MAX_REFERENCES_PER_CONVERSATION = 8
 MAX_VERSION_BYTES = 20 * 1024 * 1024
 MAX_RECIPE_CHARS = 200_000
 APPROVE_ROLES = {"approve_front": {"front"}, "approve_design": {"design", "design_turnaround"}}
+# Version sources the browser may claim when it posts edited pixels: a user edit, or the app's own eye correction.
+MANUAL_VERSION_SOURCES = {"manual", "auto_symmetry"}
 SSE_HEARTBEAT_SECONDS = 15
 
 
@@ -381,10 +383,16 @@ async def save_manual_version(
     base_image_id: str = Form(...),
     note: str = Form(default=""),
     recipe: str = Form(default=""),
+    source: str = Form(default="manual"),
     image: UploadFile = File(...),
 ) -> ConversationOut:
-    """Store an image edited in the browser editor as a new version derived from `base_image_id`."""
+    """Store an image edited in the browser editor as a new version derived from `base_image_id`.
+
+    `source` is "manual" for a user edit and "auto_symmetry" for the app's own deterministic eye-symmetry correction.
+    """
     conversation = _require(conversation_id)
+    if source not in MANUAL_VERSION_SOURCES:
+        raise HTTPException(status_code=400, detail="unknown_version_source")
     if agent_runner.is_running(conversation_id):
         raise HTTPException(status_code=409, detail="conversation_running")
     base = conversation.state.image(base_image_id)
@@ -423,17 +431,28 @@ async def save_manual_version(
         height=height,
         instructions=note,
         parent=base,
-        source="manual",
+        source=source,
         recipe=parsed_recipe,
     )
-    conversation.llm_messages.append(
-        {
-            "role": "user",
-            "content": f"[editor action] saved a manual edit of {base.id} as {version.id}"
-            + (f": {note}" if note else "")
-            + ". Use it as the current version.",
-        }
-    )
+    if source == "auto_symmetry":
+        conversation.llm_messages.append(
+            {
+                "role": "user",
+                "content": f"[app action] the app detected uneven eyes in {base.id} and saved a deterministically "
+                f"corrected, mirror-symmetric version as {version.id}"
+                + (f": {note}" if note else "")
+                + ". Use it as the current version.",
+            }
+        )
+    else:
+        conversation.llm_messages.append(
+            {
+                "role": "user",
+                "content": f"[editor action] saved a manual edit of {base.id} as {version.id}"
+                + (f": {note}" if note else "")
+                + ". Use it as the current version.",
+            }
+        )
     conversation_store.save(conversation)
     return _out(conversation)
 

@@ -1,4 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes, useParams } from "react-router-dom";
+import { BlenderPage } from "../features/blender/BlenderPage";
 import { ProjectsPage } from "../features/workspace/ProjectsPage";
 import { SettingsPage } from "../features/settings/SettingsPage";
 import { WorkspacePage } from "../features/workspace/WorkspacePage";
@@ -15,6 +16,7 @@ export function App() {
       <Routes>
         <Route element={<AdminAuditPage />} path="/admin/audit" />
         <Route element={<SettingsPage />} path="/settings" />
+        <Route element={<BlenderPage />} path="/blender" />
         <Route element={<WorkspacePage />} path="/p/:projectId" />
         <Route element={<LegacyConversationRedirect />} path="/c/:conversationId" />
         <Route element={<ProjectsPage />} path="*" />

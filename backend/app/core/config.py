@@ -110,6 +110,13 @@ class Settings(BaseSettings):
     prompts_file: str = "runtime/prompts.json"
     # Values changed on the settings page; they override .env until reset.
     runtime_settings_path: str = "runtime/settings-overrides.json"
+    # Head-shell builds (blender/build_shell.py). The 3D page is disabled until the base .blend is set.
+    blender_path: str = "blender"
+    blender_shell_blend: str = ""
+    blender_scripts_dir: str = "blender"
+    blender_output_dir: str = "runtime/blender"
+    blender_timeout_seconds: int = 600
+    blender_parallelism: int = 1
 
 
 # Fields the settings page may change, with their allowed values (None = free text).

@@ -1,0 +1,2 @@
+{"defaults": {"prompt_file": "kigu_head_v4.txt", "ark": {"size": "1920x1280"}, "backend": "ark"},
+ "jobs": [{"name": "pink", "images": ["pink_front.webp"]}]}

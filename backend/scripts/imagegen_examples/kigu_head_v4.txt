@@ -1,0 +1,19 @@
+Convert the character in the attached image into a 3D anime-figure head sculpture, like an unpainted kigurumi mask or PVC figure head.
+Keep the character's exact ANIME facial proportions — this is a stylised anime face, NOT a realistic human face.
+
+Output a clean model sheet with exactly two views side by side on a pure white background, both heads the same size:
+LEFT half: front view, looking straight into the camera.
+RIGHT half: pure side view. The camera is exactly at the head's left side, so the nose points straight at the left edge of the image.
+In this side view the far eye and the far cheek are completely invisible, the near eye is only a thin black sliver,
+and the forehead, nose tip, lips and chin form the left edge of the silhouette. Strictly NOT a three-quarter view.
+Both views orthographic (no perspective), same scale, same vertical placement: the top of the head and the chin are at the same heights in both views.
+
+Head: completely bald smooth skull (no hair, no hair lumps, no eyebrows).
+There are NO EARS: the sides of the head are smooth and blank like a mannequin egg, in both views (ears are added separately later).
+NO neck — the head ends at the chin and jaw line.
+Material: smooth matte off-white porcelain with soft even studio shading.
+Face, copied from the reference: eye size, shape, spacing and height; small simple anime nose at the same height; small mouth;
+the same cheek and jaw outline and chin shape and length; the same side profile.
+Each eye opening is filled completely with flat solid black, including the area where the white of the eye would be:
+no white sclera, no iris detail, no highlights.
+Mouth is a thin closed line. No blush, no makeup, no accessories, no text.

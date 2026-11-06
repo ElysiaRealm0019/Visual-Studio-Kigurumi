@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 
+from app.generation import job_store
 from app.generation.backends import codex
 from app.generation.backends.common import product_reference_kind
 
@@ -11,6 +12,21 @@ PAYLOAD = {
     "user_requirements": [],
     "user_notes": "",
 }
+
+# The eye-symmetry requirement has to reach every stage twice: as prompt text and as a Non-negotiable constraint.
+EYE_SYMMETRY_PROMPT_MODES = [
+    "character_front",
+    "character_revision",
+    "character_turnaround",
+    "front_design",
+    "front_revision",
+    "turnaround",
+]
+EYE_SYMMETRY_CONSTRAINT = (
+    "Both eyes must sit at exactly the same height on one horizontal line, mirrored across the face centerline "
+    "with the same size and shape; if the reference or draft shows uneven eyes, correct them into one mirrored "
+    "pair instead of copying the asymmetry."
+)
 
 
 @pytest.mark.parametrize(
@@ -135,3 +151,50 @@ def test_head_shell_prompts_match_the_control_references():
     bridge_prompt = codex._build_codex_candidate_prompt({**PAYLOAD, "generation_mode": "front_design"}, 1, "matching")
     assert "the face stays fully visible" in bridge_prompt
     assert "never carved into the shell" in bridge_prompt
+
+
+@pytest.mark.parametrize("mode", EYE_SYMMETRY_PROMPT_MODES)
+def test_every_stage_prompt_demands_equal_height_mirrored_eyes(mode):
+    prompt = codex._build_codex_prompt({**PAYLOAD, "generation_mode": mode})
+    lower = prompt.lower()
+
+    assert "mirrored across the face centerline" in prompt or "mirrored eye design" in prompt
+    assert "same height" in lower
+    # Uneven eyes in a reference must be corrected, never copied.
+    assert "do not copy that asymmetry" in prompt
+
+
+def test_style_photo_edit_prompt_demands_equal_height_mirrored_eyes(monkeypatch):
+    from app.core.config import get_settings
+
+    monkeypatch.setenv("HEAD_SHELL_EDIT_STYLE_PHOTO", "true")
+    get_settings.cache_clear()
+    prompt = codex._build_codex_prompt(
+        {**PAYLOAD, "generation_mode": "front_design"}, "matching", edit_style_photo=True
+    )
+    lower = prompt.lower()
+
+    assert "editing the style photo into the user's character" in prompt
+    assert "mirrored across the face centerline" in prompt or "mirrored eye design" in prompt
+    assert "same height" in lower
+    assert "do not copy that asymmetry" in prompt
+
+
+@pytest.mark.parametrize(
+    ("mode", "default_constraints"),
+    [
+        ("front_design", job_store._FRONT_DESIGN_CONSTRAINTS),
+        ("front_revision", job_store._FRONT_REVISION_CONSTRAINTS),
+        ("character_front", job_store._CHARACTER_FRONT_CONSTRAINTS),
+        ("character_revision", job_store._CHARACTER_FRONT_CONSTRAINTS),
+        ("character_turnaround", job_store._CHARACTER_TURNAROUND_CONSTRAINTS),
+        ("turnaround", job_store._TURNAROUND_CONSTRAINTS),
+    ],
+)
+def test_system_constraints_demand_equal_height_mirrored_eyes(mode, default_constraints):
+    constraints = job_store._system_constraints_for_mode(mode, [])
+
+    assert EYE_SYMMETRY_CONSTRAINT in constraints
+    assert EYE_SYMMETRY_CONSTRAINT in default_constraints
+    # The constraint comes after the preserve-the-identity entry, so identity fidelity cannot override it.
+    assert constraints.index(EYE_SYMMETRY_CONSTRAINT) > 0

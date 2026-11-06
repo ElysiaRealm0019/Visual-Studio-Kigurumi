@@ -1,0 +1,5 @@
+{"schema_version": 1, "name": "示例佩戴者（源计划 §4.1，按需求下限连续取整）",
+ "params": {"base.size_tier": "custom", "base.scale_step": 0.01,
+            "fit.head_circumference_mm": 640, "fit.head_width_mm": 180, "fit.head_height_mm": 235,
+            "fit.pad_side_mm": 30, "fit.pad_top_mm": 35, "fit.pad_back_mm": 25, "base.chin_gap_mm": 10,
+            "fit.shoulder_width_mm": 450, "fit.wig_mm": 25, "fit.ipd_mm": 70}}

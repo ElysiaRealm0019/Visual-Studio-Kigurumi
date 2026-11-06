@@ -42,7 +42,7 @@ class DesignImage:
     instructions: str
     created_seq: int
     parent_id: str | None = None
-    source: str = "agent"  # agent | manual | local_revision
+    source: str = "agent"  # agent | manual | local_revision | auto_symmetry
     recipe: dict[str, Any] | None = None  # editor recipe for manual versions, so they can be re-edited
 
 

@@ -45,6 +45,20 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
+/**
+ * Mean heat-map score of each eye's contour points: how much the detector trusts that eye. A partly hidden or
+ * foreshortened eye scores lower, which makes it the wrong source when one eye has to be mirrored onto the other.
+ */
+export function eyeLandmarkConfidences(points: readonly DetectedPoint[]): { left: number; right: number } {
+  const meanScore = (indexes: readonly number[]) => {
+    const eyePoints = indexes.map((index) => points[index]).filter(Boolean);
+    if (eyePoints.length === 0) return 0;
+    return eyePoints.reduce((sum, point) => sum + point.score, 0) / eyePoints.length;
+  };
+
+  return { left: meanScore(leftEyeContourIndexes), right: meanScore(rightEyeContourIndexes) };
+}
+
 function median(values: readonly number[]) {
   if (values.length === 0) return 0;
 

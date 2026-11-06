@@ -502,6 +502,50 @@ async def test_manual_version_is_saved_watermarked_with_clean_source(agent_env, 
     assert "front-2" in transcript[-1]["content"]
 
 
+async def test_auto_symmetry_version_is_derived_and_announced(agent_env, async_client, monkeypatch):
+    use_llm(monkeypatch, auto_front_policy)
+    conversation_id = await start_conversation(async_client)
+    await send(async_client, conversation_id, files=1)
+
+    corrected = io.BytesIO()
+    Image.new("RGB", (80, 110), (5, 5, 200)).save(corrected, format="PNG")
+    response = await async_client.post(
+        f"/agent/conversations/{conversation_id}/versions",
+        data={
+            "base_image_id": "front-1",
+            "note": "自动修正：左右眼对齐并镜像",
+            "recipe": "{}",
+            "source": "auto_symmetry",
+        },
+        files={"image": ("corrected.png", corrected.getvalue(), "image/png")},
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    version = body["state"]["images"][-1]
+    assert version["source"] == "auto_symmetry" and version["parent_id"] == "front-1"
+    # The corrected pixels become the stage output, so the next stage builds on them.
+    assert body["state"]["current_front_id"] == version["id"]
+    transcript = conversation_store.get(conversation_id).llm_messages
+    assert "[app action]" in transcript[-1]["content"]
+    assert "mirror-symmetric" in transcript[-1]["content"]
+
+
+async def test_version_source_must_be_a_known_one(agent_env, async_client, monkeypatch):
+    use_llm(monkeypatch, auto_front_policy)
+    conversation_id = await start_conversation(async_client)
+    await send(async_client, conversation_id, files=1)
+
+    image = io.BytesIO()
+    Image.new("RGB", (80, 110), (10, 200, 30)).save(image, format="PNG")
+    response = await async_client.post(
+        f"/agent/conversations/{conversation_id}/versions",
+        data={"base_image_id": "front-1", "source": "agent"},
+        files={"image": ("edit.png", image.getvalue(), "image/png")},
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"] == "unknown_version_source"
+
+
 async def test_rename_and_upload_references_without_chat(agent_env, async_client, monkeypatch):
     conversation_id = (await async_client.post("/agent/conversations", json={"title": "猫娘头壳"})).json()["id"]
     renamed = await async_client.patch(f"/agent/conversations/{conversation_id}", json={"title": "新名字"})

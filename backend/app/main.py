@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from app.agent.router import router as agent_router
 from app.album.router import router as album_router
 from app.audit.router import router as audit_router
+from app.blender.router import router as blender_router
 from app.core.config import get_settings
 from app.core.paths import resolve_repo_path
 from app.generation.router import router as generation_router
@@ -83,6 +84,8 @@ def create_app() -> FastAPI:
     app.include_router(agent_router, prefix="/api")
     app.include_router(settings_router)
     app.include_router(settings_router, prefix="/api")
+    app.include_router(blender_router)
+    app.include_router(blender_router, prefix="/api")
 
     return app
 

@@ -1,0 +1,8 @@
+{
+  "defaults": {"prompt_file": "clay_head.txt", "images": ["pink_front.webp"],
+               "ark": {"size": "1920x1280"}},
+  "jobs": [
+    {"name": "clay-ark", "backend": "ark", "repeat": 2},
+    {"name": "clay-codex", "backend": "codex"}
+  ]
+}

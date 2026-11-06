@@ -56,6 +56,17 @@ def _build_detail_analysis_prompt(request: DetailAnalysisProviderRequest) -> str
                 "shows one side."
             ),
             (
+                "Treat uneven eyes in a reference (one eye higher or lower, larger or smaller, or a different shape) "
+                "as an accident of the reference art or its angle, never as a feature to lock: do not describe the "
+                "asymmetry as intended and do not record a different height, size or shape per eye."
+            ),
+            (
+                "Always include an eyes feature that describes the character's own eye style: shape, colour, iris, "
+                "highlights, lashes and expression, and states that both eyes must be generated as an equal, mirrored "
+                "pair sitting at exactly the same height with the same size and shape, even when the reference shows "
+                "them uneven."
+            ),
+            (
                 "Do not include hands, gestures, pose, body, clothing, outfit, uniform, "
                 "ribbons on clothing, or any other non-head content."
             ),

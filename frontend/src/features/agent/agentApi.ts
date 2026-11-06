@@ -30,7 +30,7 @@ const designImageSchema = z.object({
   height: z.number(),
   instructions: z.string().default(""),
   parent_id: z.string().nullable().default(null),
-  source: z.enum(["agent", "manual", "local_revision"]).default("agent"),
+  source: z.enum(["agent", "manual", "local_revision", "auto_symmetry"]).default("agent"),
 });
 
 export type ApproveAction = "approve_design" | "approve_front";
@@ -159,12 +159,19 @@ export function versionDownloadUrl(id: string, imageId: string) {
 
 export function saveManualVersion(
   id: string,
-  { baseImageId, image, note, recipe }: { baseImageId: string; image: Blob; note: string; recipe: unknown },
+  {
+    baseImageId,
+    image,
+    note,
+    recipe,
+    source = "manual",
+  }: { baseImageId: string; image: Blob; note: string; recipe: unknown; source?: "manual" | "auto_symmetry" },
 ) {
   const form = new FormData();
   form.append("base_image_id", baseImageId);
   form.append("note", note);
   form.append("recipe", JSON.stringify(recipe));
+  form.append("source", source);
   form.append("image", image, "edit.png");
   return request(`/conversations/${id}/versions`, conversationSchema, { body: form, method: "POST" });
 }

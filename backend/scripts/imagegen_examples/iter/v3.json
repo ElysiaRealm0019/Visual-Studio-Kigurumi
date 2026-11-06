@@ -1,0 +1,2 @@
+{"defaults": {"prompt_file": "v3.txt", "images": ["pink_front.webp"], "ark": {"size": "1920x1280"}},
+ "jobs": [{"name": "v3", "backend": "ark", "repeat": 2}]}

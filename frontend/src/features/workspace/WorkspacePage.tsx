@@ -54,6 +54,7 @@ import {
   readStoredAgentWidth,
 } from "./agentWidth";
 import { useEditorDrafts } from "./useEditorDrafts";
+import { correctEyeSymmetry, supportsEyeSymmetryCorrection } from "./eyeSymmetryCorrection";
 import { ExplorerPanel } from "./ExplorerPanel";
 
 type Activity = "explorer" | EditorTool;
@@ -114,8 +115,11 @@ export function WorkspacePage() {
   const [toast, setToast] = useState<{ text: string; tone?: "error" } | null>(null);
   const [dragging, setDragging] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [correctingEyes, setCorrectingEyes] = useState(false);
   const editorRef = useRef<EditorWorkspaceHandle | null>(null);
   const seenImageIds = useRef<Set<string> | null>(null);
+  const symmetryCheckedIds = useRef<Set<string> | null>(null);
+  const correctingEyesRef = useRef(false);
 
   const images = conversation?.state.images ?? [];
   const activeVersion = images.find((image) => image.id === activeTabId) ?? null;
@@ -137,6 +141,9 @@ export function WorkspacePage() {
     setOpenTabs([]);
     setActiveTabId(null);
     seenImageIds.current = null;
+    symmetryCheckedIds.current = null;
+    correctingEyesRef.current = false;
+    setCorrectingEyes(false);
   }, [projectId]);
 
   const openVersion = useCallback(
@@ -167,6 +174,58 @@ export function WorkspacePage() {
       openVersion(newest);
     }
   }, [conversation, openVersion]);
+
+  // Automatic eye-symmetry pass. A freshly generated front or four-view can inherit an uneven eye pair from the
+  // reference; the correction is deterministic (HRNet landmarks + mirrored eye patch), costs no generation, and is
+  // saved as its own version so the editor and the next stage both work on the corrected pixels.
+  useEffect(() => {
+    if (!projectId || !conversation) return;
+    const ids = conversation.state.images.map((image) => image.id);
+    if (symmetryCheckedIds.current === null) {
+      // Versions that already exist when the project opens are left alone.
+      symmetryCheckedIds.current = new Set(ids);
+      return;
+    }
+    const fresh = conversation.state.images.filter((image) => !symmetryCheckedIds.current?.has(image.id));
+    if (fresh.length === 0) return;
+    // Wait for the turn to settle, so the pass sees the finished stage output instead of a mid-turn one.
+    if (running || correctingEyesRef.current) return;
+    fresh.forEach((image) => symmetryCheckedIds.current?.add(image.id));
+    // Only the newest version is corrected, and only when the app generated it: a manual save is the user's own
+    // decision, an already corrected version is symmetric by construction, and an older version was superseded.
+    const candidate = fresh[fresh.length - 1];
+    if (candidate.source !== "agent" || !supportsEyeSymmetryCorrection(candidate.role)) return;
+
+    correctingEyesRef.current = true;
+    setCorrectingEyes(true);
+    void (async () => {
+      try {
+        const correction = await correctEyeSymmetry({
+          imageUrl: versionSourceUrl(projectId, candidate.id),
+          role: candidate.role,
+        });
+        if (!correction) return;
+        const updated = await saveManualVersion(projectId, {
+          baseImageId: candidate.id,
+          image: correction.blob,
+          note: t("workspace.autoSymmetryNote"),
+          recipe: {},
+          source: "auto_symmetry",
+        });
+        const created = updated.state.images[updated.state.images.length - 1];
+        // The follow-new-versions effect above opens the corrected version; keep it out of this pass's scope.
+        symmetryCheckedIds.current?.add(created.id);
+        await refresh();
+        setToast({ text: t("workspace.autoSymmetryApplied") });
+      } catch (error) {
+        // A correction is a bonus, never a blocker: a failed or cancelled pass leaves the generated version as is.
+        console.warn("Automatic eye symmetry correction failed", error);
+      } finally {
+        correctingEyesRef.current = false;
+        setCorrectingEyes(false);
+      }
+    })();
+  }, [conversation, projectId, refresh, running, t]);
 
   useEffect(() => {
     // Keep the active tool valid for the open version (turnarounds only support a subset).
@@ -544,6 +603,12 @@ export function WorkspacePage() {
               conversation={conversation}
               events={events}
               onApprove={(imageId) => {
+                if (correctingEyesRef.current) {
+                  // The corrected version has to exist before the stage is approved, or the next stage copies the
+                  // uneven eyes again.
+                  setToast({ text: t("workspace.autoSymmetryBusy") });
+                  return;
+                }
                 const action = approveActionFor(images.find((image) => image.id === imageId)?.role);
                 if (action) void sendChat("", [], { action, imageId });
               }}
@@ -563,7 +628,12 @@ export function WorkspacePage() {
         ) : null}
       </div>
 
-      <StatusBar activeVersion={activeVersion} editorStatus={activeVersion ? editorStatus : null} runState={runState} />
+      <StatusBar
+        activeVersion={activeVersion}
+        correctingEyes={correctingEyes}
+        editorStatus={activeVersion ? editorStatus : null}
+        runState={runState}
+      />
 
       {lightboxUrl ? (
         <div className="ide-lightbox" onClick={() => setLightboxUrl(null)} role="presentation">
@@ -739,10 +809,12 @@ function TitleBar({
 }
 
 function StatusBar({
+  correctingEyes,
   runState,
   activeVersion,
   editorStatus,
 }: {
+  correctingEyes: boolean;
   runState: "idle" | "running" | "error";
   activeVersion: DesignImage | null;
   editorStatus: EditorStatus | null;
@@ -754,6 +826,9 @@ function StatusBar({
         <span className="ide-statusbar-dot" data-state={runState} />
         {runState === "running" ? t("workspace.status.running") : t("workspace.status.idle")}
       </span>
+      {correctingEyes ? (
+        <span className="ide-statusbar-item">{t("workspace.status.correctingEyes")}</span>
+      ) : null}
       {activeVersion ? (
         <span className="ide-statusbar-item">
           {activeVersion.id} · {t(`workspace.roles.${activeVersion.role}`)} · {activeVersion.width}×{activeVersion.height} ·{" "}

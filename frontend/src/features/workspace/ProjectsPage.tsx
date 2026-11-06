@@ -15,6 +15,7 @@ import {
   type ConversationSummary,
 } from "../agent/agentApi";
 import { LanguageSelector } from "../i18n/LanguageSelector";
+import { BlenderLink } from "../blender/BlenderLink";
 import { SettingsLink } from "../settings/SettingsLink";
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -74,6 +75,7 @@ export function ProjectsPage() {
         <img alt="Visual Studio Kigurumi" className="h-6 w-6" src="/logo.png" />
         <span className="text-sm font-semibold">Visual Studio Kigurumi</span>
         <span className="flex-1" />
+        <BlenderLink />
         <SettingsLink />
         <ThemeToggle />
         <LanguageSelector compact />

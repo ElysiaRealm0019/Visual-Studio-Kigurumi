@@ -1,0 +1,11 @@
+Use the attached character image ONLY as a face-shape reference.
+
+Produce an orthographic turnaround of a bald, hairless head sculpture in plain matte light-grey clay:
+two views side by side on a plain white background — left: exact front view, right: exact left-side profile view (facing left).
+Same head, same scale, same vertical position in both views; camera at eye level, no perspective distortion, no tilt.
+
+Keep from the reference: the face outline (cheeks, jaw line, chin shape and length), the eye opening shape, size, spacing and height,
+the nose size and position, the mouth width and position, and the side profile of forehead, nose, lips and chin.
+Remove everything else: no hair, no eyebrows hairs, no accessories, no halo, no ribbons, no makeup, no colour, no eye texture
+(eyes are simple recessed almond-shaped openings), no neck accessories, no text, no logo.
+Neutral expression with closed mouth. Even soft studio lighting with gentle shading so the surface curvature is readable.

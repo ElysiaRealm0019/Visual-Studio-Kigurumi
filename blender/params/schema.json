@@ -1,0 +1,1437 @@
+{
+ "schema_version": 1,
+ "base_model": "ProjectPulsar_Base.blend（Pulsar 头壳基座 + VSK 参数化修改器）",
+ "reference_mm": {
+  "width": 236.9,
+  "depth": 243.3,
+  "height": 284.7
+ },
+ "tiers": {
+  "lite": 0.92,
+  "standard": 1.0,
+  "extra": 1.09
+ },
+ "scale_range": [
+  0.85,
+  1.3
+ ],
+ "groups": [
+  {
+   "key": "size",
+   "label": "尺寸档位",
+   "label_en": "Size"
+  },
+  {
+   "key": "fit",
+   "label": "佩戴者数据",
+   "label_en": "Wearer"
+  },
+  {
+   "key": "face",
+   "label": "捏脸",
+   "label_en": "Face shape"
+  },
+  {
+   "key": "eyes",
+   "label": "眼孔",
+   "label_en": "Eye holes"
+  },
+  {
+   "key": "nose",
+   "label": "鼻子",
+   "label_en": "Nose"
+  },
+  {
+   "key": "mouth",
+   "label": "嘴",
+   "label_en": "Mouth"
+  },
+  {
+   "key": "view",
+   "label": "视孔",
+   "label_en": "View holes"
+  },
+  {
+   "key": "ears",
+   "label": "耳朵",
+   "label_en": "Ears"
+  },
+  {
+   "key": "structure",
+   "label": "结构",
+   "label_en": "Structure"
+  },
+  {
+   "key": "text",
+   "label": "刻字",
+   "label_en": "Engraving"
+  },
+  {
+   "key": "lashes",
+   "label": "睫毛",
+   "label_en": "Lashes"
+  },
+  {
+   "key": "output",
+   "label": "输出",
+   "label_en": "Output"
+  }
+ ],
+ "params": [
+  {
+   "key": "base.size_tier",
+   "group": "size",
+   "type": "enum",
+   "options": [
+    "lite",
+    "standard",
+    "extra",
+    "custom"
+   ],
+   "default": "standard",
+   "label": "尺寸档位",
+   "label_en": "Size tier",
+   "description": "lite 0.92 / standard 1.00 / extra 1.09；custom 按需求下限连续向上取整",
+   "sources": [
+    "manual"
+   ],
+   "affects": [
+    "geometry"
+   ],
+   "scales_with_shell": false
+  },
+  {
+   "key": "base.scale_step",
+   "group": "size",
+   "type": "float",
+   "min": 0.01,
+   "max": 0.05,
+   "step": 0.01,
+   "default": 0.01,
+   "label": "取整步长",
+   "label_en": "Rounding step",
+   "description": "custom 档位时缩放系数 s 向上取整的步长",
+   "sources": [
+    "manual"
+   ],
+   "affects": [
+    "geometry"
+   ],
+   "scales_with_shell": false
+  },
+  {
+   "key": "base.face_width_mm",
+   "group": "size",
+   "type": "float",
+   "min": 180,
+   "max": 320,
+   "step": 0.5,
+   "default": null,
+   "nullable": true,
+   "unit": "mm",
+   "label": "宽度需求下限",
+   "label_en": "Min. width",
+   "description": "外壳宽度的需求下限；留空时由佩戴者数据推导，再空则取基准 236.9",
+   "sources": [
+    "fit",
+    "manual"
+   ],
+   "affects": [
+    "geometry"
+   ],
+   "scales_with_shell": false
+  },
+  {
+   "key": "base.head_depth_mm",
+   "group": "size",
+   "type": "float",
+   "min": 180,
+   "max": 320,
+   "step": 0.5,
+   "default": null,
+   "nullable": true,
+   "unit": "mm",
+   "label": "深度需求下限",
+   "label_en": "Min. depth",
+   "description": "外壳前后深度的需求下限；留空规则同上（基准 243.3）",
+   "sources": [
+    "fit",
+    "manual"
+   ],
+   "affects": [
+    "geometry"
+   ],
+   "scales_with_shell": false
+  },
+  {
+   "key": "base.face_height_mm",
+   "group": "size",
+   "type": "float",
+   "min": 220,
+   "max": 360,
+   "step": 0.5,
+   "default": null,
+   "nullable": true,
+   "unit": "mm",
+   "label": "高度需求下限",
+   "label_en": "Min. height",
+   "description": "壳底沿到壳顶的需求下限；留空规则同上（基准 284.7）",
+   "sources": [
+    "fit",
+    "manual"
+   ],
+   "affects": [
+    "geometry"
+   ],
+   "scales_with_shell": false
+  },
+  {
+   "key": "fit.head_circumference_mm",
+   "group": "fit",
+   "type": "float",
+   "min": 450,
+   "max": 750,
+   "step": 1,
+   "default": null,
+   "nullable": true,
+   "unit": "mm",
+   "label": "头围",
+   "label_en": "Head circumference",
+   "description": "与头宽、头高三项都填写后才推导需求下限",
+   "sources": [
+    "fit"
+   ],
+   "affects": [
+    "geometry"
+   ]
+  },
+  {
+   "key": "fit.head_width_mm",
+   "group": "fit",
+   "type": "float",
+   "min": 130,
+   "max": 230,
+   "step": 1,
+   "default": null,
+   "nullable": true,
+   "unit": "mm",
+   "label": "裸头宽",
+   "label_en": "Head width",
+   "description": "裸头最宽处",
+   "sources": [
+    "fit"
+   ],
+   "affects": [
+    "geometry"
+   ]
+  },
+  {
+   "key": "fit.head_height_mm",
+   "group": "fit",
+   "type": "float",
+   "min": 180,
+   "max": 290,
+   "step": 1,
+   "default": null,
+   "nullable": true,
+   "unit": "mm",
+   "label": "头高",
+   "label_en": "Head height",
+   "description": "下巴到头顶",
+   "sources": [
+    "fit"
+   ],
+   "affects": [
+    "geometry"
+   ]
+  },
+  {
+   "key": "fit.pad_side_mm",
+   "group": "fit",
+   "type": "float",
+   "min": 20,
+   "max": 40,
+   "step": 1,
+   "default": 30,
+   "unit": "mm",
+   "label": "左右海绵垫",
+   "label_en": "Side padding",
+   "description": "单侧厚度",
+   "sources": [
+    "fit"
+   ],
+   "affects": [
+    "geometry"
+   ]
+  },
+  {
+   "key": "fit.pad_top_mm",
+   "group": "fit",
+   "type": "float",
+   "min": 20,
+   "max": 50,
+   "step": 1,
+   "default": 35,
+   "unit": "mm",
+   "label": "顶部垫层",
+   "label_en": "Top padding",
+   "description": "",
+   "sources": [
+    "fit"
+   ],
+   "affects": [
+    "geometry"
+   ]
+  },
+  {
+   "key": "fit.pad_back_mm",
+   "group": "fit",
+   "type": "float",
+   "min": 15,
+   "max": 40,
+   "step": 1,
+   "default": 25,
+   "unit": "mm",
+   "label": "后脑海绵垫",
+   "label_en": "Back padding",
+   "description": "",
+   "sources": [
+    "fit"
+   ],
+   "affects": [
+    "geometry"
+   ]
+  },
+  {
+   "key": "base.chin_gap_mm",
+   "group": "fit",
+   "type": "float",
+   "min": 5,
+   "max": 20,
+   "step": 0.5,
+   "default": 10,
+   "unit": "mm",
+   "label": "下巴间隙",
+   "label_en": "Chin gap",
+   "description": "壳底沿到下巴尖",
+   "sources": [
+    "fit"
+   ],
+   "affects": [
+    "geometry"
+   ]
+  },
+  {
+   "key": "structure.face_clearance_mm",
+   "group": "fit",
+   "type": "float",
+   "min": 0,
+   "max": 20,
+   "step": 0.5,
+   "default": 8,
+   "unit": "mm",
+   "label": "面部空间",
+   "label_en": "Face clearance",
+   "description": "深度方向的面部固有空间",
+   "sources": [
+    "fit"
+   ],
+   "affects": [
+    "geometry"
+   ]
+  },
+  {
+   "key": "fit.shoulder_width_mm",
+   "group": "fit",
+   "type": "float",
+   "min": 300,
+   "max": 600,
+   "step": 1,
+   "default": null,
+   "nullable": true,
+   "unit": "mm",
+   "label": "肩宽",
+   "label_en": "Shoulder width",
+   "description": "只用于肩宽比校验",
+   "sources": [
+    "fit"
+   ],
+   "affects": []
+  },
+  {
+   "key": "fit.wig_mm",
+   "group": "fit",
+   "type": "float",
+   "min": 10,
+   "max": 40,
+   "step": 1,
+   "default": 25,
+   "unit": "mm",
+   "label": "假发厚度",
+   "label_en": "Wig thickness",
+   "description": "每侧，只用于肩宽比校验",
+   "sources": [
+    "fit"
+   ],
+   "affects": []
+  },
+  {
+   "key": "fit.ipd_mm",
+   "group": "fit",
+   "type": "float",
+   "min": 54,
+   "max": 74,
+   "step": 0.5,
+   "default": null,
+   "nullable": true,
+   "unit": "mm",
+   "label": "瞳距",
+   "label_en": "IPD",
+   "description": "填写后作为视孔间距的默认值",
+   "sources": [
+    "fit"
+   ],
+   "affects": [
+    "geometry"
+   ]
+  },
+  {
+   "key": "face.slide",
+   "group": "face",
+   "type": "float",
+   "min": -1.5,
+   "max": 2.0,
+   "step": 0.01,
+   "default": 0,
+   "label": "滑移脸型",
+   "label_en": "Face slide",
+   "description": "Pulsar 捏脸滑轨，0 为 Pulsar 原版脸型（作用范围已限制在面部，后脑不再形变）",
+   "sources": [
+    "design",
+    "manual"
+   ],
+   "affects": [
+    "geometry"
+   ],
+   "scales_with_shell": true,
+   "blender": "头壳/几何节点:滑移脸型"
+  },
+  {
+   "key": "face.eye_close",
+   "group": "face",
+   "type": "float",
+   "min": -0.2,
+   "max": 1,
+   "step": 0.01,
+   "default": 0,
+   "label": "闭眼程度",
+   "label_en": "Eye closure",
+   "description": "Pulsar「睁眼大小」：0 睁眼，1 完全闭眼（睫毛跟随）",
+   "sources": [
+    "design",
+    "manual"
+   ],
+   "affects": [
+    "geometry"
+   ],
+   "scales_with_shell": true,
+   "blender": "头壳/几何节点:睁眼大小"
+  },
+  {
+   "key": "face.cheek",
+   "group": "face",
+   "type": "float",
+   "min": -0.2,
+   "max": 1,
+   "step": 0.01,
+   "default": 0,
+   "label": "腮帮子",
+   "label_en": "Cheeks",
+   "description": "Pulsar 捏脸滑轨",
+   "sources": [
+    "design",
+    "manual"
+   ],
+   "affects": [
+    "geometry"
+   ],
+   "scales_with_shell": true,
+   "blender": "头壳/几何节点:腮帮子"
+  },
+  {
+   "key": "face.lower_length_mm",
+   "group": "face",
+   "type": "float",
+   "min": -20,
+   "max": 30,
+   "step": 0.5,
+   "default": 0,
+   "unit": "mm",
+   "label": "下半脸拉长",
+   "label_en": "Lower face length",
+   "description": "鼻尖以下平滑拉长，数值为下巴下移量（mm）。30 名近两年动漫游戏角色的 AI 参考：均值约 +18，标准差约 5；只作用于脸前部",
+   "sources": [
+    "fit",
+    "manual"
+   ],
+   "affects": [
+    "geometry"
+   ],
+   "scales_with_shell": true,
+   "blender": "头壳/几何节点:下半脸拉长"
+  },
+  {
+   "key": "face.lower_recede_mm",
+   "group": "face",
+   "type": "float",
+   "min": -10,
+   "max": 20,
+   "step": 0.5,
+   "default": 0,
+   "unit": "mm",
+   "label": "下半脸后收",
+   "label_en": "Lower face recede",
+   "description": "鼻尖以下向后收，数值为下巴后移量（mm）。30 名角色参考：均值约 +9，标准差约 3；只作用于脸前部",
+   "sources": [
+    "fit",
+    "manual"
+   ],
+   "affects": [
+    "geometry"
+   ],
+   "scales_with_shell": true,
+   "blender": "头壳/几何节点:下半脸后收"
+  },
+  {
+   "key": "face.jaw_width_mm",
+   "group": "face",
+   "type": "float",
+   "min": -20.0,
+   "max": 10,
+   "step": 0.5,
+   "default": 0,
+   "unit": "mm",
+   "label": "下颌宽度",
+   "label_en": "Jaw width",
+   "description": "下颌角和两侧向外（正）或向内（负）平移，单侧 mm；中线、嘴部和下巴尖不动，负值会把 U 形下颌收成 V 形。30 名角色参考约 +4；2026-10-16 下限 -10→-20（Miku 拟合需 -17，比例场语义下仅加深、无新折点）",
+   "sources": [
+    "fit",
+    "manual"
+   ],
+   "affects": [
+    "geometry"
+   ],
+   "scales_with_shell": true,
+   "blender": "头壳/几何节点:下颌宽度"
+  },
+  {
+   "key": "face.mouth_open",
+   "group": "face",
+   "type": "float",
+   "min": 0,
+   "max": 1.2,
+   "step": 0.01,
+   "default": 0,
+   "label": "张嘴大小",
+   "label_en": "Mouth open",
+   "description": "Pulsar 捏脸滑轨",
+   "sources": [
+    "design",
+    "manual"
+   ],
+   "affects": [
+    "geometry"
+   ],
+   "scales_with_shell": true,
+   "blender": "头壳/几何节点:张嘴大小"
+  },
+  {
+   "key": "eye.offset_x_mm",
+   "group": "eyes",
+   "type": "float",
+   "min": -20,
+   "max": 20,
+   "step": 0.5,
+   "default": 0,
+   "unit": "mm",
+   "label": "眼孔横移",
+   "label_en": "Eye shift X",
+   "description": "正值向中线（眼距减小），参考尺寸下的值",
+   "sources": [
+    "landmark",
+    "manual"
+   ],
+   "affects": [
+    "geometry"
+   ],
+   "scales_with_shell": true,
+   "blender": "VSK五官:眼孔X位移"
+  },
+  {
+   "key": "eye.offset_z_mm",
+   "group": "eyes",
+   "type": "float",
+   "min": -20,
+   "max": 20,
+   "step": 0.5,
+   "default": 0,
+   "unit": "mm",
+   "label": "眼孔升降",
+   "label_en": "Eye shift Z",
+   "description": "正值向上",
+   "sources": [
+    "landmark",
+    "manual"
+   ],
+   "affects": [
+    "geometry"
+   ],
+   "scales_with_shell": true,
+   "blender": "VSK五官:眼孔Z位移"
+  },
+  {
+   "key": "eye.width_scale",
+   "group": "eyes",
+   "type": "float",
+   "min": 0.6,
+   "max": 1.6,
+   "step": 0.01,
+   "default": 1,
+   "label": "眼孔宽倍率",
+   "label_en": "Eye width ×",
+   "description": "绕眼孔中心",
+   "sources": [
+    "landmark",
+    "manual"
+   ],
+   "affects": [
+    "geometry"
+   ],
+   "scales_with_shell": true,
+   "blender": "VSK五官:眼孔宽倍率"
+  },
+  {
+   "key": "eye.height_scale",
+   "group": "eyes",
+   "type": "float",
+   "min": 0.6,
+   "max": 1.6,
+   "step": 0.01,
+   "default": 1,
+   "label": "眼孔高倍率",
+   "label_en": "Eye height ×",
+   "description": "绕眼孔中心",
+   "sources": [
+    "landmark",
+    "manual"
+   ],
+   "affects": [
+    "geometry"
+   ],
+   "scales_with_shell": true,
+   "blender": "VSK五官:眼孔高倍率"
+  },
+  {
+   "key": "eye.tilt_deg",
+   "group": "eyes",
+   "type": "float",
+   "min": -15,
+   "max": 15,
+   "step": 0.5,
+   "default": 0,
+   "unit": "°",
+   "label": "眼孔倾角",
+   "label_en": "Eye tilt",
+   "description": "吊梢/垂眼",
+   "sources": [
+    "landmark",
+    "manual"
+   ],
+   "affects": [
+    "geometry"
+   ],
+   "scales_with_shell": true,
+   "blender": "VSK五官:眼孔倾斜角"
+  },
+  {
+   "key": "eye.outer_corner_z_mm",
+   "group": "eyes",
+   "type": "float",
+   "min": -10,
+   "max": 10,
+   "step": 0.5,
+   "default": 0,
+   "unit": "mm",
+   "sources": [
+    "manual"
+   ],
+   "affects": [
+    "geometry"
+   ],
+   "scales_with_shell": true,
+   "label": "外眼角升降",
+   "label_en": "Outer corner lift",
+   "description": "只动外眼角：+ 上挑 / − 下垂；眼环中心到外角按 smoothstep 渐变，内眼角不动",
+   "blender": "VSK五官:外眼角Z位移"
+  },
+  {
+   "key": "eye.inner_corner_z_mm",
+   "group": "eyes",
+   "type": "float",
+   "min": -10,
+   "max": 10,
+   "step": 0.5,
+   "default": 0,
+   "unit": "mm",
+   "sources": [
+    "manual"
+   ],
+   "affects": [
+    "geometry"
+   ],
+   "scales_with_shell": true,
+   "label": "内眼角升降",
+   "label_en": "Inner corner lift",
+   "description": "只动内眼角：+ 升 / − 降；外眼角不动",
+   "blender": "VSK五官:内眼角Z位移"
+  },
+  {
+   "key": "eye.outer_corner_x_mm",
+   "group": "eyes",
+   "type": "float",
+   "min": -10,
+   "max": 10,
+   "step": 0.5,
+   "default": 0,
+   "unit": "mm",
+   "sources": [
+    "manual"
+   ],
+   "affects": [
+    "geometry"
+   ],
+   "scales_with_shell": true,
+   "label": "外眼角外延",
+   "label_en": "Outer corner extend",
+   "description": "外眼角水平移动：+ 向外拉长眼尾 / − 内收；内眼角不动",
+   "blender": "VSK五官:外眼角X外延"
+  },
+  {
+   "key": "eye.upper_lid_arc_mm",
+   "group": "eyes",
+   "type": "float",
+   "min": -10,
+   "max": 10,
+   "step": 0.5,
+   "default": 0,
+   "unit": "mm",
+   "label": "上眼睑弧度",
+   "label_en": "Upper lid arc",
+   "description": "上眼睑中段升降：+ 更圆 / − 更平；两个眼角不动",
+   "sources": [
+    "manual"
+   ],
+   "affects": [
+    "geometry"
+   ],
+   "scales_with_shell": true,
+   "blender": "VSK五官:上眼睑弧度"
+  },
+  {
+   "key": "eye.lower_lid_arc_mm",
+   "group": "eyes",
+   "type": "float",
+   "min": -10,
+   "max": 10,
+   "step": 0.5,
+   "default": 0,
+   "unit": "mm",
+   "label": "下眼睑弧度",
+   "label_en": "Lower lid arc",
+   "description": "下眼睑中段升降：+ 上抬更平 / − 下沉更深；两个眼角不动",
+   "sources": [
+    "manual"
+   ],
+   "affects": [
+    "geometry"
+   ],
+   "scales_with_shell": true,
+   "blender": "VSK五官:下眼睑弧度"
+  },
+  {
+   "key": "eye.upper_peak_shift_mm",
+   "group": "eyes",
+   "type": "float",
+   "min": -10,
+   "max": 10,
+   "step": 0.5,
+   "default": 0,
+   "unit": "mm",
+   "label": "上眼睑峰位",
+   "label_en": "Upper lid peak shift",
+   "description": "上眼睑最高点偏外(+)/偏内(−)：外侧抬、内侧压，数值为最大位移",
+   "sources": [
+    "manual"
+   ],
+   "affects": [
+    "geometry"
+   ],
+   "scales_with_shell": true,
+   "blender": "VSK五官:上眼睑峰位"
+  },
+  {
+   "key": "eye.lower_peak_shift_mm",
+   "group": "eyes",
+   "type": "float",
+   "min": -10,
+   "max": 10,
+   "step": 0.5,
+   "default": 0,
+   "unit": "mm",
+   "label": "下眼睑峰位",
+   "label_en": "Lower lid peak shift",
+   "description": "下眼睑最低点偏外(+)/偏内(−)：外侧压、内侧抬，数值为最大位移",
+   "sources": [
+    "manual"
+   ],
+   "affects": [
+    "geometry"
+   ],
+   "scales_with_shell": true,
+   "blender": "VSK五官:下眼睑峰位"
+  },
+  {
+   "key": "eye.inner_corner_x_mm",
+   "group": "eyes",
+   "type": "float",
+   "min": -10,
+   "max": 10,
+   "step": 0.5,
+   "default": 0,
+   "unit": "mm",
+   "label": "内眼角水平",
+   "label_en": "Inner corner X",
+   "description": "内眼角水平移动：+ 向鼻侧拉长 / − 外收；外眼角不动",
+   "sources": [
+    "manual"
+   ],
+   "affects": [
+    "geometry"
+   ],
+   "scales_with_shell": true,
+   "blender": "VSK五官:内眼角X位移"
+  },
+  {
+   "key": "eye.outer_sharp",
+   "group": "eyes",
+   "type": "float",
+   "min": 0,
+   "max": 1,
+   "step": 0.05,
+   "default": 0,
+   "unit": "",
+   "label": "外眼角锐度",
+   "label_en": "Outer corner sharpness",
+   "description": "外眼角变尖：0 = Pulsar 圆角，1 = 尖角（收拢 + 折痕）",
+   "sources": [
+    "design",
+    "manual"
+   ],
+   "affects": [
+    "geometry"
+   ],
+   "scales_with_shell": false,
+   "blender": "VSK五官:外眼角锐度"
+  },
+  {
+   "key": "eye.inner_sharp",
+   "group": "eyes",
+   "type": "float",
+   "min": 0,
+   "max": 1,
+   "step": 0.05,
+   "default": 0,
+   "unit": "",
+   "label": "内眼角锐度",
+   "label_en": "Inner corner sharpness",
+   "description": "内眼角变尖：0 = Pulsar 圆角，1 = 尖角（收拢 + 折痕）",
+   "sources": [
+    "design",
+    "manual"
+   ],
+   "affects": [
+    "geometry"
+   ],
+   "scales_with_shell": false,
+   "blender": "VSK五官:内眼角锐度"
+  },
+  {
+   "key": "nose.tip_height_mm",
+   "group": "nose",
+   "type": "float",
+   "min": -10,
+   "max": 10,
+   "step": 0.5,
+   "default": 0,
+   "unit": "mm",
+   "label": "鼻尖高度",
+   "label_en": "Nose tip height",
+   "description": "整个鼻子沿脸面上移(+)/下移(−)，数值为细分后鼻尖实际位移；嘴和眼睛基本不动",
+   "sources": [
+    "manual"
+   ],
+   "affects": [
+    "geometry"
+   ],
+   "scales_with_shell": true,
+   "blender": "VSK五官:鼻尖高度"
+  },
+  {
+   "key": "nose.tip_protrusion_mm",
+   "group": "nose",
+   "type": "float",
+   "min": -10,
+   "max": 10,
+   "step": 0.5,
+   "default": 0,
+   "unit": "mm",
+   "label": "鼻尖突出",
+   "label_en": "Nose tip protrusion",
+   "description": "鼻子更挺(+)/更平(−)：按鼻子起伏比例缩放，数值为鼻尖前后位移；鼻子起伏约 21 mm，−10 约减半",
+   "sources": [
+    "manual"
+   ],
+   "affects": [
+    "geometry"
+   ],
+   "scales_with_shell": true,
+   "blender": "VSK五官:鼻尖突出"
+  },
+  {
+   "key": "mouth.width_scale",
+   "group": "mouth",
+   "type": "float",
+   "min": 0.6,
+   "max": 2,
+   "step": 0.01,
+   "default": 1,
+   "label": "嘴宽倍率",
+   "label_en": "Mouth width ×",
+   "description": "沿头壳曲面拉伸嘴线",
+   "sources": [
+    "design",
+    "manual"
+   ],
+   "affects": [
+    "geometry"
+   ],
+   "scales_with_shell": true,
+   "blender": "VSK五官:嘴宽倍率"
+  },
+  {
+   "key": "mouth.smile_deg",
+   "group": "mouth",
+   "type": "float",
+   "min": -20,
+   "max": 20,
+   "step": 0.5,
+   "default": 0,
+   "unit": "°",
+   "label": "嘴角上扬",
+   "label_en": "Smile",
+   "description": "",
+   "sources": [
+    "design",
+    "manual"
+   ],
+   "affects": [
+    "geometry"
+   ],
+   "scales_with_shell": true,
+   "blender": "VSK五官:嘴角上扬角"
+  },
+  {
+   "key": "mouth.offset_z_mm",
+   "group": "mouth",
+   "type": "float",
+   "min": -10,
+   "max": 10,
+   "step": 0.5,
+   "default": 0,
+   "unit": "mm",
+   "label": "嘴Z位移",
+   "label_en": "Mouth height",
+   "description": "嘴（含唇部浮雕）沿脸面整体上移(+)/下移(-)，鼻子和下巴不动",
+   "sources": [
+    "design",
+    "manual"
+   ],
+   "affects": [
+    "geometry"
+   ],
+   "scales_with_shell": true,
+   "blender": "VSK五官:嘴Z位移"
+  },
+  {
+   "key": "view.spacing_mm",
+   "group": "view",
+   "type": "float",
+   "min": 54,
+   "max": 80,
+   "step": 0.5,
+   "default": null,
+   "nullable": true,
+   "unit": "mm",
+   "label": "视孔间距",
+   "label_en": "View-hole spacing",
+   "description": "绝对毫米，不随 s 缩放；留空时取瞳距，再空取 68.3",
+   "sources": [
+    "fit",
+    "manual"
+   ],
+   "affects": [
+    "geometry"
+   ],
+   "scales_with_shell": false,
+   "blender": "视孔/VSK缩放:视孔目标间距 mm"
+  },
+  {
+   "key": "view.auto_fit",
+   "group": "view",
+   "type": "bool",
+   "default": true,
+   "label": "视孔自动贴合",
+   "label_en": "Auto-fit view slit",
+   "description": "开：构建时把视孔贴到睫毛件上沿（开口 100%、藏在睫毛后）；关：使用下面的手动升降",
+   "sources": [
+    "manual"
+   ],
+   "affects": [
+    "geometry"
+   ],
+   "scales_with_shell": false,
+   "blender": "视孔.location.z"
+  },
+  {
+   "key": "view.offset_z_mm",
+   "group": "view",
+   "type": "float",
+   "min": -10,
+   "max": 10,
+   "step": 0.1,
+   "default": 0,
+   "unit": "mm",
+   "label": "视孔升降",
+   "label_en": "View-slit height",
+   "description": "仅在关闭自动贴合时生效；真实毫米，正值向上，不随 s 缩放",
+   "sources": [
+    "fit",
+    "manual"
+   ],
+   "affects": [
+    "geometry"
+   ],
+   "scales_with_shell": false,
+   "blender": "视孔.location.z"
+  },
+  {
+   "key": "ears.offset_z_mm",
+   "group": "ears",
+   "type": "float",
+   "min": -20,
+   "max": 20,
+   "step": 0.5,
+   "default": 0,
+   "unit": "mm",
+   "label": "耳朵升降",
+   "label_en": "Ear height",
+   "description": "相对 Pulsar 原位（参考尺寸）",
+   "sources": [
+    "design",
+    "manual"
+   ],
+   "affects": [
+    "geometry"
+   ],
+   "scales_with_shell": true,
+   "blender": "耳朵/VSK耳朵"
+  },
+  {
+   "key": "ears.tilt_deg",
+   "group": "ears",
+   "type": "float",
+   "min": -30,
+   "max": 30,
+   "step": 0.5,
+   "default": 0,
+   "unit": "°",
+   "label": "耳朵外撇",
+   "label_en": "Ear tilt",
+   "description": "正值外撇",
+   "sources": [
+    "design",
+    "manual"
+   ],
+   "affects": [
+    "geometry"
+   ],
+   "scales_with_shell": true,
+   "blender": "耳朵/VSK耳朵"
+  },
+  {
+   "key": "structure.wall_thickness_mm",
+   "group": "structure",
+   "type": "float",
+   "min": 1.5,
+   "max": 5,
+   "step": 0.05,
+   "default": 2.62,
+   "unit": "mm",
+   "label": "壁厚",
+   "label_en": "Wall thickness",
+   "description": "真实毫米，不随 s",
+   "sources": [
+    "manual"
+   ],
+   "affects": [
+    "geometry"
+   ],
+   "scales_with_shell": false,
+   "blender": "头壳/实体化.thickness"
+  },
+  {
+   "key": "structure.split_position",
+   "group": "structure",
+   "type": "float",
+   "min": 0,
+   "max": 0.85,
+   "step": 0.01,
+   "default": 0.78,
+   "label": "前后分割位置",
+   "label_en": "Split position",
+   "description": "Pulsar「前后基准值」，归一化位置",
+   "sources": [
+    "manual"
+   ],
+   "affects": [
+    "geometry"
+   ],
+   "scales_with_shell": true,
+   "blender": "前壳配置:前后基准值"
+  },
+  {
+   "key": "structure.lock_type",
+   "group": "structure",
+   "type": "enum",
+   "options": [
+    0,
+    1
+   ],
+   "default": 1,
+   "label": "锁类型",
+   "label_en": "Lock type",
+   "description": "Pulsar 锁件样式 0 / 1",
+   "sources": [
+    "manual"
+   ],
+   "affects": [
+    "geometry"
+   ],
+   "scales_with_shell": false,
+   "blender": "前壳配置:锁类型"
+  },
+  {
+   "key": "structure.lock_offset_mm",
+   "group": "structure",
+   "type": "float",
+   "min": 0,
+   "max": 30,
+   "step": 0.5,
+   "default": 11,
+   "unit": "mm",
+   "label": "锁深度位移",
+   "label_en": "Lock offset",
+   "description": "锁件沿左右方向的位移",
+   "sources": [
+    "manual"
+   ],
+   "affects": [
+    "geometry"
+   ],
+   "scales_with_shell": false,
+   "blender": "前壳配置:锁深度位移 (×0.1)"
+  },
+  {
+   "key": "structure.back_fillet",
+   "group": "structure",
+   "type": "float",
+   "min": 0,
+   "max": 5,
+   "step": 0.1,
+   "default": 0,
+   "label": "后壳圆角位置",
+   "label_en": "Back fillet",
+   "description": "Pulsar「圆角位置」原参数",
+   "sources": [
+    "manual"
+   ],
+   "affects": [
+    "geometry"
+   ],
+   "scales_with_shell": false,
+   "blender": "后壳配置:圆角位置"
+  },
+  {
+   "key": "structure.drain_holes",
+   "group": "structure",
+   "type": "int",
+   "min": 0,
+   "max": 29,
+   "step": 1,
+   "default": 29,
+   "label": "后壳散热孔数",
+   "label_en": "Back vent holes",
+   "description": "后壳打洞孔数（按从上到下保留），29 = Pulsar 原样全部",
+   "sources": [
+    "manual"
+   ],
+   "affects": [
+    "geometry"
+   ],
+   "scales_with_shell": false,
+   "blender": "后壳打洞/VSK孔数"
+  },
+  {
+   "key": "structure.remesh_mm",
+   "group": "structure",
+   "type": "float",
+   "min": 0.05,
+   "max": 0.5,
+   "step": 0.01,
+   "default": 0.1,
+   "unit": "mm",
+   "label": "视孔重构体素",
+   "label_en": "View-hole remesh",
+   "description": "真实毫米",
+   "sources": [
+    "manual"
+   ],
+   "affects": [
+    "geometry"
+   ],
+   "scales_with_shell": false,
+   "blender": "视孔/重构网格.voxel_size"
+  },
+  {
+   "key": "structure.neck_opening_mm",
+   "group": "structure",
+   "type": "float",
+   "readonly": true,
+   "default": null,
+   "nullable": true,
+   "unit": "mm",
+   "label": "颈口短轴",
+   "label_en": "Neck opening",
+   "description": "只读派生值 = 基准短轴 × s",
+   "sources": [],
+   "affects": [],
+   "scales_with_shell": true
+  },
+  {
+   "key": "text.front",
+   "group": "text",
+   "type": "string",
+   "max_length": 24,
+   "default": "E.N.S.O",
+   "label": "前壳文字",
+   "label_en": "Front text",
+   "description": "",
+   "sources": [
+    "manual"
+   ],
+   "affects": [
+    "geometry"
+   ],
+   "scales_with_shell": false,
+   "blender": "前壳配置:前壳文字"
+  },
+  {
+   "key": "text.back",
+   "group": "text",
+   "type": "string",
+   "max_length": 24,
+   "default": "VER 1.0",
+   "label": "后壳文字",
+   "label_en": "Back text",
+   "description": "",
+   "sources": [
+    "manual"
+   ],
+   "affects": [
+    "geometry"
+   ],
+   "scales_with_shell": false,
+   "blender": "后壳配置:后壳文字"
+  },
+  {
+   "key": "text.eyeline",
+   "group": "text",
+   "type": "string",
+   "max_length": 24,
+   "default": "xx",
+   "label": "眼线文字",
+   "label_en": "Eyeline text",
+   "description": "",
+   "sources": [
+    "manual"
+   ],
+   "affects": [
+    "geometry"
+   ],
+   "scales_with_shell": false,
+   "blender": "眼线配置:眼线文字"
+  },
+  {
+   "key": "text.eyeline_engrave",
+   "group": "text",
+   "type": "bool",
+   "default": false,
+   "label": "眼线刻字",
+   "label_en": "Engrave eyeline",
+   "description": "",
+   "sources": [
+    "manual"
+   ],
+   "affects": [
+    "geometry"
+   ],
+   "scales_with_shell": false,
+   "blender": "眼线配置:是否刻字"
+  },
+  {
+   "key": "lashes.style",
+   "group": "lashes",
+   "type": "enum",
+   "options": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15
+   ],
+   "default": 0,
+   "label": "睫毛样式",
+   "label_en": "Lash style",
+   "description": "0–2 为 Pulsar 原有三套；3–15 为预设 眼线1–13（按 眼线11→睫毛 的手调拟合放到本头壳上，绑定睫毛形变笼）",
+   "sources": [
+    "design",
+    "manual"
+   ],
+   "affects": [
+    "geometry"
+   ],
+   "scales_with_shell": true,
+   "blender": "睫毛/几何节点:睫毛类型"
+  },
+  {
+   "key": "output.views",
+   "group": "output",
+   "type": "multi",
+   "options": [
+    "front",
+    "three_quarter",
+    "side",
+    "back"
+   ],
+   "default": [
+    "front",
+    "three_quarter",
+    "side"
+   ],
+   "label": "渲染视图",
+   "label_en": "Views",
+   "description": "",
+   "sources": [
+    "manual"
+   ],
+   "affects": [
+    "output"
+   ]
+  },
+  {
+   "key": "output.render_px",
+   "group": "output",
+   "type": "int",
+   "min": 256,
+   "max": 2048,
+   "step": 64,
+   "default": 1280,
+   "label": "渲染尺寸",
+   "label_en": "Render size",
+   "description": "正方形边长",
+   "sources": [
+    "manual"
+   ],
+   "affects": [
+    "output"
+   ]
+  },
+  {
+   "key": "output.export_formats",
+   "group": "output",
+   "type": "multi",
+   "options": [
+    "glb",
+    "stl"
+   ],
+   "default": [
+    "glb",
+    "stl"
+   ],
+   "label": "导出格式",
+   "label_en": "Export formats",
+   "description": "STL 为毫米单位",
+   "sources": [
+    "manual"
+   ],
+   "affects": [
+    "output"
+   ]
+  },
+  {
+   "key": "output.parts",
+   "group": "output",
+   "type": "multi",
+   "options": [
+    "front_shell",
+    "back_shell",
+    "eyeline"
+   ],
+   "default": [
+    "front_shell",
+    "back_shell",
+    "eyeline"
+   ],
+   "label": "导出部件",
+   "label_en": "Parts",
+   "description": "前壳 / 后壳 / 眼线件（均为布尔后的可打印实体）",
+   "sources": [
+    "manual"
+   ],
+   "affects": [
+    "output"
+   ]
+  }
+ ]
+}

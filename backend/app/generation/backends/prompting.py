@@ -79,6 +79,16 @@ HEAD_POSE = (
     "hair and features, and never copy a three-quarter, turned or tilted pose from the references."
 )
 
+# Uneven eyes in a reference (one eye higher, lower, larger or differently shaped) are almost always an accident of
+# the reference art or its angle; every stage must normalise them into one mirrored pair instead of copying them.
+EYE_SYMMETRY_LINE = (
+    "Eye symmetry: both eyes sit on one horizontal line at exactly the same height, mirrored across the face "
+    "centerline, with the same size and the same shape. If a reference, draft or design shows uneven eyes (one eye "
+    "higher or lower, larger or smaller, or a different shape), do not copy that asymmetry: rebuild the pair as one "
+    "mirrored eye design that keeps the character's own eye style, colours, iris, lashes and expression. Symmetry "
+    "comes before copying the reference's eye placement."
+)
+
 # How a head-shell image should look: a photograph of a physical object, not an illustration.
 HEAD_SHELL_LOOK = (
     "Look: a photorealistic studio product photograph of a real, physical, hand-made kigurumi head shell wearing its wig, "
@@ -192,6 +202,10 @@ def _head_pose() -> str:
     return _prompt("head_pose", HEAD_POSE)
 
 
+def _eye_symmetry_line() -> str:
+    return _prompt("eye_symmetry_line", EYE_SYMMETRY_LINE)
+
+
 def _watermark_line() -> str:
     return _prompt("watermark_line", WATERMARK_LINE)
 
@@ -255,6 +269,7 @@ def _final_front_view_prompt() -> list[str]:
     _hair_fidelity_line(),
     _no_imposed_hairstyle_line(),
     _head_pose(),
+    _eye_symmetry_line(),
     _shell_ears_line(),
     _front_product_style_line(),
     "",
@@ -312,6 +327,7 @@ def _final_front_edit_prompt() -> list[str]:
     _hair_fidelity_line(),
     _no_imposed_hairstyle_line(),
     _head_pose(),
+    _eye_symmetry_line(),
     _shell_ears_line(),
     "Remove the stand, pole, ring and any other support from the photo. Do not show the shell's bottom opening or a "
     "neck tube: the face ends at the chin and the wig falls freely below it.",
@@ -355,6 +371,7 @@ def _final_turnaround_prompt() -> list[str]:
     "anywhere, infer them conservatively from the front and the visible hair; do not invent new accessories or a "
     "different hairstyle.",
     _no_imposed_hairstyle_line(),
+    _eye_symmetry_line(),
     _turnaround_product_style_line(),
     "",
     _four_view_layout_line(),
@@ -406,6 +423,7 @@ def _character_front_view_prompt() -> list[str]:
     "Composition: front-facing, centred, the whole head including the full hair silhouette and ears visible; head and "
     "hair only (at most a short neck stub), no shoulders or body.",
     _head_pose(),
+    _eye_symmetry_line(),
     _front_ears_line(),
     "Generate the front-view image at 800x1100 resolution as a vertical portrait image.",
     "",
@@ -422,6 +440,7 @@ def _character_revision_prompt() -> list[str]:
     "only the changes the user asks for or that the annotations drawn on the draft point out, then remove those "
     "annotation marks.",
     *_character_sheet_common(),
+    _eye_symmetry_line(),
     "",
     "Generate the front-view image at 800x1100 resolution as a vertical portrait image.",
     "",
@@ -438,6 +457,7 @@ def _character_turnaround_prompt() -> list[str]:
     "and design and apply only the requested changes. Use any other attached images only to clarify details the primary "
     "image does not show, such as the back of the hair.",
     *_character_sheet_common(),
+    _eye_symmetry_line(),
     "",
     _four_view_layout_line(),
     "Every view must show the same design; the back view must show a plausible continuation of the visible hairstyle.",

@@ -82,6 +82,22 @@ def test_style_photo_ignore_propagates_into_style_lines(prompts_env):
     assert "TEST IGNORE RULE." in prompt
 
 
+def test_eye_symmetry_line_override_replaces_the_default_in_every_stage(prompts_env):
+    from app.prompts.registry import prompt_inventory
+
+    override = "Eye symmetry: TEST EYE RULE, both eyes level and mirrored."
+    write(prompts_env, {"eye_symmetry_line": override})
+    default_unique = "Symmetry comes before copying the reference's eye placement."
+
+    assert prompt_inventory()["eye_symmetry_line"]["default"] == prompting.EYE_SYMMETRY_LINE
+    assert default_unique in prompting.EYE_SYMMETRY_LINE
+
+    for mode in ("front_design", "front_revision", "turnaround", "character_front", "character_revision", "character_turnaround"):
+        prompt = codex._build_codex_prompt({**PAYLOAD, "generation_mode": mode})
+        assert override in prompt, mode
+        assert default_unique not in prompt, mode
+
+
 def test_constraint_list_override_keeps_landmark_splice(prompts_env):
     write(prompts_env, {"constraints.front_design": ["Custom constraint one.", "Custom constraint two."]})
 
