@@ -19,7 +19,6 @@ def test_app(monkeypatch: pytest.MonkeyPatch, tmp_path) -> FastAPI:
     from app.core.config import get_settings
     from app.album.router import clear_album_items
     from app.audit.router import clear_audit_state
-    from app.generation.events import clear_events
     from app.generation.router import clear_jobs
     from app.main import create_app
     from app.references.router import clear_uploaded_references
@@ -36,7 +35,6 @@ def test_app(monkeypatch: pytest.MonkeyPatch, tmp_path) -> FastAPI:
     clear_audit_state()
     clear_album_items()
     clear_jobs()
-    clear_events()
     clear_uploaded_references()
     return create_app()
 

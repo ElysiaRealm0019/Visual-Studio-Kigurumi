@@ -65,13 +65,6 @@ def main() -> int:
             raise RuntimeError("未打开基座 .blend：请以 `blender -b <ProjectPulsar_Base.blend> -P build_shell.py -- ...` 调用")
         schema = sizing.load_schema(args.schema)
         snapshot = json.loads(Path(args.params).resolve().read_text(encoding="utf-8"))
-        if isinstance(snapshot, dict) and snapshot.get("format") == "vsk-head":
-            # unified v2 document -> flat binding params (see shell_builder/vsk_head_v2.py)
-            from shell_builder import vsk_head_v2
-            v2, v2_warnings = vsk_head_v2.normalize(snapshot)
-            result["warnings"] += v2_warnings
-            result["vsk_head_v2"] = vsk_head_v2.shape_delta(v2)
-            snapshot = {"schema_version": schema["schema_version"], "params": vsk_head_v2.to_legacy(v2)}
         raw = snapshot.get("params", snapshot) if isinstance(snapshot, dict) else {}
         version = snapshot.get("schema_version") if isinstance(snapshot, dict) else None
         if version is not None and version != schema["schema_version"]:
