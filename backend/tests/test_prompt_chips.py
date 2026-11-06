@@ -52,7 +52,7 @@ async def test_prompt_requirements_return_grouped_readable_options(test_app: Fas
 
 async def test_prompt_chips_are_grouped_positive_blocks(test_app: FastAPI) -> None:
     async with AsyncClient(transport=ASGITransport(app=test_app), base_url="http://test") as client:
-        response = await client.get("/prompts/chips")
+        response = await client.get("/api/prompts/chips")
 
     assert response.status_code == 200
     chips = response.json()

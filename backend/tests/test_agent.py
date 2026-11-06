@@ -70,20 +70,20 @@ def use_llm(monkeypatch, policy) -> FakeLLM:
 
 
 async def start_conversation(client) -> str:
-    response = await client.post("/agent/conversations", json={"locale": "zh-CN"})
+    response = await client.post("/api/agent/conversations", json={"locale": "zh-CN"})
     assert response.status_code == 200
     return response.json()["id"]
 
 
 async def send(client, conversation_id: str, *, text: str = "", files: int = 0, **form):
     response = await client.post(
-        f"/agent/conversations/{conversation_id}/messages",
+        f"/api/agent/conversations/{conversation_id}/messages",
         data={"text": text, **form},
         files=[("files", (f"ref{i}.png", png_bytes(), "image/png")) for i in range(files)] or None,
     )
     assert response.status_code == 200, response.text
     await agent_runner.wait(conversation_id)
-    return (await client.get(f"/agent/conversations/{conversation_id}")).json()
+    return (await client.get(f"/api/agent/conversations/{conversation_id}")).json()
 
 
 def auto_front_policy(messages):
@@ -325,7 +325,7 @@ async def test_generation_cap_per_turn(agent_env, async_client, monkeypatch):
 async def test_message_rejected_while_running_and_empty(agent_env, async_client, monkeypatch):
     use_llm(monkeypatch, lambda messages: AssistantTurn(text="hi"))
     conversation_id = await start_conversation(async_client)
-    response = await async_client.post(f"/agent/conversations/{conversation_id}/messages", data={"text": "  "})
+    response = await async_client.post(f"/api/agent/conversations/{conversation_id}/messages", data={"text": "  "})
     assert response.status_code == 400
 
 
@@ -349,10 +349,10 @@ async def test_conversation_list_and_delete(agent_env, async_client, monkeypatch
     use_llm(monkeypatch, lambda messages: AssistantTurn(text="hi"))
     conversation_id = await start_conversation(async_client)
     await send(async_client, conversation_id, text="第一条消息")
-    listed = (await async_client.get("/agent/conversations")).json()
+    listed = (await async_client.get("/api/agent/conversations")).json()
     assert listed[0]["id"] == conversation_id and listed[0]["title"] == "第一条消息"
-    assert (await async_client.delete(f"/agent/conversations/{conversation_id}")).json() == {"deleted": True}
-    assert (await async_client.get(f"/agent/conversations/{conversation_id}")).status_code == 404
+    assert (await async_client.delete(f"/api/agent/conversations/{conversation_id}")).json() == {"deleted": True}
+    assert (await async_client.get(f"/api/agent/conversations/{conversation_id}")).status_code == 404
 
 
 def test_parse_openai_message_with_tool_calls_and_think():
@@ -479,7 +479,7 @@ async def test_manual_version_is_saved_watermarked_with_clean_source(agent_env, 
     edited = io.BytesIO()
     Image.new("RGB", (80, 110), (10, 200, 30)).save(edited, format="PNG")
     response = await async_client.post(
-        f"/agent/conversations/{conversation_id}/versions",
+        f"/api/agent/conversations/{conversation_id}/versions",
         data={"base_image_id": "front-1", "note": "eyes bigger", "recipe": json.dumps({"eyes": {"eyeSize": 0.2}})},
         files={"image": ("edit.png", edited.getvalue(), "image/png")},
     )
@@ -491,8 +491,8 @@ async def test_manual_version_is_saved_watermarked_with_clean_source(agent_env, 
     assert body["state"]["current_front_id"] == "front-2"
 
     # Public copy is watermarked; the editor source endpoint serves the clean pixels.
-    public = await async_client.get(manual["url"].removeprefix("/api"))
-    source = await async_client.get(f"/agent/conversations/{conversation_id}/versions/front-2/source")
+    public = await async_client.get(manual["url"])
+    source = await async_client.get(f"/api/agent/conversations/{conversation_id}/versions/front-2/source")
     assert source.status_code == 200
     clean_pixel = Image.open(io.BytesIO(source.content)).convert("RGB").getpixel((5, 105))
     public_image = Image.open(io.BytesIO(public.content)).convert("RGB")
@@ -510,7 +510,7 @@ async def test_auto_symmetry_version_is_derived_and_announced(agent_env, async_c
     corrected = io.BytesIO()
     Image.new("RGB", (80, 110), (5, 5, 200)).save(corrected, format="PNG")
     response = await async_client.post(
-        f"/agent/conversations/{conversation_id}/versions",
+        f"/api/agent/conversations/{conversation_id}/versions",
         data={
             "base_image_id": "front-1",
             "note": "自动修正：左右眼对齐并镜像",
@@ -538,7 +538,7 @@ async def test_version_source_must_be_a_known_one(agent_env, async_client, monke
     image = io.BytesIO()
     Image.new("RGB", (80, 110), (10, 200, 30)).save(image, format="PNG")
     response = await async_client.post(
-        f"/agent/conversations/{conversation_id}/versions",
+        f"/api/agent/conversations/{conversation_id}/versions",
         data={"base_image_id": "front-1", "source": "agent"},
         files={"image": ("edit.png", image.getvalue(), "image/png")},
     )
@@ -547,11 +547,11 @@ async def test_version_source_must_be_a_known_one(agent_env, async_client, monke
 
 
 async def test_rename_and_upload_references_without_chat(agent_env, async_client, monkeypatch):
-    conversation_id = (await async_client.post("/agent/conversations", json={"title": "猫娘头壳"})).json()["id"]
-    renamed = await async_client.patch(f"/agent/conversations/{conversation_id}", json={"title": "新名字"})
+    conversation_id = (await async_client.post("/api/agent/conversations", json={"title": "猫娘头壳"})).json()["id"]
+    renamed = await async_client.patch(f"/api/agent/conversations/{conversation_id}", json={"title": "新名字"})
     assert renamed.json()["title"] == "新名字"
     response = await async_client.post(
-        f"/agent/conversations/{conversation_id}/references",
+        f"/api/agent/conversations/{conversation_id}/references",
         files=[("files", ("a.png", png_bytes(), "image/png")), ("files", ("b.png", png_bytes(), "image/png"))],
     )
     assert [reference["kind"] for reference in response.json()["state"]["references"]] == ["front", "supplemental"]
@@ -566,7 +566,7 @@ async def test_local_revision_runs_as_direct_action(agent_env, async_client, mon
     monkeypatch.setattr(FixtureImageProvider, "supports_local_revision", property(lambda self: True))
 
     base = Image.open(io.BytesIO((await async_client.get(
-        f"/agent/conversations/{conversation_id}/versions/front-1/source"
+        f"/api/agent/conversations/{conversation_id}/versions/front-1/source"
     )).content))
     mask = Image.new("L", base.size, 0)
     mask.paste(255, (10, 10, 60, 60))
@@ -578,13 +578,13 @@ async def test_local_revision_runs_as_direct_action(agent_env, async_client, mon
 
     use_llm(monkeypatch, no_llm)
     response = await async_client.post(
-        f"/agent/conversations/{conversation_id}/local-revision",
+        f"/api/agent/conversations/{conversation_id}/local-revision",
         data={"base_image_id": "front-1", "edit_note": "把发夹去掉", "lock_outside": "true"},
         files={"mask": ("mask.png", mask_buffer.getvalue(), "image/png")},
     )
     assert response.status_code == 200, response.text
     await agent_runner.wait(conversation_id)
-    body = (await async_client.get(f"/agent/conversations/{conversation_id}")).json()
+    body = (await async_client.get(f"/api/agent/conversations/{conversation_id}")).json()
     tools = [(event["tool"], event["status"]) for event in body["events"] if event["type"] == "tool"]
     assert tools[-1] == ("local_revision", "succeeded")
     latest = body["state"]["images"][-1]
@@ -601,12 +601,12 @@ async def test_local_revision_rejected_when_backend_unsupported(agent_env, async
     mask_buffer = io.BytesIO()
     Image.new("L", (800, 1100), 255).save(mask_buffer, format="PNG")
     await async_client.post(
-        f"/agent/conversations/{conversation_id}/local-revision",
+        f"/api/agent/conversations/{conversation_id}/local-revision",
         data={"base_image_id": "front-1", "edit_note": "x"},
         files={"mask": ("mask.png", mask_buffer.getvalue(), "image/png")},
     )
     await agent_runner.wait(conversation_id)
-    body = (await async_client.get(f"/agent/conversations/{conversation_id}")).json()
+    body = (await async_client.get(f"/api/agent/conversations/{conversation_id}")).json()
     failed = [event for event in body["events"] if event["type"] == "tool" and event["tool"] == "local_revision"]
     assert failed[0]["status"] == "failed" and "does not support" in failed[0]["error"]
 
@@ -620,13 +620,13 @@ async def test_annotated_revision_uses_annotated_export_as_front(agent_env, asyn
     annotated = io.BytesIO()
     Image.new("RGB", (80, 110), "red").save(annotated, format="PNG")
     response = await async_client.post(
-        f"/agent/conversations/{conversation_id}/annotated-revision",
+        f"/api/agent/conversations/{conversation_id}/annotated-revision",
         data={"base_image_id": "front-1", "instructions": "标注 1: 刘海剪短"},
         files={"image": ("annotated.png", annotated.getvalue(), "image/png")},
     )
     assert response.status_code == 200, response.text
     await agent_runner.wait(conversation_id)
-    body = (await async_client.get(f"/agent/conversations/{conversation_id}")).json()
+    body = (await async_client.get(f"/api/agent/conversations/{conversation_id}")).json()
     latest = body["state"]["images"][-1]
     assert latest["id"] == "front-2" and latest["parent_id"] == "front-1"
     from app.generation.job_store import job_store
@@ -647,7 +647,7 @@ async def test_design_versions_support_manual_annotated_and_local_edits(agent_en
     edited = io.BytesIO()
     Image.new("RGB", (80, 110), (10, 200, 30)).save(edited, format="PNG")
     manual = await async_client.post(
-        f"/agent/conversations/{conversation_id}/versions",
+        f"/api/agent/conversations/{conversation_id}/versions",
         data={"base_image_id": "design-1", "note": "eyes bigger"},
         files={"image": ("edit.png", edited.getvalue(), "image/png")},
     )
@@ -655,31 +655,31 @@ async def test_design_versions_support_manual_annotated_and_local_edits(agent_en
     assert manual.json()["state"]["current_design_id"] == "design-2"
 
     response = await async_client.post(
-        f"/agent/conversations/{conversation_id}/annotated-revision",
+        f"/api/agent/conversations/{conversation_id}/annotated-revision",
         data={"base_image_id": "design-2", "instructions": "标注 1: 刘海剪短"},
         files={"image": ("annotated.png", edited.getvalue(), "image/png")},
     )
     assert response.status_code == 200, response.text
     await agent_runner.wait(conversation_id)
-    body = (await async_client.get(f"/agent/conversations/{conversation_id}")).json()
+    body = (await async_client.get(f"/api/agent/conversations/{conversation_id}")).json()
     assert body["state"]["images"][-1]["id"] == "design-3"
     assert job_for(body, "design-3").generation_mode == "character_revision"
 
     monkeypatch.setattr(FixtureImageProvider, "supports_local_revision", property(lambda self: True))
     base = Image.open(io.BytesIO((await async_client.get(
-        f"/agent/conversations/{conversation_id}/versions/design-3/source"
+        f"/api/agent/conversations/{conversation_id}/versions/design-3/source"
     )).content))
     mask = Image.new("L", base.size, 0)
     mask.paste(255, (10, 10, 60, 60))
     mask_buffer = io.BytesIO()
     mask.save(mask_buffer, format="PNG")
     await async_client.post(
-        f"/agent/conversations/{conversation_id}/local-revision",
+        f"/api/agent/conversations/{conversation_id}/local-revision",
         data={"base_image_id": "design-3", "edit_note": "去掉发夹"},
         files={"mask": ("mask.png", mask_buffer.getvalue(), "image/png")},
     )
     await agent_runner.wait(conversation_id)
-    body = (await async_client.get(f"/agent/conversations/{conversation_id}")).json()
+    body = (await async_client.get(f"/api/agent/conversations/{conversation_id}")).json()
     latest = body["state"]["images"][-1]
     assert latest["id"] == "design-4" and latest["source"] == "local_revision"
     assert job_for(body, "design-4").prompt_payload["local_edit"]["subject"] == "design"

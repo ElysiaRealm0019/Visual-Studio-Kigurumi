@@ -51,11 +51,6 @@ def create_app() -> FastAPI:
         StaticFiles(**fixture_static_kwargs),
         name="api_fixture_static",
     )
-    app.mount(
-        "/static/fixtures",
-        StaticFiles(**fixture_static_kwargs),
-        name="fixture_static",
-    )
     generated_prefixes = _generated_public_prefixes(settings.generated_public_prefix)
 
     async def generated_asset(asset_path: str) -> FileResponse:
@@ -70,21 +65,13 @@ def create_app() -> FastAPI:
             include_in_schema=False,
         )
 
-    app.include_router(prompts_router)
-    app.include_router(generation_router)
-    app.include_router(audit_router)
-    app.include_router(album_router)
-    app.include_router(references_router)
     app.include_router(prompts_router, prefix="/api")
     app.include_router(generation_router, prefix="/api")
     app.include_router(audit_router, prefix="/api")
     app.include_router(album_router, prefix="/api")
     app.include_router(references_router, prefix="/api")
-    app.include_router(agent_router)
     app.include_router(agent_router, prefix="/api")
-    app.include_router(settings_router)
     app.include_router(settings_router, prefix="/api")
-    app.include_router(blender_router)
     app.include_router(blender_router, prefix="/api")
 
     return app
@@ -112,11 +99,7 @@ def _image_media_type(file_path: Path) -> str:
 
 
 def _generated_public_prefixes(public_prefix: str) -> list[str]:
-    normalized = f"/{public_prefix.strip('/')}"
-    prefixes = [normalized]
-    if normalized.startswith("/api/"):
-        prefixes.append(normalized.removeprefix("/api"))
-    return prefixes
+    return [f"/{public_prefix.strip('/')}"]
 
 
 def _csv_values(raw: str) -> list[str]:

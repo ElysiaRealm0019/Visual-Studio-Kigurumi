@@ -100,18 +100,18 @@ class QueueBlockingProvider(ImageGenerationProvider):
         ]
 
 
-async def test_fixture_static_files_are_served_with_and_without_api_prefix(
+async def test_fixture_static_files_are_served_under_api_prefix(
     async_client: AsyncClient,
 ):
     api_response = await async_client.get(
         "/api/static/fixtures/kigurumi-candidate-1.webp"
     )
-    vite_proxy_response = await async_client.get(
+    unprefixed_response = await async_client.get(
         "/static/fixtures/kigurumi-candidate-1.webp"
     )
 
     assert api_response.status_code == 200
-    assert vite_proxy_response.status_code == 200
+    assert unprefixed_response.status_code == 404
 
 
 async def test_generated_static_webp_files_are_served_with_image_media_type(
@@ -127,14 +127,13 @@ async def test_generated_static_webp_files_are_served_with_image_media_type(
         response = await async_client.get(
             f"/api/generated/mime-test/{output_id}/outputs/candidate-1.webp"
         )
-        vite_proxy_response = await async_client.get(
+        unprefixed_response = await async_client.get(
             f"/generated/mime-test/{output_id}/outputs/candidate-1.webp"
         )
 
         assert response.status_code == 200
         assert response.headers["content-type"].startswith("image/webp")
-        assert vite_proxy_response.status_code == 200
-        assert vite_proxy_response.headers["content-type"].startswith("image/webp")
+        assert unprefixed_response.status_code == 404
 
         head_response = await async_client.head(
             f"/api/generated/mime-test/{output_id}/outputs/candidate-1.webp"

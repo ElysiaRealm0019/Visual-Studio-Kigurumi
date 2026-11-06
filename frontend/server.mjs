@@ -85,7 +85,7 @@ function serveStatic(request, response, pathname) {
 
 function proxyApi(request, response) {
   const target = new URL(apiProxyTarget);
-  const requestPath = request.url?.replace(/^\/api/, "") || "/";
+  const requestPath = request.url || "/";
   const proxyRequest = (target.protocol === "https:" ? httpsRequest : httpRequest)(
     {
       headers: {

@@ -22,14 +22,14 @@ async def test_version_downloads_as_png(agent_env, async_client, monkeypatch):
     conversation_id = await start_conversation(async_client)
     await send(async_client, conversation_id, files=1)
 
-    response = await async_client.get(f"/agent/conversations/{conversation_id}/versions/front-1/download")
+    response = await async_client.get(f"/api/agent/conversations/{conversation_id}/versions/front-1/download")
 
     assert response.status_code == 200
     assert response.headers["content-type"] == "image/png"
     assert 'filename="front-1.png"' in response.headers["content-disposition"]
     assert Image.open(io.BytesIO(response.content)).format == "PNG"
 
-    missing = await async_client.get(f"/agent/conversations/{conversation_id}/versions/nope/download")
+    missing = await async_client.get(f"/api/agent/conversations/{conversation_id}/versions/nope/download")
     assert missing.status_code == 404
 
 
@@ -37,9 +37,9 @@ async def test_export_import_round_trip(agent_env, async_client, monkeypatch):
     use_llm(monkeypatch, auto_front_policy)
     conversation_id = await start_conversation(async_client)
     await send(async_client, conversation_id, files=1)
-    original = (await async_client.get(f"/agent/conversations/{conversation_id}")).json()
+    original = (await async_client.get(f"/api/agent/conversations/{conversation_id}")).json()
 
-    export = await async_client.get(f"/agent/conversations/{conversation_id}/export")
+    export = await async_client.get(f"/api/agent/conversations/{conversation_id}/export")
     assert export.status_code == 200
     assert export.headers["content-type"] == "application/zip"
     assert export.headers["content-disposition"].startswith('attachment; filename="')
@@ -50,7 +50,7 @@ async def test_export_import_round_trip(agent_env, async_client, monkeypatch):
     assert any(name.startswith("assets/") for name in names)
 
     imported = await async_client.post(
-        "/agent/conversations/import",
+        "/api/agent/conversations/import",
         files={"file": ("project.vkp", export.content, "application/zip")},
     )
     assert imported.status_code == 200, imported.text
@@ -62,26 +62,26 @@ async def test_export_import_round_trip(agent_env, async_client, monkeypatch):
     assert len(body["state"]["references"]) == len(original["state"]["references"])
 
     # Pixels were restored under the new id: the editor source and the public file both resolve.
-    source = await async_client.get(f"/agent/conversations/{new_id}/versions/front-1/source")
+    source = await async_client.get(f"/api/agent/conversations/{new_id}/versions/front-1/source")
     assert source.status_code == 200
-    download = await async_client.get(f"/agent/conversations/{new_id}/versions/front-1/download")
+    download = await async_client.get(f"/api/agent/conversations/{new_id}/versions/front-1/download")
     assert download.status_code == 200
     reference = body["state"]["references"][0]["url"]
-    reference_response = await async_client.get(reference.removeprefix("/api"))
+    reference_response = await async_client.get(reference)
     assert new_id in reference and reference_response.status_code == 200
 
-    listing = (await async_client.get("/agent/conversations")).json()
+    listing = (await async_client.get("/api/agent/conversations")).json()
     assert {project["id"] for project in listing} >= {conversation_id, new_id}
 
 
 async def test_export_unknown_conversation_404(agent_env, async_client):
-    response = await async_client.get("/agent/conversations/00000000-0000-0000-0000-000000000000/export")
+    response = await async_client.get("/api/agent/conversations/00000000-0000-0000-0000-000000000000/export")
     assert response.status_code == 404
 
 
 async def test_import_rejects_invalid_files(agent_env, async_client):
     def send_file(name: str, payload: bytes):
-        return async_client.post("/agent/conversations/import", files={"file": (name, payload, "application/zip")})
+        return async_client.post("/api/agent/conversations/import", files={"file": (name, payload, "application/zip")})
 
     assert (await send_file("x.zip", b"garbage")).status_code == 400  # wrong suffix
     assert (await send_file("x.vkp", b"garbage")).status_code == 400  # not a zip
