@@ -145,7 +145,7 @@ docker compose up --build
 
 Compose runs two services and nothing else:
 
-- `api`: the FastAPI process itself, which runs generation jobs and head-shell builds in-process;
+- `api`: the FastAPI process itself, which runs generation jobs in-process and manages head-shell builds as headless Blender subprocesses;
 - `frontend`: nginx serving the built app and proxying `/api` to the API.
 
 There is no separate worker, Postgres, Redis or object store. Job state and generated files live in SQLite and the filesystem under `runtime/`, which compose bind-mounts. The app runs at <http://localhost:15173> and the API at <http://localhost:18000/health>.
