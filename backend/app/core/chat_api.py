@@ -45,7 +45,7 @@ def parse_extra_body(raw: str) -> dict[str, Any]:
         return {}
     parsed = json.loads(raw)
     if not isinstance(parsed, dict):
-        raise ValueError("must be a JSON object")
+        raise ValueError("must be a JSON object")  # noqa: TRY004 - untrusted JSON; ValueError contract
     # Never let extra fields override the conversation itself.
     return {key: value for key, value in parsed.items() if key not in PROTECTED_FIELDS}
 

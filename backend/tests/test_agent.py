@@ -402,8 +402,8 @@ async def test_openai_compatible_request_shape(monkeypatch):
     import httpx
 
     from app.agent import llm as llm_module
-    from app.core import chat_api
     from app.agent.tools import TOOL_SPECS
+    from app.core import chat_api
     from app.core.config import get_settings
 
     monkeypatch.setenv("AGENT_LLM_API_KEY", "")

@@ -231,6 +231,7 @@ def test_local_revision_manifest_requires_exact_output_size(manifest_root):
 
 async def test_codex_local_revision_stages_base_and_mask_as_first_images(tmp_path, monkeypatch):
     from io import BytesIO
+
     from PIL import Image
 
     reference_root = tmp_path / "references"

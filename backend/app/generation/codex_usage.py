@@ -78,7 +78,7 @@ async def _get_bridge_usage_status(settings: Settings) -> CodexUsageStatus | Non
         if response.status_code == 404:
             return None
         response.raise_for_status()
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - best-effort probe; must not break generation
         logger.warning("Codex bridge usage check failed: %s", exc)
         return None
     return parse_codex_usage_payload(response.json())
@@ -102,7 +102,7 @@ async def _get_command_usage_status(settings: Settings) -> CodexUsageStatus | No
             process.communicate(),
             timeout=settings.codex_usage_check_timeout_seconds,
         )
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - best-effort probe; must not break generation
         logger.warning("Codex usage command failed to run: %s", exc)
         return None
     if process.returncode != 0:

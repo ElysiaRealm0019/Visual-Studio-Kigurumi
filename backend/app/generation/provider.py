@@ -20,7 +20,10 @@ from app.generation.backends.types import (
     ReferenceRejectedError,
     ReferenceSafetyResult,
 )
-from app.generation.detail_analysis import DetailAnalysisProviderRequest, DetailAnalysisProviderResult
+from app.generation.detail_analysis import (
+    DetailAnalysisProviderRequest,
+    DetailAnalysisProviderResult,
+)
 
 __all__ = [
     "ArkImageBackend",

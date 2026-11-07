@@ -1,13 +1,12 @@
 import asyncio
 import shutil
 import uuid
-from pathlib import Path
 
 from httpx import AsyncClient
 
-from app.generation.job_store import job_store
 from app.core.config import get_settings
 from app.core.paths import resolve_repo_path
+from app.generation.job_store import job_store
 from app.generation.provider import (
     ImageGenerationProvider,
     ProviderOutput,

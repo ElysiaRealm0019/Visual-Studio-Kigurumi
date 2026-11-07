@@ -8,7 +8,7 @@ def replies(body) -> list[str]:
     return [event["text"] for event in body["events"] if event["type"] == "assistant_message" and not event.get("deleted")]
 
 
-async def test_delete_reply_hides_event_and_drops_it_from_llm_context(agent_env, async_client, monkeypatch):
+async def test_delete_reply_hides_event_and_drops_it_from_llm_context(agent_env, async_client, monkeypatch):  # noqa: F811 - fixture re-exported from tests.test_agent
     answers = iter(["第一条回复", "第二条回复"])
     use_llm(monkeypatch, lambda messages: AssistantTurn(text=next(answers)))
     conversation_id = await start_conversation(async_client)
@@ -29,7 +29,7 @@ async def test_delete_reply_hides_event_and_drops_it_from_llm_context(agent_env,
     assert missing.status_code == 404
 
 
-async def test_delete_reply_with_tool_calls_keeps_the_call(agent_env, async_client, monkeypatch):
+async def test_delete_reply_with_tool_calls_keeps_the_call(agent_env, async_client, monkeypatch):  # noqa: F811 - fixture re-exported from tests.test_agent
     def policy(messages):
         if messages[-1]["role"] == "user":
             return AssistantTurn(text="我先看看状态。", tool_calls=[call("no_such_tool")])
@@ -48,7 +48,7 @@ async def test_delete_reply_with_tool_calls_keeps_the_call(agent_env, async_clie
     assert any(m["role"] == "tool" for m in messages)
 
 
-async def test_regenerate_reruns_last_turn(agent_env, async_client, monkeypatch):
+async def test_regenerate_reruns_last_turn(agent_env, async_client, monkeypatch):  # noqa: F811 - fixture re-exported from tests.test_agent
     answers = iter(["旧回复", "新回复"])
     llm = use_llm(monkeypatch, lambda messages: AssistantTurn(text=next(answers)))
     conversation_id = await start_conversation(async_client)
@@ -69,7 +69,7 @@ async def test_regenerate_reruns_last_turn(agent_env, async_client, monkeypatch)
     assert seqs == sorted(set(seqs))
 
 
-async def test_regenerate_needs_a_user_turn(agent_env, async_client, monkeypatch):
+async def test_regenerate_needs_a_user_turn(agent_env, async_client, monkeypatch):  # noqa: F811 - fixture re-exported from tests.test_agent
     use_llm(monkeypatch, lambda messages: AssistantTurn(text="hi"))
     conversation_id = await start_conversation(async_client)
     response = await async_client.post(f"/api/agent/conversations/{conversation_id}/regenerate")

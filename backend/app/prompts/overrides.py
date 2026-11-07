@@ -56,7 +56,7 @@ def _overrides() -> dict[str, Any]:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
         if not isinstance(data, dict):
-            raise ValueError("must be a JSON object")
+            raise ValueError("must be a JSON object")  # noqa: TRY004 - ValueError is caught by the handler below
     except (OSError, ValueError) as exc:
         logger.warning("Ignoring unusable prompts file %s: %s", path, exc)
         data = {}

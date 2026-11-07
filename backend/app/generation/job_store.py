@@ -9,12 +9,12 @@ from typing import Any
 
 from app.core.config import get_settings
 from app.core.paths import resolve_repo_path
-from app.generation.schemas import CreateJobRequest, normalize_locale
 from app.generation.modes import (
     AI_OUTPUT_LANDMARKS_ENABLED,
     expected_output_count,
     normalize_generation_mode,
 )
+from app.generation.schemas import CreateJobRequest, normalize_locale
 from app.generation.usage import TokenUsage, merge_token_usage, parse_token_usage
 from app.prompts.overrides import get_prompt_list
 from app.prompts.router import resolve_requirement_prompt_texts

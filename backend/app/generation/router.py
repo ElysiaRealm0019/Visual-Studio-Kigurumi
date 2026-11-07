@@ -1,15 +1,15 @@
 import asyncio
-from dataclasses import dataclass
-from io import BytesIO
 import json
 import logging
 import re
 import shutil
 import time
+import uuid
 from collections import defaultdict, deque
+from dataclasses import dataclass
+from io import BytesIO
 from ipaddress import ip_address, ip_network
 from pathlib import Path
-import uuid
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
@@ -43,8 +43,8 @@ from app.generation.provider import (
 )
 from app.generation.queue import generation_queue
 from app.generation.schemas import (
-    CreateJobRequest,
     DEFAULT_LOCALE,
+    CreateJobRequest,
     GenerationEventOut,
     GenerationJobOut,
     GenerationOutputOut,

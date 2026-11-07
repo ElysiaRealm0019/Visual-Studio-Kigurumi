@@ -2,7 +2,10 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Literal
 
-from app.generation.detail_analysis import DetailAnalysisProviderRequest, DetailAnalysisProviderResult
+from app.generation.detail_analysis import (
+    DetailAnalysisProviderRequest,
+    DetailAnalysisProviderResult,
+)
 from app.generation.usage import TokenUsage
 
 # Live tool progress callback: (progress 0-100, phase text, **extra event fields).

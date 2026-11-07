@@ -1,7 +1,7 @@
+import secrets
 from collections import Counter
 from datetime import UTC, datetime, timedelta
 from pathlib import Path, PurePosixPath
-import secrets
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response

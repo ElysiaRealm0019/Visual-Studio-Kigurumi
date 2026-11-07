@@ -3,7 +3,12 @@ from typing import Any
 import httpx
 from PIL import Image
 
-from app.generation.backends.image_api import ApiRequest, HttpImageBackend, ImageApiError, to_data_uri
+from app.generation.backends.image_api import (
+    ApiRequest,
+    HttpImageBackend,
+    ImageApiError,
+    to_data_uri,
+)
 
 IMAGE_FIELDS = ("image", "image2", "image3")
 SiliconFlowError = ImageApiError

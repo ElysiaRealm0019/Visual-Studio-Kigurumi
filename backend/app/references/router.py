@@ -10,7 +10,6 @@ from app.core.config import get_settings
 from app.core.paths import resolve_repo_path
 from app.images.media import IMAGE_SUFFIXES, image_media_type, resolve_image_asset
 
-
 router = APIRouter(prefix="/references", tags=["references"])
 
 ALLOWED_IMAGE_MIME_TYPES = {"image/png", "image/jpeg", "image/webp"}

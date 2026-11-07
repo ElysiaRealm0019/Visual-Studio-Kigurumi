@@ -258,12 +258,12 @@ def _four_view_clean_line() -> str:
 
 def _final_front_view_prompt() -> list[str]:
     return [
-    "You are generating one final front-view studio photograph of a finished, physical animegao kigurumi head shell "
-    "with its wig, translated from the character design.",
+    ("You are generating one final front-view studio photograph of a finished, physical animegao kigurumi head shell "
+    "with its wig, translated from the character design."),
     "",
     "Use the uploaded character image(s) as the primary identity reference. " + _identity_line(),
-    "If the design source is a clean flat 2D design, treat it as the authoritative design to translate into the "
-    "physical product, not as an image to redraw: keep its proportions, eyes, expression, hair and accessories.",
+    ("If the design source is a clean flat 2D design, treat it as the authoritative design to translate into the "
+    "physical product, not as an image to redraw: keep its proportions, eyes, expression, hair and accessories."),
     _physical_translation_line(),
     _anime_face_line(),
     _hair_fidelity_line(),
@@ -275,20 +275,20 @@ def _final_front_view_prompt() -> list[str]:
     "",
     _head_shell_look(),
     _head_shell_presentation(),
-    "Composition: the whole head shell, the full wig silhouette and both ears are inside the frame, centred, with clear "
-    "margins; head and wig only, no body.",
+    ("Composition: the whole head shell, the full wig silhouette and both ears are inside the frame, centred, with clear "
+    "margins; head and wig only, no body."),
     "Generate the front-view image at 800x1100 resolution as a vertical portrait image.",
     "",
     "Kigurumi head requirements:",
-    "- smooth hand-painted shell with a matte (non-glossy) paint finish, a fixed expression and only the shallow "
-    "relief of an animegao mask, no realistic human skin texture; only the lens eyes are glossy",
-    "- tiny nose and a simple painted mouth as drawn; the mouth is painted flush on the surface, never carved into "
-    "the shell; no lips, nostrils or human facial anatomy",
-    "- large anime eyes as glossy clear-domed lens eyes in sculpted sockets with printed or painted irises, eyeliner "
-    "and lashes; never realistic human eyes and never flat drawn eyes",
+    ("- smooth hand-painted shell with a matte (non-glossy) paint finish, a fixed expression and only the shallow "
+    "relief of an animegao mask, no realistic human skin texture; only the lens eyes are glossy"),
+    ("- tiny nose and a simple painted mouth as drawn; the mouth is painted flush on the surface, never carved into "
+    "the shell; no lips, nostrils or human facial anatomy"),
+    ("- large anime eyes as glossy clear-domed lens eyes in sculpted sockets with printed or painted irises, eyeliner "
+    "and lashes; never realistic human eyes and never flat drawn eyes"),
     "- wig mounted on the head shell, with realistic fiber texture and a hairstyle derived from the references or user notes",
-    "- the face stays fully visible: the fringe lies flat and ends at or just above the brows, the side locks frame "
-    "the face at the sides, and loose strands never drape over the eyes, cheeks or mouth; only the design may cover an eye",
+    ("- the face stays fully visible: the fringe lies flat and ends at or just above the brows, the side locks frame "
+    "the face at the sides, and loose strands never drape over the eyes, cheeks or mouth; only the design may cover an eye"),
     "- long loose hair must remain continuous and natural; do not create holes, missing chunks, or cutouts in the hair silhouette",
     "- the characteristic ears or horn-like appendages stay present, matched, and symmetric",
     "",
@@ -307,20 +307,20 @@ def _final_front_view_prompt() -> list[str]:
 # photographed shell is what keeps the result looking physical (tested 2026-10-08, see docs/handover.md section 16).
 def _final_front_edit_prompt() -> list[str]:
     return [
-    "You are producing one front-view studio photograph of a finished, physical animegao kigurumi head shell by "
-    "editing the style photo into the user's character.",
+    ("You are producing one front-view studio photograph of a finished, physical animegao kigurumi head shell by "
+    "editing the style photo into the user's character."),
     "",
-    "Method: use the image tool in edit mode with the style photo as the image being edited and the character design "
+    ("Method: use the image tool in edit mode with the style photo as the image being edited and the character design "
     "as the reference for the changes. The style photo shows a real head shell of a different character. Keep "
     "everything that makes it a real photographed object: camera and lens, studio lighting, the matte hand-painted "
-    "shell surface, the glossy domed lens eyes and the synthetic-fibre wig realism.",
-    "Replace everything that makes up the character with the design: repaint the eye decals to the design's eye shape, "
+    "shell surface, the glossy domed lens eyes and the synthetic-fibre wig realism."),
+    ("Replace everything that makes up the character with the design: repaint the eye decals to the design's eye shape, "
     "iris colours, highlights and lash lines; repaint brows, blush and mouth to match; restyle the wig completely to "
     "the design's hairstyle, hair colours and length, removing any bun, ponytail, braid, fringe shape or colour "
     "gradient of the photo that the design does not have; give the head exactly the design's ears, horns or animal "
     "ears; add the design's head accessories as real resin, metal or fabric parts. Nothing of the photo's character "
     "may remain. The photo's face is only a starting point for the materials: reshape the face and eyes to the "
-    "design's anime proportions.",
+    "design's anime proportions."),
     _physical_translation_line(),
     _anime_face_line(),
     _identity_line(),
@@ -329,13 +329,13 @@ def _final_front_edit_prompt() -> list[str]:
     _head_pose(),
     _eye_symmetry_line(),
     _shell_ears_line(),
-    "Remove the stand, pole, ring and any other support from the photo. Do not show the shell's bottom opening or a "
-    "neck tube: the face ends at the chin and the wig falls freely below it.",
+    ("Remove the stand, pole, ring and any other support from the photo. Do not show the shell's bottom opening or a "
+    "neck tube: the face ends at the chin and the wig falls freely below it."),
     "",
     _head_shell_look(),
     _head_shell_presentation(),
-    "Composition: the whole head shell, the full wig silhouette and both ears are inside the frame, centred, with clear "
-    "margins; head and wig only, no body.",
+    ("Composition: the whole head shell, the full wig silhouette and both ears are inside the frame, centred, with clear "
+    "margins; head and wig only, no body."),
     "Generate the front-view image at 800x1100 resolution as a vertical portrait image.",
     "",
     _watermark_line(),
@@ -359,17 +359,17 @@ def _final_turnaround_prompt() -> list[str]:
     return [
     "You are generating one final four-view studio photograph sheet of a finished, physical animegao kigurumi head shell.",
     "",
-    "Use the uploaded edited front-view design as the locked design reference. The four-view result must strictly "
+    ("Use the uploaded edited front-view design as the locked design reference. The four-view result must strictly "
     "preserve the approved front-view design: same character identity, same face, same eyes, same expression, same "
     "visible head accessories, same materials and same overall proportions in all four heads. Do not redesign, "
-    "simplify, beautify, reinterpret, or change the character.",
+    "simplify, beautify, reinterpret, or change the character."),
     _physical_translation_line(),
     _anime_face_line(),
-    "Faithfully carry over all visible hairstyle details from the approved front-view design into every generated "
+    ("Faithfully carry over all visible hairstyle details from the approved front-view design into every generated "
     "view: hair silhouette, bangs/fringe shape, side locks, ahoge, strand grouping, layered clumps, parting, volume, "
     "length, asymmetry, hair accessories, and color blocks or highlights. Where the sides or the back are not shown "
     "anywhere, infer them conservatively from the front and the visible hair; do not invent new accessories or a "
-    "different hairstyle.",
+    "different hairstyle."),
     _no_imposed_hairstyle_line(),
     _eye_symmetry_line(),
     _turnaround_product_style_line(),
@@ -393,22 +393,22 @@ def _final_turnaround_prompt() -> list[str]:
 
 def _character_sheet_common() -> list[str]:
     return [
-    "This is stage 1 of the kigurumi workflow: a clean 2D character design sheet of the head. It is NOT the physical "
-    "head shell yet; the user will edit and approve this design, and the head shell will be generated from it later.",
-    "The user's reference images are the source of truth. Reproduce the character faithfully: head and face "
+    ("This is stage 1 of the kigurumi workflow: a clean 2D character design sheet of the head. It is NOT the physical "
+    "head shell yet; the user will edit and approve this design, and the head shell will be generated from it later."),
+    ("The user's reference images are the source of truth. Reproduce the character faithfully: head and face "
     "proportions, eye shape, iris colour and highlights, eyebrows, expression and temperament, hair colour and length, "
     "every distinctive hair structure, ear shape, size, placement and colour, and the drawing style of the source. "
-    "Do not invent features that are not in the references and do not average the character into a generic face.",
+    "Do not invent features that are not in the references and do not average the character into a generic face."),
     _hair_fidelity_line(),
     _no_imposed_hairstyle_line(),
-    "Remove everything that would interfere with building a head shell: background, body, clothing, props, hands, "
+    ("Remove everything that would interfere with building a head shell: background, body, clothing, props, hands, "
     "text, effects, and anything covering the head such as hoods, hats, veils or masks. Rebuild the hair and head shape "
     "those items hide so that it is consistent with the visible hair; infer hidden hair structure conservatively. Keep "
     "only the small accessories that belong to the character identity (hairpins, ribbons, earrings, small ornaments), "
-    "placed where they sit on the head.",
-    "Medium: keep the source rendering. For illustrated sources draw a flat 2D illustration with clean lines. Do not "
+    "placed where they sit on the head."),
+    ("Medium: keep the source rendering. For illustrated sources draw a flat 2D illustration with clean lines. Do not "
     "turn it into a realistic, 3D, doll, figure or cosplay image, do not moe-ify the face, and do not add 3D depth or "
-    "realistic shading.",
+    "realistic shading."),
     "Background: plain pure white with even lighting, no shadow, no frame, no labels.",
     "Do not render a physical product: no kigurumi shell, foam, seams, wig fibres, studio photograph or realistic human skin.",
 ]
@@ -420,8 +420,8 @@ def _character_front_view_prompt() -> list[str]:
     "Use the uploaded character image(s) as the identity reference. " + _identity_line(),
     *_character_sheet_common(),
     "",
-    "Composition: front-facing, centred, the whole head including the full hair silhouette and ears visible; head and "
-    "hair only (at most a short neck stub), no shoulders or body.",
+    ("Composition: front-facing, centred, the whole head including the full hair silhouette and ears visible; head and "
+    "hair only (at most a short neck stub), no shoulders or body."),
     _head_pose(),
     _eye_symmetry_line(),
     _front_ears_line(),
@@ -435,10 +435,10 @@ def _character_revision_prompt() -> list[str]:
     return [
     "You are revising one front-view 2D character design of the character's head.",
     "",
-    "The primary attached image is the current design draft and is authoritative, including any manual edits. Keep it "
+    ("The primary attached image is the current design draft and is authoritative, including any manual edits. Keep it "
     "as close as possible: same character, face, eyes, expression, hairstyle, colors, framing, and drawing style. Apply "
     "only the changes the user asks for or that the annotations drawn on the draft point out, then remove those "
-    "annotation marks.",
+    "annotation marks."),
     *_character_sheet_common(),
     _eye_symmetry_line(),
     "",
@@ -450,19 +450,19 @@ def _character_revision_prompt() -> list[str]:
 
 def _character_turnaround_prompt() -> list[str]:
     return [
-    "You are drawing one 2D character design turnaround sheet of the character's head: front, three-quarter/front-side, "
-    "side, and back views in one image.",
+    ("You are drawing one 2D character design turnaround sheet of the character's head: front, three-quarter/front-side, "
+    "side, and back views in one image."),
     "",
-    "Use the primary attached image as the identity and design source. If it is already a four-view sheet, keep its layout "
+    ("Use the primary attached image as the identity and design source. If it is already a four-view sheet, keep its layout "
     "and design and apply only the requested changes. Use any other attached images only to clarify details the primary "
-    "image does not show, such as the back of the hair.",
+    "image does not show, such as the back of the hair."),
     *_character_sheet_common(),
     _eye_symmetry_line(),
     "",
     _four_view_layout_line(),
     "Every view must show the same design; the back view must show a plausible continuation of the visible hairstyle.",
-    "If the character has characteristic ears (elf/pointed ears, animal ears, or horn-like head appendages), keep them "
-    "visible, matched, and consistent in every view; never let hair or a view angle remove or hide them.",
+    ("If the character has characteristic ears (elf/pointed ears, animal ears, or horn-like head appendages), keep them "
+    "visible, matched, and consistent in every view; never let hair or a view angle remove or hide them."),
     _four_view_clean_line(),
     "Generate the four-view turnaround image at 3000x2000 resolution.",
     "",

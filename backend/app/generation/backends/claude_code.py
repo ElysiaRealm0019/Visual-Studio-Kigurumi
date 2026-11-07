@@ -17,7 +17,11 @@ from app.generation.backends.analysis import (
     parse_reference_safety_json,
 )
 from app.generation.backends.common import _resolve_uploaded_reference_path, _safe_path_segment
-from app.generation.backends.types import ImageGenerationProvider, ReferenceProgress, ReferenceRejectedError
+from app.generation.backends.types import (
+    ImageGenerationProvider,
+    ReferenceProgress,
+    ReferenceRejectedError,
+)
 from app.generation.detail_analysis import (
     DetailAnalysisProviderRequest,
     DetailAnalysisProviderResult,
@@ -130,14 +134,10 @@ def _stage_reference_images(reference_keys: list[str], workspace: Path, referenc
 
 def _with_image_instructions(prompt: str, image_names: list[str]) -> str:
     listing = "\n".join(f"- {name}" for name in image_names)
-    return "\n".join(
-        [
-            "The uploaded reference images are files in the current directory. "
-            "Use the Read tool to view every one of them before answering:",
-            listing,
-            "",
-            prompt,
-        ]
+    return (
+        "The uploaded reference images are files in the current directory. "
+        "Use the Read tool to view every one of them before answering:\n"
+        f"{listing}\n\n{prompt}"
     )
 
 
@@ -185,7 +185,7 @@ async def run_claude_code(
             process.communicate(prompt.encode("utf-8")),
             timeout=timeout_seconds if timeout_seconds > 0 else None,
         )
-    except asyncio.TimeoutError as exc:
+    except TimeoutError as exc:
         logger.error("Claude Code CLI timed out job_id=%s timeout=%.0fs", job_id, timeout_seconds)
         with suppress(ProcessLookupError):
             process.kill()
@@ -221,7 +221,7 @@ def parse_claude_code_output(stdout: bytes, stderr: bytes, return_code: int | No
         payload = None
     if not isinstance(payload, dict):
         detail = stderr.decode("utf-8", errors="ignore").strip() or text
-        raise RuntimeError(
+        raise RuntimeError(  # noqa: TRY004 - backend RuntimeError contract
             f"Claude Code CLI failed with exit code {return_code}: {detail[:500] or 'no output'}"
         )
 
