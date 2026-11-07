@@ -22,11 +22,17 @@ from app.blender.schema import ParamSnapshot, ValidatedParams, scripts_dir
 from app.core.config import get_settings
 from app.core.paths import resolve_repo_path
 from app.core.time import utc_now
+from app.images.media import IMAGE_MEDIA_TYPES
 
 logger = logging.getLogger("uvicorn.error")
 
 TERMINAL = {"succeeded", "failed", "cancelled"}
-SERVED_SUFFIXES = {".png": "image/png", ".glb": "model/gltf-binary", ".stl": "model/stl", ".json": "application/json"}
+SERVED_SUFFIXES = {
+    **IMAGE_MEDIA_TYPES,
+    ".glb": "model/gltf-binary",
+    ".stl": "model/stl",
+    ".json": "application/json",
+}
 LOG_TAIL_LINES = 40
 
 
