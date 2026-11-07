@@ -22,6 +22,13 @@ def load_schema(path: str | Path | None = None) -> dict[str, Any]:
         return json.load(fh)
 
 
+def schema_version_warning(payload_version: int | None, current_version: int) -> str | None:
+    """Warning for a snapshot written against another schema version; None when it matches."""
+    if payload_version is None or payload_version == current_version:
+        return None
+    return f"快照 schema_version={payload_version} 与当前 {current_version} 不一致，按当前 schema 校验"
+
+
 def defaults(schema: dict[str, Any]) -> dict[str, Any]:
     return {p["key"]: _copy(p.get("default")) for p in schema["params"] if not p.get("readonly")}
 

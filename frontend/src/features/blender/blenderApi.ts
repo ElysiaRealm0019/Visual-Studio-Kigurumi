@@ -33,18 +33,22 @@ export const presetSchema = z.object({
   params: z.record(z.string(), paramValueSchema),
 });
 
+// Mirrors the dict returned by blender/shell_builder/sizing.py:resolve().
 export const derivedSchema = z.object({
   tier: z.string(),
   s_req: z.number(),
   s: z.number(),
+  step: z.number().nullable().optional(),
   recommended_tier: z.string(),
   tightest_axis: z.string(),
   required_mm: z.array(z.number()),
+  derived_from_wearer: z.array(z.number()).nullable().optional(),
   actual_mm: z.array(z.number()),
   meets: z.boolean(),
   view_spacing_mm: z.number(),
   view_spacing_source: z.string(),
   neck: z.object({ minor_mm: z.number(), major_mm: z.number() }),
+  notes: z.array(z.string()).optional(),
   shoulder_ratio: z.number().optional(),
 });
 
@@ -81,6 +85,7 @@ export const blenderJobSchema = z.object({
   error: z.string().nullable(),
   note: z.string().default(""),
   source: z.string().default("manual"),
+  log_tail: z.array(z.string()).default([]),
   result: z
     .object({
       files: z.array(resultFileSchema).default([]),

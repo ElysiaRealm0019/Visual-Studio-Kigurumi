@@ -67,8 +67,9 @@ def main() -> int:
         snapshot = json.loads(Path(args.params).resolve().read_text(encoding="utf-8"))
         raw = snapshot.get("params", snapshot) if isinstance(snapshot, dict) else {}
         version = snapshot.get("schema_version") if isinstance(snapshot, dict) else None
-        if version is not None and version != schema["schema_version"]:
-            result["warnings"].append(f"快照 schema_version={version} 与当前 {schema['schema_version']} 不一致，按当前 schema 校验")
+        warning = sizing.schema_version_warning(version, schema["schema_version"])
+        if warning:
+            result["warnings"].append(warning)
         params, warnings = sizing.validate(schema, raw)
         derived = sizing.resolve(schema, params)
         result["warnings"] += warnings + derived["notes"]
