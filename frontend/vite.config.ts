@@ -41,6 +41,7 @@ export default defineConfig({
   plugins: [react(), staticCacheHeadersPlugin()],
   test: {
     environment: "jsdom",
+    include: ["src/**/*.test.{ts,tsx}"],
     setupFiles: ["./src/test/setup.ts"],
   },
   server: {

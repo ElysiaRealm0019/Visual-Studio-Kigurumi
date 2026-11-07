@@ -1,9 +1,11 @@
-import { createReadStream, existsSync, statSync } from "node:fs";
+import { createReadStream, statSync } from "node:fs";
 import { createServer } from "node:http";
 import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
-import { extname, join, normalize, resolve, sep } from "node:path";
+import { extname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { resolveStaticFile } from "./serverStatic.mjs";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const distDir = resolve(__dirname, "dist");
@@ -46,23 +48,8 @@ function applySharedHeaders(response, pathname) {
   response.setHeader("Cache-Control", isLongCachePath(pathname) ? immutableCache : htmlCache);
 }
 
-function resolveStaticFile(pathname) {
-  const decodedPath = decodeURIComponent(pathname);
-  const normalizedPath = normalize(decodedPath).replace(/^(\.\.(\/|\\|$))+/, "");
-  const relativePath = normalizedPath === sep ? "index.html" : normalizedPath.replace(/^[/\\]+/, "");
-  let filePath = resolve(distDir, relativePath);
-
-  if (!filePath.startsWith(distDir + sep) && filePath !== distDir) return null;
-  if (existsSync(filePath) && statSync(filePath).isDirectory()) {
-    filePath = join(filePath, "index.html");
-  }
-  if (existsSync(filePath) && statSync(filePath).isFile()) return filePath;
-
-  return resolve(distDir, "index.html");
-}
-
 function serveStatic(request, response, pathname) {
-  const filePath = resolveStaticFile(pathname);
+  const filePath = resolveStaticFile(pathname, distDir);
   if (!filePath) {
     response.writeHead(404);
     response.end("Not found");
