@@ -1,6 +1,6 @@
 import { IconArrowLeft, IconDownload, IconPlayerStop, IconRefresh, IconTool } from "@tabler/icons-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { LanguageSelector } from "../i18n/LanguageSelector";
@@ -51,12 +51,18 @@ export function BlenderPage() {
   const [validated, setValidated] = useState<Validated | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // The defaults call is itself a /validate, so the params it seeds are already validated; skip the
+  // one debounced validation that the initial seeding would otherwise trigger.
+  const skipInitialValidation = useRef(false);
 
   useEffect(() => {
     if (params !== null) return;
-    if (serverDefaults) setParams({ ...serverDefaults });
-    else if (schema && defaultsQuery.isError) setParams(defaultParams(schema));
-  }, [schema, params, serverDefaults, defaultsQuery.isError]);
+    if (serverDefaults) {
+      skipInitialValidation.current = true;
+      setParams({ ...serverDefaults });
+      setValidated(defaultsQuery.data ?? null);
+    } else if (schema && defaultsQuery.isError) setParams(defaultParams(schema));
+  }, [schema, params, serverDefaults, defaultsQuery.isError, defaultsQuery.data]);
 
   // Baseline for reset / preset / history: the server defaults when available, schema defaults otherwise.
   const baseline = useCallback((): Params => {
@@ -67,6 +73,10 @@ export function BlenderPage() {
   // live clamping + derived size from the backend (same code as the Blender build)
   useEffect(() => {
     if (!schema || !params) return;
+    if (skipInitialValidation.current) {
+      skipInitialValidation.current = false;
+      return;
+    }
     let stale = false;
     const timer = window.setTimeout(() => {
       validateParams(params, schema.schema_version)

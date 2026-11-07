@@ -93,7 +93,8 @@ export const blenderJobSchema = z.object({
       timings_s: z.record(z.string(), z.number()).optional(),
     })
     .passthrough()
-    .nullable(),
+    .nullable()
+    .optional(),
 });
 
 export const blenderStatusSchema = z.object({

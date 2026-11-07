@@ -125,6 +125,26 @@ describe("BlenderPage", () => {
     expect(screen.getByLabelText("眼孔宽倍率")).toHaveValue(1.25);
   });
 
+  it("validates once on mount and only re-validates after a parameter change", async () => {
+    const calls = mockApi();
+    const validateCalls = () => calls.filter((call) => call.url === "/api/blender/validate");
+    renderPage();
+
+    await waitFor(() => expect(screen.getByTestId("blender-summary")).toHaveTextContent("1.00"));
+    expect(validateCalls()).toHaveLength(1);
+    expect(validateCalls()[0].body).toEqual({ schema_version: 1, params: {} });
+
+    // Well past the debounce window, the params seeded from the defaults call must not re-validate.
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(validateCalls()).toHaveLength(1);
+
+    fireEvent.change(screen.getByLabelText("尺寸档位"), { target: { value: "extra" } });
+    await waitFor(() => expect(screen.getByTestId("blender-summary")).toHaveTextContent("1.09"));
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(validateCalls()).toHaveLength(2);
+    expect((validateCalls()[1].body as { params: Record<string, unknown> }).params["base.size_tier"]).toBe("extra");
+  });
+
   it("falls back to schema defaults when /validate is unavailable", async () => {
     mockApi({ validateFails: true });
     renderPage();
