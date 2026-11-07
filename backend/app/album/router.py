@@ -1,3 +1,12 @@
+"""Album (`/api/album`) endpoints.
+
+Album entries live only in process memory (the module-level ``_album_items``
+list): a service restart clears them, and they are not persisted alongside
+projects, generation jobs or version history. Uploaded files still land in
+``runtime/generated/album/<item_id>/``, but the list will not show them after
+a restart.
+"""
+
 import json
 import re
 import uuid
@@ -64,6 +73,10 @@ def _item_to_out(item: StoredAlbumItem) -> AlbumItemOut:
 
 @router.post("/items", response_model=AlbumItemOut)
 async def save_album_item(payload: AlbumItemIn) -> AlbumItemOut:
+    """Store a pointer to an already generated image.
+
+    In memory only: the entry is gone after a service restart.
+    """
     item = StoredAlbumItem(
         id=str(uuid.uuid4()),
         image_url=payload.image_url,
@@ -81,6 +94,11 @@ async def save_album_item_file(
     recipe: str | None = Form(default=None),
     metadata: str | None = Form(default=None),
 ) -> AlbumItemOut:
+    """Upload an edited image and store it in the album.
+
+    The file is written under ``runtime/generated/album/<item_id>/``, but the
+    album entry itself is in memory only and gone after a service restart.
+    """
     content_type = file.content_type or ""
     suffix = ALLOWED_IMAGE_MEDIA_TYPES.get(content_type)
     if suffix is None:
@@ -108,6 +126,10 @@ async def save_album_item_file(
 
 @router.get("/items", response_model=list[AlbumItemOut])
 async def list_album_items() -> list[AlbumItemOut]:
+    """List the album entries saved by this process, newest first.
+
+    In memory only: empty again after a service restart.
+    """
     return [_item_to_out(item) for item in reversed(_album_items)]
 
 

@@ -1,6 +1,6 @@
 # V.S.K 技术栈整合指南
 
-状态：执行中（第三阶段已完成，待第四阶段）
+状态：执行中（第四阶段已完成；审计 7.4.1 已修复，7.4.2/7.4.3/7.4.4 待处理）
 日期：2026-11-07
 范围：前端、后端、Docker 部署、Blender 参数化链路、配置与文档
 
@@ -429,6 +429,107 @@ docker compose up --build
 - Blender schema 和任务可加载。
 
 > 注：本机没有 Docker，生产模式需在有 Docker 的机器上补做；开发与 `npm run serve` 模式可在本机验证。
+
+### 7.4 第三阶段审计记录（2026-11-07）
+
+审计提交：`83b0939 refactor(api): unify /api proxy behavior`。
+
+结论：第三阶段主链路通过，没有发现阻断性功能回归。
+
+- Vite 与 `server.mjs` 均不再剥离 `/api`；
+- Nginx 原本就保留完整 URI，无需修改；
+- 后端业务 router 只保留 `/api` 挂载；
+- `/health` 继续保留在根路径，符合直接 API 健康检查约定；
+- 旧 `/generated/...` 与 `/static/fixtures/...` 路径有 404 回归测试；
+- 当前运行时项目数据中的图片 URL 均为 `/api/...`，没有观察到删除兼容路由造成的数据回归。
+
+独立验证结果：
+
+- 后端：301 passed，1 skipped；
+- 前端：32 个测试文件、385 个用例全部通过；
+- `tsc && vite build` 通过；
+- 真实 Blender E2E 仍因未显式启用而跳过；
+- 本机无 Docker，Nginx/Compose 生产链路仍需在有 Docker 的环境复核。
+
+以下四项是第三阶段审计时确认的既有问题，**尚未在代码中修复**，不得将它们记录为第三阶段已完成事项。
+
+#### 7.4.1 `StaticFiles` 的 WebP MIME 类型依赖机器配置
+
+现象：
+
+- 本机 `mimetypes.guess_type("kigurumi-candidate-1.webp")` 返回 `(None, None)`；
+- `GET /api/static/fixtures/kigurumi-candidate-1.webp` 返回 200，但 `Content-Type` 是 `text/plain; charset=utf-8`；
+- 图片字节正确，生成图路由因为显式指定 `image/webp` 而没有此问题。
+
+影响：当前浏览器通常仍能显示图片，但 fixture 静态路由与生成图路由的 MIME 契约不一致，也会影响调试、缓存和严格客户端。
+
+修复方案：
+
+1. 在创建 `StaticFiles` 前显式注册 `.webp -> image/webp`，不要依赖 Windows 注册表或机器级 `mimetypes` 配置；
+2. 第四阶段抽取公共媒体响应逻辑时，统一检查 fixture、生成图、参考图和审计图片的 MIME 行为；
+3. 为 `/api/static/fixtures/*.webp` 增加 GET 与 HEAD 的 `Content-Type` 回归测试，不能只断言状态码。
+
+验收标准：fixture WebP 与 generated WebP 都返回 `image/webp`，图片字节保持不变。
+
+状态：已在第四阶段修复。`backend/app/images/media.py` 在 `create_app()` 中先注册四个图片后缀的 MIME，fixture、生成图、参考图、审计图片和 Blender 产物统一复用同一份媒体类型表；`backend/tests/test_media_assets.py` 覆盖 fixture WebP 的 GET/HEAD `Content-Type`、生成图、参考图与路径穿越。
+
+#### 7.4.2 `server.mjs` 的 SPA 回退会掩盖静态资源 404
+
+现象：本机通过 `server.mjs` 请求 `/static/fixtures/kigurumi-candidate-1.webp` 得到 200、`text/html` 和 `index.html` 内容。该无前缀路径在第三阶段后本来就不存在，但 SPA 回退把缺失路径包装成了成功响应。
+
+影响：当前有效 fixture URL 是 `/api/static/fixtures/...`，主链路不受影响；问题是错误的静态 URL、缺失资源或旧链接会返回 HTML 200，增加排障和错误缓存风险。
+
+修复方案：
+
+1. 保留 `/p/...`、`/settings`、`/blender` 等前端路由的 SPA 回退，不能全局删除回退；
+2. 对带文件扩展名的缺失资源返回 404，不再回退到 `index.html`；
+3. 可将 `/static/`、旧 `/generated/` 等保留路径显式排除在 SPA 回退之外；
+4. 为 `server.mjs` 增加静态服务 smoke 测试，至少覆盖：前端路由返回 HTML、缺失静态资源返回 404、真实静态资源返回正确内容。
+
+验收标准：缺失 WebP/JS/CSS 不返回 HTML 200，同时直接打开前端项目路由仍返回 `index.html`。
+
+#### 7.4.3 Nginx 裸 `/api` 与其他服务器行为不一致
+
+现状：
+
+- `server.mjs` 显式代理裸 `/api`；
+- Nginx 只有 `location /api/`，不匹配裸 `/api`；
+- 裸 `/api` 在 Nginx 下会进入 SPA 的 `location /`；
+- 前端实际构造的请求永远是 `/api/...`，因此当前功能不受影响。
+
+修复方案（低优先级）：
+
+- 增加 `location = /api`，将其代理到后端，或明确返回 404；
+- 目标是避免裸 `/api` 返回 SPA HTML，不要求前端新增任何请求；
+- 在 `frontend/src/nginxConfig.test.ts` 中增加配置回归断言，并在真实 Nginx 环境补一次 smoke。
+
+#### 7.4.4 Ruff 告警数量必须按检查范围记录
+
+“约 21 条告警”只对应 `backend/tests/`，不是整个后端的总数。本机使用 `--no-cache --statistics` 得到的基线为：
+
+| 检查范围 | 数量 | 主要规则 |
+| --- | ---: | --- |
+| `backend/app/` | 90 | ISC004、TRY004、I001、B008 等 |
+| `backend/tests/` | 21 | F811、I001、F401 等 |
+| `backend/` 全量 | 117 | 上述合计及其他少量规则 |
+
+这些告警不是第三阶段代理修改引入的，但也不应把 21 写成全仓告警总数。统计会受 Ruff 规则配置影响，后续应在 `pyproject.toml` 明确项目规则集，并以同一命令作为 CI 基线。
+
+修复原则：
+
+- 单独安排 lint 清理提交，不与代理或业务重构混合；
+- 自动修复与手工修复分开；
+- 不使用全仓 blanket ignore 掩盖问题；
+- FastAPI 的 `File`、`Depends` 相关 B008 告警应按框架语义判断，不机械修改函数签名；
+- 每批清理后运行完整 pytest。
+
+### 7.5 第三阶段后续测试缺口
+
+以下属于测试覆盖缺口，不是已证实的功能回归：
+
+1. `server.mjs`、Vite 和 Nginx 的“保留 `/api` 前缀”主要依赖手工 smoke，缺少自动化代理回归测试；
+2. `.vkp` 测试使用 fixture 项目，未覆盖包含真实 generated 文件的导入后 HTTP 图片加载；
+3. 建议补一个含 generated 图片的 `.vkp` 往返用例，直接请求导入后的 `state.images[].url`，防止未来路径调整破坏项目迁移。
 
 ## 8. 第四阶段：合并重复实现
 
