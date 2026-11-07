@@ -16,20 +16,20 @@ from app.generation.backends.analysis import (
     _build_reference_safety_prompt,
     parse_reference_safety_json,
 )
-from app.generation.backends.image_api import fit_cover, load_rgb
 from app.generation.backends.common import (
-    product_reference_kind,
-    _product_reference_paths_for_mode,
     _default_front_landmarks,
     _expected_indexes_from_payload,
     _is_local_revision_payload,
     _local_edit_expected_dimensions,
     _output_dimensions_for_mode,
+    _product_reference_paths_for_mode,
     _require_local_edit_payload,
     _resolve_uploaded_reference_path,
     _safe_path_segment,
     normalize_output_landmarks,
+    product_reference_kind,
 )
+from app.generation.backends.image_api import fit_cover, load_rgb
 from app.generation.backends.prompting import (
     ProductReferenceKind,
     _detail_lock_heading,
@@ -57,7 +57,11 @@ from app.generation.detail_analysis import (
 )
 from app.generation.local_edit import composite_local_edit
 from app.generation.modes import AI_OUTPUT_LANDMARKS_ENABLED, normalize_generation_mode
-from app.generation.usage import TokenUsage, extract_token_usage_from_codex_events, parse_token_usage
+from app.generation.usage import (
+    TokenUsage,
+    extract_token_usage_from_codex_events,
+    parse_token_usage,
+)
 from app.images.watermark import apply_kigcraft_watermark
 from app.prompts.overrides import get_prompt_text as _prompt
 from app.prompts.safety import sanitize_user_text
@@ -786,7 +790,7 @@ async def _post_codex_bridge(
     except ValueError as exc:
         raise RuntimeError("Codex bridge returned invalid JSON") from exc
     if not isinstance(response_payload, dict):
-        raise RuntimeError("Codex bridge response must be a JSON object")
+        raise RuntimeError("Codex bridge response must be a JSON object")  # noqa: TRY004 - bridge payload; RuntimeError contract
     return response_payload
 
 
@@ -842,7 +846,7 @@ def _parse_codex_bridge_output(
     require_landmarks: bool,
 ) -> ProviderOutput:
     if not isinstance(output, dict):
-        raise RuntimeError("Codex bridge outputs must be objects")
+        raise RuntimeError("Codex bridge outputs must be objects")  # noqa: TRY004 - bridge payload; RuntimeError contract
 
     index = output.get("index")
     object_key = output.get("object_key")
@@ -851,7 +855,7 @@ def _parse_codex_bridge_output(
     height = output.get("height", default_height)
 
     if not isinstance(index, int) or isinstance(index, bool):
-        raise RuntimeError("Codex bridge output index must be an integer")
+        raise RuntimeError("Codex bridge output index must be an integer")  # noqa: TRY004 - bridge payload; RuntimeError contract
     if not isinstance(object_key, str) or not object_key:
         raise RuntimeError("Codex bridge output object_key must be a string")
     if not isinstance(image_url, str) or not image_url:
@@ -860,9 +864,9 @@ def _parse_codex_bridge_output(
     if not image_url.startswith(f"{public_prefix}/"):
         raise RuntimeError("Codex bridge output image_url must use generated public prefix")
     if not isinstance(width, int) or isinstance(width, bool):
-        raise RuntimeError("Codex bridge output width must be an integer")
+        raise RuntimeError("Codex bridge output width must be an integer")  # noqa: TRY004 - bridge payload; RuntimeError contract
     if not isinstance(height, int) or isinstance(height, bool):
-        raise RuntimeError("Codex bridge output height must be an integer")
+        raise RuntimeError("Codex bridge output height must be an integer")  # noqa: TRY004 - bridge payload; RuntimeError contract
 
     landmarks = None
     if AI_OUTPUT_LANDMARKS_ENABLED:

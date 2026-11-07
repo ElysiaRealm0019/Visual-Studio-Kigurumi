@@ -4,7 +4,6 @@ from pydantic import BaseModel, Field
 
 from app.generation.modes import DEFAULT_GENERATION_MODE, GenerationMode
 
-
 Locale = Literal["zh-CN", "en", "ja"]
 DEFAULT_LOCALE: Locale = "zh-CN"
 SUPPORTED_LOCALES: dict[str, Locale] = {

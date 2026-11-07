@@ -117,7 +117,7 @@ def design_payload(**extra) -> dict:
 
 
 async def test_front_design_sends_three_images_and_saves_watermarked_output(env, monkeypatch):
-    settings, tmp_path, watermarked = env
+    _settings, tmp_path, watermarked = env
     fake = FakeSiliconFlow([ok_response()], png_bytes((1100, 1512), "red"))
     install_fake(monkeypatch, fake)
 

@@ -3,7 +3,6 @@ import logging
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -11,17 +10,6 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     app_env: str = "development"
-    api_host: str = "0.0.0.0"
-    api_port: int = 8000
-    database_url: str = "postgresql+asyncpg://kig:change-me-postgres-password@postgres:5432/kig_preview"
-    redis_url: str = "redis://redis:6379/0"
-    s3_endpoint_url: str = "http://minio:9000"
-    s3_public_endpoint_url: str = "http://localhost:9000"
-    s3_access_key_id: str = "kig_minio"
-    s3_secret_access_key: str = "change-me-minio-password"
-    s3_bucket: str = "kig-preview"
-    jwt_secret: str = Field(default="change-me-generate-a-long-random-secret")
-    mock_sms_code: str = "000000"
     generation_provider: str = "fixture"
     llm_provider: str = ""
     image_provider: str = ""
@@ -91,10 +79,6 @@ class Settings(BaseSettings):
     generation_audit_db_path: str = "runtime/generation_audit.sqlite3"
     generation_parallelism: int = 8
     quota_window_hours: int = 5
-    mock_output_dir: str = "runtime/mock-outputs"
-    max_provider_concurrency: int = 8
-    normal_quota_window_hours: int = 5
-    normal_base_quota: int = 2
     admin_audit_enabled: bool = True
     admin_audit_password: str = "change-me-admin-audit-password"
     admin_audit_session_hours: int = 12

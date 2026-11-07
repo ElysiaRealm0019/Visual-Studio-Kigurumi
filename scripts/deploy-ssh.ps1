@@ -59,7 +59,7 @@ if grep -Eq '^ALLOW_FIXTURE_GENERATION=true$' .env; then
   exit 1
 fi
 
-docker compose -f "\$COMPOSE_FILE" up -d --build api worker frontend
+docker compose -f "\$COMPOSE_FILE" up -d --build --remove-orphans api frontend
 docker compose -f "\$COMPOSE_FILE" ps
 "@
 

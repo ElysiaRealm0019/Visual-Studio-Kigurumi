@@ -1,5 +1,8 @@
 import asyncio
+import json
+import logging
 import os
+import shutil
 import sys
 import textwrap
 from pathlib import Path
@@ -7,10 +10,13 @@ from pathlib import Path
 import pytest
 from httpx import AsyncClient
 
+from app.core.paths import repo_root
+
 FAKE_BLENDER = textwrap.dedent(
     """
     import json, sys, time
     from pathlib import Path
+    sys.stdout.reconfigure(encoding="utf-8")
     args = sys.argv[sys.argv.index("--") + 1:]
     params = Path(args[args.index("--params") + 1])
     out = Path(args[args.index("--out") + 1])
@@ -71,9 +77,47 @@ async def test_schema_lists_params_and_presets(async_client: AsyncClient) -> Non
     body = response.json()
     keys = {p["key"] for p in body["schema"]["params"]}
     assert {"base.size_tier", "view.spacing_mm", "face.eye_close", "structure.drain_holes"} <= keys
+    assert "structure.neck_opening_mm" not in keys
+    assert "base_model" not in body["schema"]
+    for spec in body["schema"]["params"]:
+        assert not {"affects", "sources", "blender"} & spec.keys()
     assert {"standard", "lite", "extra", "example-wearer"} <= {p["id"] for p in body["presets"]}
+    assert all(p["schema_version"] == body["schema"]["schema_version"] for p in body["presets"])
     shell_params = [p for p in body["schema"]["params"] if p["group"] not in {"fit", "output"}]
     assert all("scales_with_shell" in p for p in shell_params)
+
+
+async def test_expired_presets_are_filtered(async_client: AsyncClient, monkeypatch, tmp_path, caplog) -> None:
+    scripts = tmp_path / "blender"
+    (scripts / "shell_builder").mkdir(parents=True)
+    shutil.copy(repo_root() / "blender" / "shell_builder" / "sizing.py", scripts / "shell_builder" / "sizing.py")
+    shutil.copytree(repo_root() / "blender" / "params", scripts / "params")
+    stale = scripts / "params" / "presets" / "stale.json"
+    stale.write_text(
+        json.dumps({"schema_version": 999, "name": "Stale", "params": {"base.size_tier": "extra"}}),
+        encoding="utf-8",
+    )
+    from app.core.config import get_settings
+
+    monkeypatch.setenv("BLENDER_SCRIPTS_DIR", str(scripts))
+    get_settings.cache_clear()
+    caplog.set_level(logging.WARNING)
+    try:
+        body = (await async_client.get("/api/blender/schema")).json()
+    finally:
+        get_settings.cache_clear()
+
+    ids = {p["id"] for p in body["presets"]}
+    assert "stale" not in ids
+    assert {"standard", "lite", "extra", "example-wearer"} <= ids
+    assert any("stale.json" in record.getMessage() and "schema_version=999" in record.getMessage()
+               for record in caplog.records)
+
+
+async def test_schema_version_mismatch_warns(async_client: AsyncClient) -> None:
+    body = (await async_client.post("/api/blender/validate", json={"schema_version": 99, "params": {}})).json()
+
+    assert body["warnings"][0] == "快照 schema_version=99 与当前 1 不一致，按当前 schema 校验"
 
 
 async def test_validate_clamps_and_derives_scale(async_client: AsyncClient) -> None:
@@ -133,6 +177,7 @@ async def test_job_runs_and_serves_listed_files(async_client: AsyncClient, blend
     assert job["progress"] == 100
     assert job["derived"]["s"] == 1.09
     assert "front_shell 有 2 条非流形边" in job["warnings"]
+    assert job["log_tail"] == ["VSK_PROGRESS 40 构建几何", "VSK_PROGRESS 100 完成"]
     base = f"/api/blender/jobs/{job['id']}/files"
     render = await async_client.get(f"{base}/render_front.png")
     model = await async_client.get(f"{base}/front_shell.stl")

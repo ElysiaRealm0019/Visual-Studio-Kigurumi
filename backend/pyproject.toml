@@ -6,14 +6,8 @@ dependencies = [
   "fastapi==0.116.1",
   "uvicorn[standard]==0.35.0",
   "pydantic-settings==2.10.1",
-  "sqlalchemy[asyncio]==2.0.41",
-  "asyncpg==0.30.0",
-  "alembic==1.16.4",
-  "redis==6.2.0",
-  "boto3==1.39.3",
   "httpx==0.28.1",
   "python-multipart==0.0.20",
-  "pyjwt==2.10.1",
   "pillow==11.2.1",
 ]
 
@@ -30,4 +24,16 @@ testpaths = ["tests"]
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI dependency/marker calls in argument defaults are framework semantics, not mutable defaults.
+extend-immutable-calls = [
+  "fastapi.Body",
+  "fastapi.Depends",
+  "fastapi.File",
+  "fastapi.Form",
+  "fastapi.Header",
+  "fastapi.Path",
+  "fastapi.Query",
+]
 

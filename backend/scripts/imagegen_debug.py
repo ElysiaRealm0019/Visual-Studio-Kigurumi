@@ -42,10 +42,10 @@ REPO_ROOT = BACKEND_DIR.parent
 sys.path.insert(0, str(BACKEND_DIR))
 os.chdir(REPO_ROOT)  # Settings reads .env from the working directory
 
-import httpx  # noqa: E402
+import httpx
 
-from app.core.config import get_settings  # noqa: E402
-from app.generation.backends.image_api import load_rgb, to_data_uri  # noqa: E402
+from app.core.config import get_settings
+from app.generation.backends.image_api import load_rgb, to_data_uri
 
 OUT_ROOT = REPO_ROOT / "runtime" / "imagegen-debug"
 
@@ -155,7 +155,7 @@ async def run_codex(job: dict[str, Any], out: Path, dry_run: bool, skip_usage: b
     if not skip_usage:
         try:
             await ensure_codex_usage_allows_generation(s)
-        except Exception as exc:  # HTTPException from the usage gate
+        except Exception as exc:  # HTTPException from the usage gate  # noqa: BLE001 - best-effort debug batch keeps going
             return {"status": "error", "error": f"Codex 额度门槛: {getattr(exc, 'detail', exc)}"}
     process = await asyncio.create_subprocess_exec(*command, stdin=asyncio.subprocess.DEVNULL,
                                                    stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
@@ -194,7 +194,7 @@ async def main() -> int:
     jobs = load_spec(args.spec.resolve())
     if args.only:
         jobs = [j for j in jobs if j["name"] in args.only]
-    batch = OUT_ROOT / datetime.now().strftime("%Y%m%d-%H%M%S")
+    batch = OUT_ROOT / datetime.now().strftime("%Y%m%d-%H%M%S")  # noqa: DTZ005 - local timestamp used as a debug output folder name
     summary = []
     for job in jobs:
         backend = args.backend or job.get("backend", "ark")
@@ -208,7 +208,7 @@ async def main() -> int:
                     result = await run_ark(job, out, args.dry_run)
                 else:
                     result = await run_codex(job, out, args.dry_run, args.skip_usage_check)
-            except Exception as exc:  # report and keep going with the batch
+            except Exception as exc:  # report and keep going with the batch  # noqa: BLE001 - report the job failure and continue the batch
                 result = {"status": "error", "error": f"{type(exc).__name__}: {exc}"}
             result = {"name": name, "backend": backend, **result, "seconds": round(time.monotonic() - started, 1),
                       "dir": str(out)}

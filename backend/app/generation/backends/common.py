@@ -9,7 +9,11 @@ from app.generation.backends.types import (
     TURNAROUND_OUTPUT_HEIGHT,
     TURNAROUND_OUTPUT_WIDTH,
 )
-from app.generation.modes import expected_output_indexes, is_character_design_mode, is_turnaround_mode
+from app.generation.modes import (
+    expected_output_indexes,
+    is_character_design_mode,
+    is_turnaround_mode,
+)
 
 FRONT_PRODUCT_REFERENCE_PATH = "ref/product-reference.png"
 TURNAROUND_PRODUCT_REFERENCE_PATH = "ref/turnaround-reference.png"
@@ -23,7 +27,7 @@ def _is_local_revision_payload(prompt_payload: dict[str, Any]) -> bool:
 def _require_local_edit_payload(prompt_payload: dict[str, Any]) -> dict[str, Any]:
     local_edit = prompt_payload.get("local_edit")
     if not isinstance(local_edit, dict):
-        raise RuntimeError("Local revision payload is missing local_edit")
+        raise RuntimeError("Local revision payload is missing local_edit")  # noqa: TRY004 - payload error contract is RuntimeError
     return local_edit
 
 
@@ -65,13 +69,13 @@ def normalize_output_landmarks(
     if value is None:
         return None
     if not isinstance(value, dict):
-        raise ValueError("Output landmarks must be an object")
+        raise ValueError("Output landmarks must be an object")  # noqa: TRY004 - landmark payload; ValueError contract
 
     parsed: dict[str, dict[str, float]] = {}
     for key in LANDMARK_KEYS:
         point = value.get(key)
         if not isinstance(point, dict):
-            raise ValueError(f"Output landmark {key} must be an object")
+            raise ValueError(f"Output landmark {key} must be an object")  # noqa: TRY004 - landmark payload; ValueError contract
         x = _parse_landmark_coordinate(point.get("x"), size=width)
         y = _parse_landmark_coordinate(point.get("y"), size=height)
         parsed[key] = {"x": x, "y": y}
@@ -92,7 +96,7 @@ def normalize_output_landmarks(
 
 def _parse_landmark_coordinate(value: Any, *, size: int) -> float:
     if not isinstance(value, (int, float)) or isinstance(value, bool):
-        raise ValueError("Output landmark coordinates must be numbers")
+        raise ValueError("Output landmark coordinates must be numbers")  # noqa: TRY004 - landmark payload; ValueError contract
     coordinate = float(value)
     if coordinate > 1 and size > 1:
         coordinate = coordinate / size

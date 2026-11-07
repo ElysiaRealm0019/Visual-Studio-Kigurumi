@@ -3,7 +3,7 @@
   Start Visual Studio Kigurumi (V.S.K) locally without Docker: FastAPI backend + Vite frontend.
 
 .DESCRIPTION
-  Postgres, Redis, MinIO and the worker container are not needed for local runs:
+  No external database, object storage or worker process is needed for local runs:
   generation jobs run inside the API process and are stored in SQLite and runtime/.
   The backend reads .env from the repo root. Press Ctrl+C to stop both processes.
 

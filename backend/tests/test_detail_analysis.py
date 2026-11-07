@@ -1,5 +1,5 @@
 import shutil
-from pathlib import Path
+from collections.abc import Callable
 
 import pytest
 from httpx import AsyncClient
@@ -16,8 +16,12 @@ from app.generation.detail_analysis import (
     persist_detail_crops,
     resolve_detail_bbox_pixels,
 )
+from app.generation.provider import (
+    ImageGenerationProvider,
+    ReferenceRejectedError,
+    get_generation_provider,
+)
 from app.generation.schemas import DetailCropLockIn, DetailFeatureIn
-from app.generation.provider import ImageGenerationProvider, ReferenceRejectedError, get_generation_provider
 
 
 class DetailAnalysisProvider(ImageGenerationProvider):
@@ -573,13 +577,17 @@ async def test_detail_analysis_endpoint_filters_non_head_provider_details(
             shutil.rmtree(reference_root / payload["analysis_id"], ignore_errors=True)
 
 
+def _fixed_provider(provider: DetailAnalysisProvider) -> Callable[[], ImageGenerationProvider]:
+    return lambda: provider
+
+
 async def test_detail_analysis_passes_normalized_locale_to_provider(
     test_app,
     async_client: AsyncClient,
 ) -> None:
     for locale, expected_locale in [("en", "en"), ("fr", "zh-CN")]:
         provider = DetailAnalysisProvider()
-        test_app.dependency_overrides[get_generation_provider] = lambda: provider
+        test_app.dependency_overrides[get_generation_provider] = _fixed_provider(provider)
         try:
             response = await async_client.post(
                 "/api/generation/detail-analysis",

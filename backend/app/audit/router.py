@@ -1,7 +1,7 @@
+import secrets
 from collections import Counter
 from datetime import UTC, datetime, timedelta
 from pathlib import Path, PurePosixPath
-import secrets
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -9,17 +9,11 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from app.core.config import get_settings
-from app.core.paths import resolve_repo_path
 from app.generation.job_store import StoredJob, job_store
+from app.images.media import image_media_type, resolve_image_asset
 
 router = APIRouter(prefix="/audit", tags=["audit"])
 ADMIN_SESSION_COOKIE = "kig_admin_audit_session"
-IMAGE_MEDIA_TYPES = {
-    ".webp": "image/webp",
-    ".png": "image/png",
-    ".jpg": "image/jpeg",
-    ".jpeg": "image/jpeg",
-}
 
 
 class QuotaPolicy(BaseModel):
@@ -296,20 +290,14 @@ def _resolve_reference_asset(asset_path: str) -> Path:
     normalized = _normalized_reference_path(asset_path)
     if normalized is None:
         raise HTTPException(status_code=404, detail="Reference asset not found")
-    posix_path = PurePosixPath(normalized)
-    reference_root = resolve_repo_path(get_settings().reference_upload_dir).resolve()
-    candidate = (reference_root / Path(*posix_path.parts[1:])).resolve()
-    try:
-        candidate.relative_to(reference_root)
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail="Reference asset not found") from exc
-    if not candidate.is_file():
-        raise HTTPException(status_code=404, detail="Reference asset not found")
-    return candidate
-
-
-def _image_media_type(file_path: Path) -> str:
-    return IMAGE_MEDIA_TYPES.get(file_path.suffix.lower(), "application/octet-stream")
+    return resolve_image_asset(
+        normalized,
+        get_settings().reference_upload_dir,
+        required_prefix="references",
+        min_parts=3,
+        invalid_detail="Reference asset not found",
+        missing_detail="Reference asset not found",
+    )
 
 
 def _prune_expired_sessions() -> None:
@@ -447,7 +435,7 @@ async def list_audit_generation_jobs() -> list[AuditGenerationJobOut]:
 )
 async def get_audit_reference_asset(asset_path: str) -> FileResponse:
     file_path = _resolve_reference_asset(asset_path)
-    return FileResponse(file_path, media_type=_image_media_type(file_path))
+    return FileResponse(file_path, media_type=image_media_type(file_path))
 
 
 @router.patch("/quota-policy", response_model=QuotaPolicy, dependencies=[Depends(require_admin_session)])

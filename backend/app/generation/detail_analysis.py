@@ -1,8 +1,9 @@
 import json
 import re
 import uuid
+from collections.abc import Mapping
 from pathlib import Path, PurePosixPath
-from typing import Any, Literal, Mapping
+from typing import Any, Literal
 
 from PIL import Image, UnidentifiedImageError
 from pydantic import BaseModel, Field
@@ -221,10 +222,10 @@ def resolve_detail_bbox_pixels(
         raise ValueError("bbox is too small")
 
     margin = max(width, height) * margin_ratio
-    left = max(0, int(round(x - margin)))
-    top = max(0, int(round(y - margin)))
-    right = min(image_width, int(round(x + width + margin)))
-    bottom = min(image_height, int(round(y + height + margin)))
+    left = max(0, round(x - margin))
+    top = max(0, round(y - margin))
+    right = min(image_width, round(x + width + margin))
+    bottom = min(image_height, round(y + height + margin))
     if right - left < 4 or bottom - top < 4:
         raise ValueError("bbox is too small")
     return left, top, right, bottom

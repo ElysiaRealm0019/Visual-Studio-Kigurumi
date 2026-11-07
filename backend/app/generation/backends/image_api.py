@@ -40,7 +40,11 @@ from app.generation.backends.types import (
     ProviderOutput,
 )
 from app.generation.local_edit import composite_local_edit
-from app.generation.modes import expected_output_indexes, is_turnaround_mode, normalize_generation_mode
+from app.generation.modes import (
+    expected_output_indexes,
+    is_turnaround_mode,
+    normalize_generation_mode,
+)
 from app.images.watermark import apply_kigcraft_watermark
 
 logger = logging.getLogger("uvicorn.error")

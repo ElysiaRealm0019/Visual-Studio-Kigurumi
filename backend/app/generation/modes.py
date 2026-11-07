@@ -1,6 +1,5 @@
 from typing import Literal, cast
 
-
 GenerationMode = Literal[
     "front_design",
     "front_revision",

@@ -6,6 +6,8 @@ loaded by path, so the backend and the Blender build clamp parameters with the s
 from __future__ import annotations
 
 import importlib.util
+import json
+import logging
 from functools import lru_cache
 from pathlib import Path
 from types import ModuleType
@@ -15,6 +17,8 @@ from pydantic import BaseModel, Field
 
 from app.core.config import get_settings
 from app.core.paths import resolve_repo_path
+
+logger = logging.getLogger("uvicorn.error")
 
 
 class BlenderSchemaUnavailable(RuntimeError):
@@ -50,12 +54,20 @@ def load_schema() -> dict[str, Any]:
 
 
 def load_presets() -> list[dict[str, Any]]:
-    import json
-
+    current = load_schema()["schema_version"]
     presets = []
     for path in sorted((scripts_dir() / "params" / "presets").glob("*.json")):
         data = json.loads(path.read_text(encoding="utf-8"))
-        presets.append({"id": path.stem, "name": data.get("name", path.stem), "params": data.get("params", {})})
+        version = data.get("schema_version")
+        if version != current:
+            logger.warning("跳过过期预设 %s：schema_version=%s，当前 %s", path.name, version, current)
+            continue
+        presets.append({
+            "id": path.stem,
+            "name": data.get("name", path.stem),
+            "schema_version": version,
+            "params": data.get("params", {}),
+        })
     return presets
 
 
@@ -79,8 +91,9 @@ def validate_snapshot(snapshot: ParamSnapshot) -> ValidatedParams:
     schema = load_schema()
     module = sizing()
     params, warnings = module.validate(schema, snapshot.params)
-    if snapshot.schema_version is not None and snapshot.schema_version != schema["schema_version"]:
-        warnings.insert(0, f"快照 schema_version={snapshot.schema_version} 与当前 {schema['schema_version']} 不一致，按当前 schema 校验")
+    warning = module.schema_version_warning(snapshot.schema_version, schema["schema_version"])
+    if warning:
+        warnings.insert(0, warning)
     derived = module.resolve(schema, params)
     return ValidatedParams(
         schema_version=schema["schema_version"],

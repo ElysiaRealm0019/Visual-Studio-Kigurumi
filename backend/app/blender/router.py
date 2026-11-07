@@ -32,6 +32,7 @@ class BlenderJobOut(BaseModel):
     warnings: list[str]
     error: str | None
     result: dict[str, Any] | None
+    log_tail: list[str]
     note: str
     source: str
 
@@ -49,6 +50,7 @@ def _out(job: BlenderJob) -> BlenderJobOut:
         warnings=job.warnings,
         error=job.error,
         result=job.result,
+        log_tail=job.log_tail,
         note=str(job.snapshot.get("note", "")),
         source=str(job.snapshot.get("source", "manual")),
     )

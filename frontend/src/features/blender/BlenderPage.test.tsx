@@ -30,7 +30,7 @@ function derived(s: number) {
 const finishedJob = {
   id: "job-1", status: "succeeded", progress: 100, phase_label: "构建完成", created_at: "2026-10-14T00:00:00Z",
   finished_at: "2026-10-14T00:00:20Z", params: { "base.size_tier": "extra" }, derived: derived(1.09), warnings: [], error: null,
-  note: "", source: "manual",
+  note: "", source: "manual", log_tail: [],
   result: {
     files: [
       { kind: "render", view: "front", format: "png", name: "render_front.png" },
@@ -38,6 +38,21 @@ const finishedJob = {
     ],
     measured: { width_mm: 258.2, depth_mm: 265.2, height_mm: 310.3 },
   },
+};
+
+const failedJob = {
+  id: "job-failed", status: "failed", progress: 40, phase_label: "失败", created_at: "2026-10-14T00:00:00Z",
+  finished_at: "2026-10-14T00:00:10Z", params: { "base.size_tier": "standard" }, derived: derived(1), warnings: ["网格未闭合"], error: "Blender exited with code 1",
+  note: "", source: "manual", result: null,
+  log_tail: ["Fra:1 Mem:120.5MB", "Traceback (most recent call last):", 'Exception: boolean modifier failed on "front_shell"'],
+};
+
+// Defaults the server fills in for an empty params object (sizing.validate). Deliberately different
+// from the schema's own `default` for eye.width_scale, so the test proves the page takes them from /validate.
+const serverDefaults: Record<string, unknown> = {
+  "base.size_tier": "standard",
+  "base.face_width_mm": null,
+  "eye.width_scale": 1.25,
 };
 
 function renderPage() {
@@ -50,7 +65,11 @@ function renderPage() {
   );
 }
 
-function mockApi({ available = true } = {}) {
+function mockApi({
+  available = true,
+  jobs = [],
+  validateFails = false,
+}: { available?: boolean; jobs?: unknown[]; validateFails?: boolean } = {}) {
   const calls: { url: string; body?: unknown }[] = [];
   const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     const body = init?.body ? JSON.parse(String(init.body)) : undefined;
@@ -58,10 +77,12 @@ function mockApi({ available = true } = {}) {
     if (url === "/api/blender/schema") return new Response(JSON.stringify({ schema, presets: [{ id: "extra", name: "Extra", params: { "base.size_tier": "extra" } }] }));
     if (url === "/api/blender/status") return new Response(JSON.stringify({ available, reasons: available ? [] : ["未设置 BLENDER_SHELL_BLEND"] }));
     if (url === "/api/blender/jobs" && init?.method === "POST") return new Response(JSON.stringify(finishedJob), { status: 201 });
-    if (url === "/api/blender/jobs") return new Response(JSON.stringify([]));
+    if (url === "/api/blender/jobs") return new Response(JSON.stringify(jobs));
     if (url === "/api/blender/jobs/job-1") return new Response(JSON.stringify(finishedJob));
+    if (url === "/api/blender/jobs/job-failed") return new Response(JSON.stringify(failedJob));
     if (url === "/api/blender/validate") {
-      const params = (body as { params: Record<string, unknown> }).params;
+      if (validateFails) return new Response(JSON.stringify({ detail: "参数校验暂不可用" }), { status: 500 });
+      const params = { ...serverDefaults, ...(body as { params: Record<string, unknown> }).params };
       const s = params["base.size_tier"] === "extra" ? 1.09 : 1;
       return new Response(JSON.stringify({ schema_version: 1, params, warnings: [], derived: derived(s) }));
     }
@@ -81,19 +102,54 @@ describe("BlenderPage", () => {
     vi.unstubAllGlobals();
   });
 
-  it("builds controls from the schema and shows the derived size", async () => {
+  it("seeds the controls with the defaults returned by /validate", async () => {
     const calls = mockApi();
     renderPage();
 
-    expect(await screen.findByLabelText("眼孔宽倍率")).toHaveValue(1);
+    expect(await screen.findByLabelText("眼孔宽倍率")).toHaveValue(1.25);
     expect(screen.queryByText("颈口短轴")).toBeNull();
     await waitFor(() => expect(screen.getByTestId("blender-summary")).toHaveTextContent("1.00"));
+
+    // the seeding call asks for defaults with an empty params object
+    const seed = calls.find((call) => call.url === "/api/blender/validate");
+    expect(seed?.body).toEqual({ schema_version: 1, params: {} });
 
     fireEvent.change(screen.getByLabelText("尺寸档位"), { target: { value: "extra" } });
     await waitFor(() => expect(screen.getByTestId("blender-summary")).toHaveTextContent("1.09"));
     const last = calls.filter((call) => call.url === "/api/blender/validate").at(-1);
     expect((last?.body as { params: Record<string, unknown> }).params["base.size_tier"]).toBe("extra");
     expect((last?.body as { params: Record<string, unknown> }).params["base.face_width_mm"]).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: /恢复默认/ }));
+    await waitFor(() => expect(screen.getByLabelText("尺寸档位")).toHaveValue("standard"));
+    expect(screen.getByLabelText("眼孔宽倍率")).toHaveValue(1.25);
+  });
+
+  it("validates once on mount and only re-validates after a parameter change", async () => {
+    const calls = mockApi();
+    const validateCalls = () => calls.filter((call) => call.url === "/api/blender/validate");
+    renderPage();
+
+    await waitFor(() => expect(screen.getByTestId("blender-summary")).toHaveTextContent("1.00"));
+    expect(validateCalls()).toHaveLength(1);
+    expect(validateCalls()[0].body).toEqual({ schema_version: 1, params: {} });
+
+    // Well past the debounce window, the params seeded from the defaults call must not re-validate.
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(validateCalls()).toHaveLength(1);
+
+    fireEvent.change(screen.getByLabelText("尺寸档位"), { target: { value: "extra" } });
+    await waitFor(() => expect(screen.getByTestId("blender-summary")).toHaveTextContent("1.09"));
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(validateCalls()).toHaveLength(2);
+    expect((validateCalls()[1].body as { params: Record<string, unknown> }).params["base.size_tier"]).toBe("extra");
+  });
+
+  it("falls back to schema defaults when /validate is unavailable", async () => {
+    mockApi({ validateFails: true });
+    renderPage();
+
+    expect(await screen.findByLabelText("眼孔宽倍率")).toHaveValue(1);
   });
 
   it("submits a build and lists renders and downloads", async () => {
@@ -110,6 +166,18 @@ describe("BlenderPage", () => {
     expect(screen.getByRole("link", { name: /前壳 · STL/ })).toHaveAttribute("href", "/api/blender/jobs/job-1/files/front_shell.stl");
     expect(jobView).toHaveTextContent("非流形");
     expect(calls.some((call) => call.url === "/api/blender/jobs" && call.body !== undefined)).toBe(true);
+  });
+
+  it("shows the build log for a failed job", async () => {
+    mockApi({ jobs: [failedJob] });
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: /失败/ }));
+
+    const log = await screen.findByTestId("blender-job-log");
+    expect(log).toHaveTextContent("boolean modifier failed");
+    expect(log).toHaveTextContent("Traceback (most recent call last):");
+    expect(await screen.findByTestId("blender-job")).toHaveTextContent("Blender exited with code 1");
   });
 
   it("disables building when Blender is not configured", async () => {

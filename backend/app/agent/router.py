@@ -14,13 +14,6 @@ from pydantic import BaseModel, Field
 from app.agent.history import HistoryError, delete_reply, prepare_regenerate
 from app.agent.runner import agent_runner
 from app.agent.store import Conversation, ReferenceImage, conversation_store
-from app.agent.vkp import (
-    MAX_IMPORT_BYTES,
-    ProjectFileError,
-    build_project_file,
-    import_project_file,
-    project_file_download_name,
-)
 from app.agent.tools import (
     ToolContext,
     _generated_file_from_url,
@@ -29,6 +22,13 @@ from app.agent.tools import (
     register_version,
     run_annotated_revision,
     run_local_revision,
+)
+from app.agent.vkp import (
+    MAX_IMPORT_BYTES,
+    ProjectFileError,
+    build_project_file,
+    import_project_file,
+    project_file_download_name,
 )
 from app.core.config import get_settings
 from app.core.paths import resolve_repo_path

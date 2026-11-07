@@ -113,8 +113,8 @@ def build_local_revision_prompt(edit_note: str, has_supplemental: bool, subject:
     lines = [
         source,
         f"Apply this local edit to Image 1: {note}",
-        f"Change only what the edit asks for. Keep the framing, scale, position, {keep}, "
-        "and every unrelated detail exactly the same.",
+        (f"Change only what the edit asks for. Keep the framing, scale, position, {keep}, "
+        "and every unrelated detail exactly the same."),
         "Do not add text, watermarks, logos, or extra characters.",
     ]
     if has_supplemental:

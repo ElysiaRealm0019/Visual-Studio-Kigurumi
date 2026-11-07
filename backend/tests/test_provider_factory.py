@@ -3,7 +3,10 @@ import pytest
 from app.core.config import get_settings
 from app.generation import provider as provider_module
 from app.generation.backends.types import ImageGenerationProvider, ProviderOutput
-from app.generation.detail_analysis import DetailAnalysisProviderRequest, DetailAnalysisProviderResult
+from app.generation.detail_analysis import (
+    DetailAnalysisProviderRequest,
+    DetailAnalysisProviderResult,
+)
 
 
 @pytest.fixture(autouse=True)

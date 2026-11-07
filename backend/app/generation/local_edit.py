@@ -6,7 +6,6 @@ from pathlib import Path
 
 from PIL import Image, ImageChops, ImageFilter
 
-
 MAX_LOCAL_EDIT_SIDE = 4096
 
 

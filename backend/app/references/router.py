@@ -8,18 +8,12 @@ from fastapi.responses import FileResponse
 
 from app.core.config import get_settings
 from app.core.paths import resolve_repo_path
-
+from app.images.media import IMAGE_SUFFIXES, image_media_type, resolve_image_asset
 
 router = APIRouter(prefix="/references", tags=["references"])
 
 ALLOWED_IMAGE_MIME_TYPES = {"image/png", "image/jpeg", "image/webp"}
-ALLOWED_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
-IMAGE_MEDIA_TYPES = {
-    ".png": "image/png",
-    ".jpg": "image/jpeg",
-    ".jpeg": "image/jpeg",
-    ".webp": "image/webp",
-}
+ALLOWED_IMAGE_EXTENSIONS = IMAGE_SUFFIXES
 
 
 @router.post("")
@@ -48,29 +42,17 @@ async def upload_reference(
 
 @router.get("/{asset_path:path}")
 async def get_reference_asset(asset_path: str) -> FileResponse:
-    normalized = asset_path.replace("\\", "/")
-    posix_path = PurePosixPath(normalized)
-    if (
-        posix_path.is_absolute()
-        or any(part == ".." for part in posix_path.parts)
-        or len(posix_path.parts) < 2
-        or posix_path.parts[0] != "references"
-    ):
-        raise HTTPException(status_code=400, detail="Invalid reference asset path")
-
-    extension = Path(posix_path.name).suffix.lower()
-    if extension not in ALLOWED_IMAGE_EXTENSIONS:
-        raise HTTPException(status_code=400, detail="Unsupported reference image type")
-
-    reference_root = resolve_repo_path(get_settings().reference_upload_dir).resolve()
-    candidate = (reference_root / Path(*posix_path.parts[1:])).resolve()
-    try:
-        candidate.relative_to(reference_root)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid reference asset path")
-    if not candidate.is_file():
-        raise HTTPException(status_code=404, detail="Reference asset not found")
-    return FileResponse(candidate, media_type=IMAGE_MEDIA_TYPES[extension])
+    file_path = resolve_image_asset(
+        asset_path,
+        get_settings().reference_upload_dir,
+        required_prefix="references",
+        min_parts=2,
+        invalid_status_code=400,
+        invalid_detail="Invalid reference asset path",
+        unsupported_detail="Unsupported reference image type",
+        missing_detail="Reference asset not found",
+    )
+    return FileResponse(file_path, media_type=image_media_type(file_path))
 
 
 def clear_uploaded_references() -> None:

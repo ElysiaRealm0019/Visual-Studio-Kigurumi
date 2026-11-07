@@ -1,6 +1,6 @@
 import { IconArrowLeft, IconDownload, IconPlayerStop, IconRefresh, IconTool } from "@tabler/icons-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { LanguageSelector } from "../i18n/LanguageSelector";
@@ -37,18 +37,46 @@ export function BlenderPage() {
   const historyQuery = useQuery({ queryKey: ["blender-jobs"], queryFn: listBuilds });
   const schema = schemaQuery.data?.schema;
 
+  // Server-side defaults: POST /validate with empty params fills them in (sizing.validate), so the
+  // frontend no longer owns a second copy of the default values.
+  const defaultsQuery = useQuery({
+    queryKey: ["blender-defaults", schema?.schema_version],
+    queryFn: () => validateParams({}, schema?.schema_version ?? 0),
+    enabled: schema !== undefined,
+    staleTime: Infinity,
+  });
+  const serverDefaults = defaultsQuery.data?.params;
+
   const [params, setParams] = useState<Params | null>(null);
   const [validated, setValidated] = useState<Validated | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // The defaults call is itself a /validate, so the params it seeds are already validated; skip the
+  // one debounced validation that the initial seeding would otherwise trigger.
+  const skipInitialValidation = useRef(false);
 
   useEffect(() => {
-    if (schema && params === null) setParams(defaultParams(schema));
-  }, [schema, params]);
+    if (params !== null) return;
+    if (serverDefaults) {
+      skipInitialValidation.current = true;
+      setParams({ ...serverDefaults });
+      setValidated(defaultsQuery.data ?? null);
+    } else if (schema && defaultsQuery.isError) setParams(defaultParams(schema));
+  }, [schema, params, serverDefaults, defaultsQuery.isError, defaultsQuery.data]);
+
+  // Baseline for reset / preset / history: the server defaults when available, schema defaults otherwise.
+  const baseline = useCallback((): Params => {
+    if (serverDefaults) return { ...serverDefaults };
+    return schema ? defaultParams(schema) : {};
+  }, [serverDefaults, schema]);
 
   // live clamping + derived size from the backend (same code as the Blender build)
   useEffect(() => {
     if (!schema || !params) return;
+    if (skipInitialValidation.current) {
+      skipInitialValidation.current = false;
+      return;
+    }
     let stale = false;
     const timer = window.setTimeout(() => {
       validateParams(params, schema.schema_version)
@@ -88,7 +116,7 @@ export function BlenderPage() {
 
   function applyPreset(id: string) {
     const preset = schemaQuery.data?.presets.find((item) => item.id === id);
-    if (schema && preset) setParams({ ...defaultParams(schema), ...preset.params });
+    if (schema && preset) setParams({ ...baseline(), ...preset.params });
   }
 
   async function build() {
@@ -152,7 +180,7 @@ export function BlenderPage() {
                     </option>
                   ))}
                 </select>
-                <button className="ide-button" onClick={() => setParams(defaultParams(schema))} type="button">
+                <button className="ide-button" onClick={() => setParams(baseline())} type="button">
                   <IconRefresh size={14} />
                   {text.reset}
                 </button>
@@ -202,7 +230,7 @@ export function BlenderPage() {
               {job ? <JobView job={job} text={text} /> : null}
               <History
                 jobs={historyQuery.data ?? []}
-                onLoad={(item) => setParams({ ...defaultParams(schema), ...item.params })}
+                onLoad={(item) => setParams({ ...baseline(), ...item.params })}
                 onOpen={(item) => setJobId(item.id)}
                 text={text}
               />
@@ -411,6 +439,14 @@ function JobView({ job, text }: { job: BlenderJob; text: Text }) {
       </div>
       <progress className="w-full" max={100} value={job.progress} />
       {job.status === "failed" ? <p className="text-xs text-[var(--ide-danger)]">{text.failed}：{job.error}</p> : null}
+      {job.status === "failed" && job.log_tail.length ? (
+        <details className="text-xs" data-testid="blender-job-log" open>
+          <summary className="cursor-pointer text-[var(--ide-text-muted)]">{text.log}</summary>
+          <pre className="mt-1 max-h-64 overflow-auto rounded border border-[var(--ide-border)] bg-[var(--ide-bg)] p-2">
+            {job.log_tail.join("\n")}
+          </pre>
+        </details>
+      ) : null}
       {job.status === "cancelled" ? <p className="text-xs text-[var(--ide-text-muted)]">{text.cancelled}</p> : null}
       {measured ? (
         <p className="text-xs text-[var(--ide-text-muted)]">

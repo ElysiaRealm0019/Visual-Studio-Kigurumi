@@ -5,7 +5,6 @@ from typing import Any
 from app.generation.backends.types import ProviderOutput
 from app.generation.modes import is_turnaround_mode
 
-
 DEFAULT_WIDTH = 2048
 DEFAULT_HEIGHT = 1536
 FRONT_WIDTH = 800
@@ -33,7 +32,7 @@ def parse_codex_manifest(
         _validate_local_edit_manifest(manifest, local_edit_expected)
     outputs = manifest.get("outputs")
     if not isinstance(outputs, list):
-        raise ValueError("Codex manifest must contain an outputs list")
+        raise ValueError("Codex manifest must contain an outputs list")  # noqa: TRY004 - manifest validation; ValueError contract
     if len(outputs) != len(expected_indexes):
         raise ValueError(
             f"Codex manifest must contain exactly {len(expected_indexes)} outputs"
@@ -83,23 +82,23 @@ def _parse_output(
     default_height: int,
 ) -> ProviderOutput:
     if not isinstance(output, dict):
-        raise ValueError("Codex manifest outputs must be objects")
+        raise ValueError("Codex manifest outputs must be objects")  # noqa: TRY004 - manifest validation; ValueError contract
 
     index = output.get("index")
     if not isinstance(index, int) or isinstance(index, bool):
-        raise ValueError("Codex manifest output index must be an integer")
+        raise ValueError("Codex manifest output index must be an integer")  # noqa: TRY004 - manifest validation; ValueError contract
 
     raw_path = output.get("path")
     if not isinstance(raw_path, str):
-        raise ValueError("Codex manifest output path must be a string")
+        raise ValueError("Codex manifest output path must be a string")  # noqa: TRY004 - manifest validation; ValueError contract
     relative_path = _normalize_relative_path(raw_path)
 
     width = output.get("width", default_width)
     height = output.get("height", default_height)
     if not isinstance(width, int) or isinstance(width, bool):
-        raise ValueError("Codex manifest output width must be an integer")
+        raise ValueError("Codex manifest output width must be an integer")  # noqa: TRY004 - manifest validation; ValueError contract
     if not isinstance(height, int) or isinstance(height, bool):
-        raise ValueError("Codex manifest output height must be an integer")
+        raise ValueError("Codex manifest output height must be an integer")  # noqa: TRY004 - manifest validation; ValueError contract
 
     prefix = public_prefix.rstrip("/")
     return ProviderOutput(

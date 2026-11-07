@@ -82,7 +82,7 @@ def _check_entry_name(name: str) -> None:
         or path.is_absolute()
         or any(part in ("..", "") for part in path.parts)
         or not (
-            name in (MANIFEST_NAME, PROJECT_NAME) or name.startswith("assets/") or name.startswith("generated/")
+            name in (MANIFEST_NAME, PROJECT_NAME) or name.startswith(("assets/", "generated/"))
         )
     ):
         raise ProjectFileError("unsafe_entry")

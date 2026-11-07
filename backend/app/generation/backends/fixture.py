@@ -6,7 +6,11 @@ from app.generation.detail_analysis import (
     DetailAnalysisProviderResult,
     DetailFeature,
 )
-from app.generation.modes import AI_OUTPUT_LANDMARKS_ENABLED, expected_output_indexes, normalize_generation_mode
+from app.generation.modes import (
+    AI_OUTPUT_LANDMARKS_ENABLED,
+    expected_output_indexes,
+    normalize_generation_mode,
+)
 
 
 class FixtureImageProvider(ImageGenerationProvider):

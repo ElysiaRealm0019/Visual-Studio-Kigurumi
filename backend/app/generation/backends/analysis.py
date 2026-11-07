@@ -124,12 +124,12 @@ def parse_reference_safety_json(text: str) -> ReferenceSafetyResult:
             stripped = stripped[4:].strip()
     payload: Any = json.loads(stripped)
     if not isinstance(payload, dict):
-        raise ValueError("Reference safety result must be an object")
+        raise ValueError("Reference safety result must be an object")  # noqa: TRY004 - untrusted model JSON; ValueError contract
 
     allowed = payload.get("allowed")
     reason = str(payload.get("reason") or "").strip()
     if not isinstance(allowed, bool):
-        raise ValueError("Reference safety result allowed must be boolean")
+        raise ValueError("Reference safety result allowed must be boolean")  # noqa: TRY004 - untrusted model JSON; ValueError contract
     if reason not in {"ok", "adult_explicit", "unusable_reference"}:
         raise ValueError("Reference safety result reason is invalid")
     if allowed and reason != "ok":

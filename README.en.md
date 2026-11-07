@@ -40,7 +40,7 @@ You can ask for changes in chat at any step, or edit the image yourself and save
 
 ## Quick start (Windows, no Docker)
 
-Local development needs no Docker. Jobs run inside the API process, state lives in SQLite and outputs go to `runtime/`.
+Local development needs no Docker. The backend is a single FastAPI process: generation jobs run inside it (there is no separate worker), state lives in SQLite and JSON files, and outputs go to `runtime/`.
 
 ```powershell
 Copy-Item .env.example .env
@@ -112,6 +112,19 @@ deleting a key or emptying it reverts to the default.
   - Claude cannot generate images, so it only serves the LLM roles.
 - All generated images carry V.S.K's own "AI generated" watermark. Platform watermarks are turned off.
 
+### 3D head-shell builds (optional)
+
+The `/blender` page turns parameter sliders into a printable head shell. It writes `params.json`, then runs `blender/build_shell.py` as a headless Blender subprocess started by the API process (no separate service), producing preview renders and parts (front shell, back shell, eyeline) in `runtime/blender/<job id>/`.
+
+It stays disabled until both of these are reachable:
+
+| Setting | Meaning |
+| --- | --- |
+| `BLENDER_PATH` | Blender executable (default: `blender` on `PATH`) |
+| `BLENDER_SHELL_BLEND` | base `.blend` file; leave it empty to keep the page disabled |
+
+Each build is capped by `BLENDER_TIMEOUT_SECONDS` (default 600) and runs at most `BLENDER_PARALLELISM` at a time (default 1); it can be cancelled from the page. The API Docker image does not include Blender, so in a container deployment leave `BLENDER_SHELL_BLEND` empty and the page reports why it is unavailable; a local run uses the Blender installed on your machine.
+
 ### Product reference images (optional)
 
 The repository does not ship product photos. To constrain the finished head-shell style (background, shell material, wig texture, lighting), put your own PNGs in `ref/` (gitignored):
@@ -126,11 +139,16 @@ The photo only sets the finished-product look (matte shell, lens eyes, wig, ligh
 ## Docker
 
 ```powershell
-Copy-Item .env.example .env   # replace every change-me-* value first
+Copy-Item .env.example .env   # then fill in your API keys, endpoints and models, and replace the placeholder secrets
 docker compose up --build
 ```
 
-The app runs at <http://localhost:15173> and the API at <http://localhost:18000/health>.
+Compose runs two services and nothing else:
+
+- `api`: the FastAPI process itself, which runs generation jobs in-process and manages head-shell builds as headless Blender subprocesses;
+- `frontend`: nginx serving the built app and proxying `/api` to the API.
+
+There is no separate worker, Postgres, Redis or object store. Job state and generated files live in SQLite and the filesystem under `runtime/`, which compose bind-mounts. The app runs at <http://localhost:15173> and the API at <http://localhost:18000/health>.
 
 To use the CLI backends, mount logged-in config directories:
 
@@ -141,11 +159,12 @@ To use the CLI backends, mount logged-in config directories:
 
 On the server, create a production `.env` with at least:
 
-- `APP_ENV=production`
+- `APP_ENV=production` (this also makes the settings page read-only)
 - `ALLOW_FIXTURE_GENERATION=false`
-- strong values for `POSTGRES_PASSWORD`, `MINIO_ROOT_PASSWORD`, `JWT_SECRET` and `ADMIN_AUDIT_PASSWORD`
+- a strong `ADMIN_AUDIT_PASSWORD`
 - `CORS_ALLOWED_ORIGINS`
-- your backends and keys
+- the backends and API keys you actually use
+- `API_BIND_HOST` and `FRONTEND_BIND_HOST` if the app must be reachable from outside the host (they default to `127.0.0.1`), or put a reverse proxy in front
 
 Then deploy the current commit:
 
@@ -153,7 +172,7 @@ Then deploy the current commit:
 .\scripts\deploy-ssh.ps1 -KeyPath "$env:USERPROFILE\.ssh\id_ed25519" -SshTarget "deploy@example.com" -RemoteAppDir "/opt/vsk"
 ```
 
-The script uploads a `git archive`, refuses fixture generation in production and rebuilds the containers.
+The script requires a clean working tree and an existing production `.env` on the server, uploads a `git archive`, refuses fixture or mock generation providers, and rebuilds only the `api` and `frontend` containers. State and outputs stay in `runtime/` next to the compose file.
 
 Never commit `.env` or `runtime/settings-overrides.json`; both may contain keys.
 
