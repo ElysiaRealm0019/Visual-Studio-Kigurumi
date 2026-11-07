@@ -1,6 +1,6 @@
 # V.S.K 技术栈整合指南
 
-状态：执行中（第四阶段已完成；审计 7.4.1 已修复，7.4.2/7.4.3/7.4.4 待处理）
+状态：执行中（第四阶段已完成；审计 7.4.1–7.4.4 已修复，7.5 测试缺口已补；Nginx/Docker 运行时待有环境复核）
 日期：2026-11-07
 范围：前端、后端、Docker 部署、Blender 参数化链路、配置与文档
 
@@ -451,7 +451,7 @@ docker compose up --build
 - 真实 Blender E2E 仍因未显式启用而跳过；
 - 本机无 Docker，Nginx/Compose 生产链路仍需在有 Docker 的环境复核。
 
-以下四项是第三阶段审计时确认的既有问题，**尚未在代码中修复**，不得将它们记录为第三阶段已完成事项。
+以下四项是第三阶段审计时确认的既有问题；其中 WebP MIME 问题已在第四阶段修复，其余问题仍待处理。不得把它们记录为第三阶段已完成事项。
 
 #### 7.4.1 `StaticFiles` 的 WebP MIME 类型依赖机器配置
 
@@ -488,6 +488,8 @@ docker compose up --build
 
 验收标准：缺失 WebP/JS/CSS 不返回 HTML 200，同时直接打开前端项目路由仍返回 `index.html`。
 
+状态：已修复。`frontend/serverStatic.mjs` 抽出纯解析逻辑：带扩展名的缺失路径返回 404，`/api`、`/static`、`/generated` 不再回退到 SPA；前端路由仍回退 `index.html`。`npm run test:server` 覆盖 8 个用例，`viteProxyConfig.test.ts` 断言 Vite 代理保留 `/api`。
+
 #### 7.4.3 Nginx 裸 `/api` 与其他服务器行为不一致
 
 现状：
@@ -502,6 +504,8 @@ docker compose up --build
 - 增加 `location = /api`，将其代理到后端，或明确返回 404；
 - 目标是避免裸 `/api` 返回 SPA HTML，不要求前端新增任何请求；
 - 在 `frontend/src/nginxConfig.test.ts` 中增加配置回归断言，并在真实 Nginx 环境补一次 smoke。
+
+状态：已修复。`frontend/nginx.conf` 增加 `location = /api`，与 `/api/` 一样代理到 `api:8000`；`nginxConfig.test.ts` 断言精确块、代理目标、Host/X-Forwarded-* 与 1800s 超时。真实 Nginx 仍需在有 Docker 的环境跑 `nginx -t` 与一次请求。
 
 #### 7.4.4 Ruff 告警数量必须按检查范围记录
 
@@ -523,6 +527,8 @@ docker compose up --build
 - FastAPI 的 `File`、`Depends` 相关 B008 告警应按框架语义判断，不机械修改函数签名；
 - 每批清理后运行完整 pytest。
 
+状态：已清理。`backend/.venv/Scripts/python.exe -m ruff check .` 全量通过：`pyproject.toml` 用 `extend-immutable-calls` 处理 FastAPI B008，安全自动修复 I001/UP035/UP041，手工处理 ISC004/RUF046/PIE810/FLY002；TRY004 与 BLE001 逐条判断后以带理由的行内 noqa 保留原有异常语义；同期 `pytest` 310 passed, 1 skipped。
+
 ### 7.5 第三阶段后续测试缺口
 
 以下属于测试覆盖缺口，不是已证实的功能回归：
@@ -530,6 +536,8 @@ docker compose up --build
 1. `server.mjs`、Vite 和 Nginx 的“保留 `/api` 前缀”主要依赖手工 smoke，缺少自动化代理回归测试；
 2. `.vkp` 测试使用 fixture 项目，未覆盖包含真实 generated 文件的导入后 HTTP 图片加载；
 3. 建议补一个含 generated 图片的 `.vkp` 往返用例，直接请求导入后的 `state.images[].url`，防止未来路径调整破坏项目迁移。
+
+状态：已补齐。1) Vite 与 `server.mjs` 由 `viteProxyConfig.test.ts`、`serverStatic.test.mjs` 覆盖，Nginx 由 `nginxConfig.test.ts` 覆盖；2) `test_export_import_carries_generated_outputs` 以真实 `runtime/generated` 输出往返 `.vkp`，逐字节校验导出包与导入后 `state.images[].url` 的 HTTP 响应。
 
 ## 8. 第四阶段：合并重复实现
 
