@@ -81,10 +81,41 @@ describe("nginx production config", () => {
   });
 
   it("keeps forwarding the full /api/ URI without stripping the prefix", () => {
-    const block = locationBlock(readConfig(), /\blocation\s+\/api\/\s*\{/);
+    const block = locationBlock(readConfig(), /\blocation\s+\^~\s+\/api\/\s*\{/);
     const target = proxyPassTarget(block);
 
     expect(target).toBe("http://api:8000");
     expect(target).not.toMatch(/^http:\/\/api:8000\//);
+  });
+
+  it("protects /api/ from the static-file regex locations", () => {
+    expect(readConfig()).toMatch(/\blocation\s+\^~\s+\/api\/\s*\{/);
+  });
+
+  it("returns 404 for the removed /static and /generated namespaces", () => {
+    const config = readConfig();
+    const prefixes = [
+      { header: /\blocation\s+\^~\s+\/static\/\s*\{/, name: "/static/" },
+      { header: /\blocation\s+\^~\s+\/generated\/\s*\{/, name: "/generated/" },
+    ];
+
+    for (const prefix of prefixes) {
+      const block = locationBlock(config, prefix.header);
+      expect(block, prefix.name).toContain("return 404;");
+    }
+  });
+
+  it("returns 404 for missing assets with an extension instead of index.html", () => {
+    const block = locationBlock(readConfig(), /\blocation\s+~\*\s+\\\.\[A-Za-z0-9\]\+\$\s*\{/);
+
+    expect(block).toContain("try_files $uri =404;");
+    expect(block).not.toContain("index.html");
+  });
+
+  it("still serves the SPA shell for extensionless routes", () => {
+    const block = locationBlock(readConfig(), /\blocation\s+\/\s*\{/);
+    const normalized = block.replace(/\s+/g, " ");
+
+    expect(normalized).toContain("try_files $uri $uri/ /index.html;");
   });
 });
