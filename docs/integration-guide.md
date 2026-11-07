@@ -451,7 +451,7 @@ docker compose up --build
 - 真实 Blender E2E 仍因未显式启用而跳过；
 - 本机无 Docker，Nginx/Compose 生产链路仍需在有 Docker 的环境复核。
 
-以下四项是第三阶段审计时确认的既有问题；其中 WebP MIME 问题已在第四阶段修复，其余问题仍待处理。不得把它们记录为第三阶段已完成事项。
+以下四项是第三阶段审计时确认的既有问题，现均已在后续阶段修复（各小节末尾记录了修复状态与证据）。不得把它们记录为第三阶段已完成事项。
 
 #### 7.4.1 `StaticFiles` 的 WebP MIME 类型依赖机器配置
 
@@ -488,11 +488,11 @@ docker compose up --build
 
 验收标准：缺失 WebP/JS/CSS 不返回 HTML 200，同时直接打开前端项目路由仍返回 `index.html`。
 
-状态：已修复。`frontend/serverStatic.mjs` 抽出纯解析逻辑：带扩展名的缺失路径返回 404，`/api`、`/static`、`/generated` 不再回退到 SPA；前端路由仍回退 `index.html`。`npm run test:server` 覆盖 8 个用例，`viteProxyConfig.test.ts` 断言 Vite 代理保留 `/api`。
+状态：已修复。`frontend/serverStatic.mjs` 抽出纯解析逻辑，`frontend/nginx.conf` 同步该行为：带扩展名的缺失路径返回 404，`/api`、`/static`、`/generated` 不再回退到 SPA，前端路由仍回退 `index.html`。`npm run test:server` 覆盖 8 个用例，`viteProxyConfig.test.ts` 与 `nginxConfig.test.ts`（扩展名 404、`/static`/`/generated` 404、SPA 回退保留）覆盖两条服务路径。
 
 #### 7.4.3 Nginx 裸 `/api` 与其他服务器行为不一致
 
-现状：
+审计时现状（该问题现已修复，见本节末尾状态）：
 
 - `server.mjs` 显式代理裸 `/api`；
 - Nginx 只有 `location /api/`，不匹配裸 `/api`；
@@ -505,7 +505,7 @@ docker compose up --build
 - 目标是避免裸 `/api` 返回 SPA HTML，不要求前端新增任何请求；
 - 在 `frontend/src/nginxConfig.test.ts` 中增加配置回归断言，并在真实 Nginx 环境补一次 smoke。
 
-状态：已修复。`frontend/nginx.conf` 增加 `location = /api`，与 `/api/` 一样代理到 `api:8000`；`nginxConfig.test.ts` 断言精确块、代理目标、Host/X-Forwarded-* 与 1800s 超时。真实 Nginx 仍需在有 Docker 的环境跑 `nginx -t` 与一次请求。
+状态：已修复。`frontend/nginx.conf` 增加 `location = /api`，并把 `/api/` 改为 `^~` 前缀，避免 `/api/generated/*.webp` 被静态资源正则截获；`nginxConfig.test.ts` 断言精确块、代理目标、`^~` 保护、Host/X-Forwarded-* 与 1800s 超时。真实 Nginx 仍需在有 Docker 的环境跑 `nginx -t` 与一次请求。
 
 #### 7.4.4 Ruff 告警数量必须按检查范围记录
 
